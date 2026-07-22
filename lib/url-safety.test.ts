@@ -52,6 +52,10 @@ describe("normalizeAndValidatePublicUrl", () => {
       ok: false,
       error: "Localhost URLs are not allowed.",
     });
+    await expect(normalizeAndValidatePublicUrl("https://admin.internal")).resolves.toEqual({
+      ok: false,
+      error: "Localhost URLs are not allowed.",
+    });
   });
 
   it("rejects direct private IPs", async () => {

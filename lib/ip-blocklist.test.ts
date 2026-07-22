@@ -26,10 +26,24 @@ describe("ip-blocklist", () => {
     expect(isBlockedIp("::1")).toBe(true);
     expect(isBlockedIp("fc00::1")).toBe(true);
     expect(isBlockedIp("fe80::1")).toBe(true);
+    expect(isBlockedIp("febf::1")).toBe(true);
+    expect(isBlockedIp("ff02::1")).toBe(true);
+  });
+
+  it("blocks IPv4-compatible and IPv4-mapped private addresses", () => {
+    expect(isBlockedIp("::ffff:127.0.0.1")).toBe(true);
+    expect(isBlockedIp("::ffff:7f00:1")).toBe(true);
+    expect(isBlockedIp("0:0:0:0:0:ffff:0a00:1")).toBe(true);
+    expect(isBlockedIp("::127.0.0.1")).toBe(true);
+  });
+
+  it("allows an IPv4-mapped public address", () => {
+    expect(isBlockedIp("::ffff:93.184.216.34")).toBe(false);
   });
 
   it("treats malformed addresses as blocked", () => {
     expect(isBlockedIp("not-an-ip")).toBe(true);
     expect(isBlockedIpv4("999.999.999.999")).toBe(true);
+    expect(isBlockedIp("2001:::1")).toBe(true);
   });
 });

@@ -157,7 +157,7 @@ Example:
 ]
 ```
 
-For authenticated probe calls, set the same `PROBE_SECRET` in the Vercel app and every Cloudflare Worker environment:
+Probe authentication is required. Set the same non-empty `PROBE_SECRET` in the Vercel app and every Cloudflare Worker environment before running or deploying probes:
 
 ```bash
 npx wrangler secret put PROBE_SECRET --config probes/cloudflare/wrangler.jsonc --env iad

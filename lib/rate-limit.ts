@@ -1,6 +1,7 @@
 import { neon } from "@neondatabase/serverless";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { assertLocalStorageAllowed } from "@/lib/runtime-config";
 
 const WINDOW_MS = 60 * 60 * 1000;
 const MAX_REQUESTS = 10;
@@ -22,6 +23,7 @@ export async function checkRateLimit(key: string): Promise<{ ok: true } | { ok: 
     return checkDatabaseRateLimit(key);
   }
 
+  assertLocalStorageAllowed();
   return checkLocalRateLimit(key);
 }
 

@@ -1,66 +1,63 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { useMemo } from "react";
 import { cn } from "@/lib/utils";
-import { formatLatency, formatProbeStatus, latencyHexColor } from "@/lib/latency-display";
+import { LATENCYMAP_GLOBE_CONFIG, probeResultsToGlobeArcs } from "@/lib/aceternity-globe";
+import { formatLatency, formatProbeStatus } from "@/lib/latency-display";
+import { probeCountryName } from "@/lib/probe-regions";
 import type { ProbeResult } from "@/lib/types";
-import type { GlobeProps } from "react-globe.gl";
 
-const Globe = dynamic<GlobeProps>(() => import("react-globe.gl"), {
+const AceternityWorld = dynamic(() => import("@/components/ui/globe").then((module) => module.World), {
   ssr: false,
   loading: () => (
-    <div className="grid h-[340px] place-items-center text-sm text-muted-foreground sm:h-[440px]">
-      Loading globe
-    </div>
+    <div className="grid h-full min-h-[18rem] place-items-center text-sm text-[#8a8a8a]">Loading globe</div>
   ),
 });
-
-type GlobePoint = {
-  region: string;
-  label: string;
-  latency: string;
-  status: string;
-  colo: string;
-  lat: number;
-  lng: number;
-  color: string;
-  radius: number;
-  altitude: number;
-};
 
 type Props = {
   results: ProbeResult[];
   selectedRegion: string | null;
   onSelectRegion: (region: string | null) => void;
+  variant?: "default" | "minimal";
 };
 
-export function GlobePanel({ results, selectedRegion, onSelectRegion }: Props) {
-  const frameRef = useRef<HTMLDivElement>(null);
-  const size = useElementSize(frameRef);
-  const points = useMemo(
-    () =>
-      results.map((result) => ({
-        region: result.region,
-        label: result.label,
-        latency: formatLatency(result),
-        status: formatProbeStatus(result),
-        colo: result.cloudflareColo ?? "n/a",
-        lat: result.lat,
-        lng: result.lng,
-        color: latencyHexColor(result.totalMs, result.error),
-        radius: selectedRegion === result.region ? 0.7 : 0.42,
-        altitude: selectedRegion === result.region ? 0.04 : 0.02,
-      })),
+export function GlobePanel({ results, selectedRegion, onSelectRegion, variant = "default" }: Props) {
+  const arcs = useMemo(
+    () => probeResultsToGlobeArcs(results, selectedRegion),
     [results, selectedRegion],
   );
   const selectedResult = results.find((result) => result.region === selectedRegion) ?? results[0];
 
+  const globe = (
+    <AceternityWorld
+      globeConfig={LATENCYMAP_GLOBE_CONFIG}
+      data={arcs}
+      className="h-full w-full"
+    />
+  );
+
+  if (variant === "minimal") {
+    return (
+      <div className="terminal-globe">
+        <div className="terminal-globe__frame">{globe}</div>
+        {selectedResult ? (
+          <p className="terminal-globe__caption">
+            <span className="terminal-globe__caption-country">{probeCountryName(selectedResult.region)}</span>
+            <span className="terminal-globe__caption-meta">
+              {formatLatency(selectedResult)} · {formatProbeStatus(selectedResult)}
+            </span>
+          </p>
+        ) : null}
+      </div>
+    );
+  }
+
   return (
-    <section className="min-w-0 rounded-[2px] border border-[#264552] bg-[#10212d] p-[18px] text-white">
+    <section className="min-w-0 rounded-[2px] border border-[#264552] bg-[#0a0a0a] p-[18px] text-white">
       <header className="flex items-center justify-between gap-3">
         <div>
-          <p className="font-mono text-xs font-medium leading-tight text-[#b9cbff]">INTERACTIVE MAP</p>
+          <p className="text-xs font-medium leading-tight text-[var(--brand-orange-light)]">INTERACTIVE MAP</p>
           <h2 className="mt-[3px] text-lg font-semibold leading-tight">Probe regions</h2>
         </div>
         <div className="flex flex-wrap justify-end gap-2 text-xs text-[#c5d0d6]">
@@ -71,43 +68,31 @@ export function GlobePanel({ results, selectedRegion, onSelectRegion }: Props) {
         </div>
       </header>
       <div className="pt-4">
-        <div ref={frameRef} className="h-[340px] overflow-hidden border border-[#264552] bg-[#0a1821] sm:h-[440px]">
-          {size.width > 0 ? (
-            <Globe
-              width={size.width}
-              height={size.height}
-              backgroundColor="rgba(0,0,0,0)"
-              globeImageUrl="/earth-texture.svg"
-              bumpImageUrl="/earth-bump.svg"
-              showAtmosphere
-              atmosphereColor="#2457f5"
-              atmosphereAltitude={0.18}
-              pointsData={points}
-              pointLat="lat"
-              pointLng="lng"
-              pointColor="color"
-              pointRadius="radius"
-              pointAltitude="altitude"
-              pointResolution={24}
-              pointsMerge={false}
-              pointLabel={(point) => pointLabel(point as GlobePoint)}
-              onPointHover={(point) => onSelectRegion((point as GlobePoint | null)?.region ?? null)}
-              onPointClick={(point) => onSelectRegion((point as GlobePoint).region)}
-            />
-          ) : null}
-        </div>
+        <div className="h-[340px] overflow-hidden border border-[#1a1a1a] bg-black sm:h-[440px]">{globe}</div>
         {selectedResult ? (
-          <div className="mt-3 grid gap-2 border-t border-[#264552] pt-3 sm:grid-cols-4">
-            <InspectorValue label="Selected probe" value={selectedResult.label} />
+          <div className="mt-3 grid gap-2 border-t border-[#1a1a1a] pt-3 sm:grid-cols-3">
+            <InspectorValue label="Country" value={probeCountryName(selectedResult.region)} />
             <InspectorValue label="Latency" value={formatLatency(selectedResult)} />
             <InspectorValue label="Status" value={formatProbeStatus(selectedResult)} />
-            <InspectorValue
-              label="Cloudflare colo"
-              value={selectedResult.cloudflareColo ?? "n/a"}
-              title={selectedResult.placementRegion ?? undefined}
-            />
           </div>
         ) : null}
+        <div className="mt-3 flex flex-wrap gap-2">
+          {results.map((result) => (
+            <button
+              key={result.region}
+              type="button"
+              className={cn(
+                "rounded-[2px] border px-2 py-1 text-xs transition-colors",
+                selectedRegion === result.region
+                  ? "border-[var(--brand-orange)] text-[var(--brand-orange)]"
+                  : "border-[#1a1a1a] text-[#8a8a8a] hover:border-[#333] hover:text-white",
+              )}
+              onClick={() => onSelectRegion(result.region)}
+            >
+              {probeCountryName(result.region)}
+            </button>
+          ))}
+        </div>
       </div>
     </section>
   );
@@ -122,47 +107,11 @@ function LegendDot({ className, label }: { className: string; label: string }) {
   );
 }
 
-function InspectorValue({ label, value, title }: { label: string; value: string; title?: string }) {
+function InspectorValue({ label, value }: { label: string; value: string }) {
   return (
     <div className="min-w-0">
-      <span className="mb-1 block font-mono text-xs font-medium text-[#c5d0d6]">{label}</span>
-      <strong className="block truncate text-sm" title={title ?? value}>{value}</strong>
+      <span className="mb-1 block text-xs font-medium text-[#8a8a8a]">{label}</span>
+      <strong className="block truncate text-sm">{value}</strong>
     </div>
   );
-}
-
-function useElementSize(ref: RefObject<HTMLElement | null>) {
-  const [size, setSize] = useState({ width: 0, height: 0 });
-
-  useEffect(() => {
-    const element = ref.current;
-    if (!element) return;
-
-    const resizeObserver = new ResizeObserver(([entry]) => {
-      const { width, height } = entry.contentRect;
-      setSize({ width: Math.floor(width), height: Math.floor(height) });
-    });
-    resizeObserver.observe(element);
-
-    return () => resizeObserver.disconnect();
-  }, [ref]);
-
-  return size;
-}
-
-function pointLabel(point: GlobePoint) {
-  return [
-    `<strong>${escapeHtml(point.label)}</strong>`,
-    `${escapeHtml(point.latency)} · ${escapeHtml(point.status)}`,
-    `Cloudflare colo ${escapeHtml(point.colo)}`,
-  ].join("<br />");
-}
-
-function escapeHtml(value: string) {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
 }

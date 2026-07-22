@@ -1,6 +1,8 @@
 import { spawn } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
-import path from "node:path";
+import { loadEnvLocal } from "./env-local.mjs";
+
+const envLocal = loadEnvLocal();
+const baseEnv = { ...envLocal, ...process.env };
 
 const appHost = process.env.APP_HOST || "127.0.0.1";
 const appPort = process.env.APP_PORT || "3000";
@@ -20,14 +22,14 @@ const localProbeConfig = JSON.stringify([
 ]);
 
 const appEnv = {
-  ...process.env,
+  ...baseEnv,
   APP_HOST: appHost,
   APP_PORT: appPort,
   PROBE_ENDPOINTS: getConfiguredProbeEndpoints() || localProbeConfig,
 };
 
 const probeEnv = {
-  ...process.env,
+  ...baseEnv,
   HOST: probeHost,
   PORT: probePort,
   PROBE_REGION: probeRegion,
@@ -96,21 +98,9 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
 }
 
 function getConfiguredProbeEndpoints() {
-  if (process.env.PROBE_ENDPOINTS) {
-    return process.env.PROBE_ENDPOINTS;
+  if (baseEnv.PROBE_ENDPOINTS) {
+    return baseEnv.PROBE_ENDPOINTS;
   }
 
-  const envPath = path.join(process.cwd(), ".env.local");
-  if (!existsSync(envPath)) {
-    return null;
-  }
-
-  const contents = readFileSync(envPath, "utf8");
-  const line = contents
-    .split(/\r?\n/)
-    .map((entry) => entry.trim())
-    .find((entry) => entry.startsWith("PROBE_ENDPOINTS="));
-
-  const value = line?.slice("PROBE_ENDPOINTS=".length).trim();
-  return value || null;
+  return null;
 }

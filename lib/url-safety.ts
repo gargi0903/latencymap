@@ -32,7 +32,12 @@ export async function normalizeAndValidatePublicUrl(rawUrl: string): Promise<Val
   }
 
   const hostname = url.hostname;
-  if (BLOCKED_HOSTS.has(hostname) || hostname.endsWith(".localhost")) {
+  if (
+    BLOCKED_HOSTS.has(hostname) ||
+    hostname.endsWith(".localhost") ||
+    hostname.endsWith(".local") ||
+    hostname.endsWith(".internal")
+  ) {
     return { ok: false, error: "Localhost URLs are not allowed." };
   }
 

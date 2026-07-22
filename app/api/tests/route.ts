@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createTestRun, listRunsForUrl } from "@/lib/storage";
 import { ProbeConfigurationError, runRegionalTest } from "@/lib/probes";
+import { RuntimeConfigurationError } from "@/lib/runtime-config";
 import { normalizeAndValidatePublicUrl } from "@/lib/url-safety";
 import { checkRateLimit } from "@/lib/rate-limit";
 
@@ -17,7 +18,16 @@ export async function POST(request: NextRequest) {
     request.headers.get("x-real-ip") ||
     "unknown";
 
-  const allowed = await checkRateLimit(ip);
+  let allowed;
+  try {
+    allowed = await checkRateLimit(ip);
+  } catch (error) {
+    if (error instanceof RuntimeConfigurationError) {
+      return NextResponse.json({ error: error.message }, { status: 503 });
+    }
+
+    throw error;
+  }
   if (!allowed.ok) {
     return NextResponse.json(
       { error: `Rate limit exceeded. Try again in ${allowed.retryAfterSeconds}s.` },

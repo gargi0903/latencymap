@@ -1,3 +1,4 @@
+import { matchesProbeSecret } from "./auth";
 import { validateHostnameOnly } from "../../../lib/probe-url-safety";
 
 const DEFAULT_REGION = "cloudflare";
@@ -50,7 +51,11 @@ const worker = {
       return json({ error: "Not found." }, 404, corsHeaders);
     }
 
-    if (env.PROBE_SECRET && request.headers.get("x-probe-secret") !== env.PROBE_SECRET) {
+    if (!env.PROBE_SECRET) {
+      return json({ error: "Probe is not configured." }, 503, corsHeaders);
+    }
+
+    if (!(await matchesProbeSecret(request.headers.get("x-probe-secret"), env.PROBE_SECRET))) {
       return json({ error: "Unauthorized." }, 401, corsHeaders);
     }
 
