@@ -1,0 +1,37 @@
+[
+  {
+    "id": "iad",
+    "label": "US East (Ashburn)",
+    "lat": 39.0438,
+    "lng": -77.4874,
+    "endpoint": "https://latencymap-probe-iad.<your-workers-subdomain>.workers.dev/probe"
+  },
+  {
+    "id": "lhr",
+    "label": "Europe West (London)",
+    "lat": 51.5072,
+    "lng": -0.1276,
+    "endpoint": "https://latencymap-probe-lhr.<your-workers-subdomain>.workers.dev/probe"
+  },
+  {
+    "id": "sin",
+    "label": "Asia Southeast (Singapore)",
+    "lat": 1.3521,
+    "lng": 103.8198,
+    "endpoint": "https://latencymap-probe-sin.<your-workers-subdomain>.workers.dev/probe"
+  },
+  {
+    "id": "syd",
+    "label": "Australia East (Sydney)",
+    "lat": -33.8688,
+    "lng": 151.2093,
+    "endpoint": "https://latencymap-probe-syd.<your-workers-subdomain>.workers.dev/probe"
+  },
+  {
+    "id": "gru",
+    "label": "South America (Sao Paulo)",
+    "lat": -23.5558,
+    "lng": -46.6396,
+    "endpoint": "https://latencymap-probe-gru.<your-workers-subdomain>.workers.dev/probe"
+  }
+]
