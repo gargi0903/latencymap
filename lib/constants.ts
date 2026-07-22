@@ -1,0 +1,2 @@
+export const PROBE_TIMEOUT_MS = 5000;
+export const PROBE_CLIENT_TIMEOUT_MS = PROBE_TIMEOUT_MS + 500;

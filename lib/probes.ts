@@ -1,3 +1,4 @@
+import { PROBE_CLIENT_TIMEOUT_MS } from "@/lib/constants";
 import type { ProbeConfig, ProbeResult } from "@/lib/types";
 
 export class ProbeConfigurationError extends Error {
@@ -45,7 +46,7 @@ export function getProbeConfig(): ProbeConfig[] {
 
 async function callRemoteProbe(probe: ProbeConfig, url: string, testedAt: string): Promise<ProbeResult> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 6500);
+  const timeout = setTimeout(() => controller.abort(), PROBE_CLIENT_TIMEOUT_MS);
 
   try {
     const response = await fetch(probe.endpoint!, {
@@ -57,6 +58,23 @@ async function callRemoteProbe(probe: ProbeConfig, url: string, testedAt: string
       },
       body: JSON.stringify({ url }),
     });
+
+    if (!response.ok) {
+      const errorBody = (await response.json().catch(() => null)) as { error?: string | null } | null;
+      return {
+        region: probe.id,
+        label: probe.label,
+        lat: probe.lat,
+        lng: probe.lng,
+        totalMs: null,
+        statusCode: response.status,
+        error: errorBody?.error ?? `Probe returned HTTP ${response.status}.`,
+        testedAt,
+        cloudflareColo: null,
+        placementRegion: null,
+      };
+    }
+
     const body = (await response.json().catch(() => null)) as {
       total_ms?: number;
       totalMs?: number;
@@ -76,7 +94,7 @@ async function callRemoteProbe(probe: ProbeConfig, url: string, testedAt: string
       lng: probe.lng,
       totalMs: coerceNumber(body?.total_ms ?? body?.totalMs),
       statusCode: coerceNumber(body?.status_code ?? body?.statusCode),
-      error: response.ok ? body?.error ?? null : body?.error ?? `Probe returned HTTP ${response.status}.`,
+      error: body?.error ?? null,
       testedAt,
       cloudflareColo: coerceString(body?.cloudflare_colo ?? body?.cloudflareColo),
       placementRegion: coerceString(body?.placement_region ?? body?.placementRegion),

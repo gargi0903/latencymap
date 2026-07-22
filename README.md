@@ -177,4 +177,4 @@ User-provided URLs are validated before fetches:
 - redirect targets are re-validated
 - request timeout is 5 seconds
 - response body reads are capped
-- anonymous test runs are rate limited in memory
+- anonymous test runs are rate limited (Postgres-backed when `DATABASE_URL` is set, local JSON buckets otherwise)

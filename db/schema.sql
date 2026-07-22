@@ -22,3 +22,9 @@ create table if not exists probe_results (
   cloudflare_colo text,
   placement_region text
 );
+
+create table if not exists rate_limit_buckets (
+  bucket_key text primary key,
+  count integer not null,
+  reset_at timestamptz not null
+);

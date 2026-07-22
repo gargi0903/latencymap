@@ -62,12 +62,12 @@ Frontend and central backend:
 - Next.js route handlers for backend API
 
 Database:
-- Neon Postgres
+- Neon Postgres when `DATABASE_URL` is configured
+- local JSON storage in `.data/latencymap.json` for development without a database
 
 Probe service:
-- tiny Node.js HTTP service
-- provider-agnostic interface
-- hosting provider to be decided after cost comparison
+- Cloudflare Workers for production regional probes
+- local Node.js probe for development flow testing only
 
 3D map:
 - `react-globe.gl`
@@ -116,21 +116,23 @@ Probe output:
 ```json
 {
   "region": "sin",
+  "placement_region": "aws:ap-southeast-1",
+  "cloudflare_colo": "SIN",
   "total_ms": 184,
   "status_code": 200,
   "error": null
 }
 ```
 
-Probe configuration should be swappable:
+Probe configuration:
 
 ```txt
-PROBES=[
-  { region: "us-east", endpoint: "https://..." },
-  { region: "europe", endpoint: "https://..." },
-  { region: "asia", endpoint: "https://..." }
+PROBE_ENDPOINTS=[
+  { "id": "iad", "label": "US East", "lat": 39.04, "lng": -77.49, "endpoint": "https://..." }
 ]
 ```
+
+`PROBE_ENDPOINTS` is a JSON array of probe metadata and `/probe` URLs.
 
 ## Probe Behavior
 
@@ -245,13 +247,10 @@ gray   = failed
 
 Do not show a fake heatmap with only 3-5 probes. Show honest probe markers.
 
-## Open Decisions
+## Resolved Implementation Notes
 
-Still unresolved:
-- regional probe hosting provider
-- exact first 3-5 probe regions
-- database schema details
-- whether to use an ORM or raw SQL
-- rate limit implementation
-- deployment strategy for probe services
-- CLI/curl endpoint details
+- Probe hosting: Cloudflare Workers with one environment per region (`iad`, `lhr`, `sin`, `syd`, `gru`).
+- Persistence: raw SQL via `@neondatabase/serverless`, with inline schema migration in `lib/storage.ts` and reference DDL in `db/schema.sql`.
+- Rate limiting: Postgres-backed buckets when `DATABASE_URL` is set; local JSON buckets in `.data/rate-limits.json` for development.
+- Probe env var: `PROBE_ENDPOINTS` JSON array (not `PROBES`).
+- UI results: Globe/Table switcher on smaller viewports; both views show the same honest probe evidence.

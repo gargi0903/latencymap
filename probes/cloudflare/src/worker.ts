@@ -1,11 +1,31 @@
+import { validateHostnameOnly } from "../../../lib/probe-url-safety";
+
 const DEFAULT_REGION = "cloudflare";
 const MAX_BODY_BYTES = 16 * 1024;
 const MAX_RESPONSE_BYTES = 64 * 1024;
 const MAX_REDIRECTS = 3;
 const TIMEOUT_MS = 5000;
 
+type ProbeEnv = {
+  PROBE_REGION?: string;
+  PLACEMENT_REGION?: string;
+  PROBE_SECRET?: string;
+};
+
+type CloudflareRequest = Request & {
+  cf?: {
+    colo?: string;
+  };
+};
+
+type FetchTimingResult = {
+  totalMs: number | null;
+  statusCode: number | null;
+  error: string | null;
+};
+
 const worker = {
-  async fetch(request, env) {
+  async fetch(request: CloudflareRequest, env: ProbeEnv) {
     const corsHeaders = getCorsHeaders();
 
     if (request.method === "OPTIONS") {
@@ -36,7 +56,7 @@ const worker = {
 
     try {
       const text = await readLimitedRequestText(request);
-      const body = JSON.parse(text);
+      const body = JSON.parse(text) as { url?: unknown };
 
       if (typeof body.url !== "string") {
         return json({ error: "Expected JSON body with a url field." }, 400, corsHeaders);
@@ -63,12 +83,12 @@ const worker = {
 
 export default worker;
 
-async function fetchWithTiming(targetUrl) {
+async function fetchWithTiming(targetUrl: string): Promise<FetchTimingResult> {
   const started = performance.now();
   let currentUrl = targetUrl;
 
   for (let redirects = 0; redirects <= MAX_REDIRECTS; redirects += 1) {
-    const validation = normalizeAndValidatePublicUrl(currentUrl);
+    const validation = validateHostnameOnly(currentUrl);
     if (!validation.ok) {
       return { totalMs: null, statusCode: null, error: validation.error };
     }
@@ -114,55 +134,7 @@ async function fetchWithTiming(targetUrl) {
   return { totalMs: null, statusCode: null, error: "Too many redirects." };
 }
 
-function normalizeAndValidatePublicUrl(rawUrl) {
-  let url;
-  try {
-    url = new URL(String(rawUrl).trim());
-  } catch {
-    return { ok: false, error: "Enter a valid absolute URL." };
-  }
-
-  if (url.protocol !== "http:" && url.protocol !== "https:") {
-    return { ok: false, error: "Only HTTP and HTTPS URLs are allowed." };
-  }
-
-  if (url.username || url.password) {
-    return { ok: false, error: "URLs with embedded credentials are not allowed." };
-  }
-
-  url.hash = "";
-  url.protocol = url.protocol.toLowerCase();
-  url.hostname = url.hostname.toLowerCase();
-
-  if ((url.protocol === "https:" && url.port === "443") || (url.protocol === "http:" && url.port === "80")) {
-    url.port = "";
-  }
-
-  if (url.pathname === "/") {
-    url.pathname = "";
-  }
-
-  const hostname = stripIpv6Brackets(url.hostname);
-  if (isBlockedHostname(hostname)) {
-    return { ok: false, error: "Localhost URLs are not allowed." };
-  }
-
-  if (isIpv4Address(hostname)) {
-    return isBlockedIpv4(hostname)
-      ? { ok: false, error: "Private or internal IP addresses are not allowed." }
-      : { ok: true, url: url.toString() };
-  }
-
-  if (isLikelyIpv6Address(hostname)) {
-    return isBlockedIpv6(hostname)
-      ? { ok: false, error: "Private or internal IP addresses are not allowed." }
-      : { ok: true, url: url.toString() };
-  }
-
-  return { ok: true, url: url.toString() };
-}
-
-async function readLimitedRequestText(request) {
+async function readLimitedRequestText(request: Request) {
   const contentLength = request.headers.get("content-length");
   if (contentLength && Number(contentLength) > MAX_BODY_BYTES) {
     throw new Error("Request body too large.");
@@ -173,7 +145,7 @@ async function readLimitedRequestText(request) {
   }
 
   const reader = request.body.getReader();
-  const chunks = [];
+  const chunks: Uint8Array[] = [];
   let received = 0;
 
   try {
@@ -204,7 +176,7 @@ async function readLimitedRequestText(request) {
   return new TextDecoder().decode(body);
 }
 
-async function drainLimitedBody(response) {
+async function drainLimitedBody(response: Response) {
   if (!response.body) {
     return;
   }
@@ -226,7 +198,7 @@ async function drainLimitedBody(response) {
   }
 }
 
-function complete(started, statusCode, error) {
+function complete(started: number, statusCode: number, error: string | null): FetchTimingResult {
   return {
     totalMs: Math.round(performance.now() - started),
     statusCode,
@@ -234,58 +206,11 @@ function complete(started, statusCode, error) {
   };
 }
 
-function isRedirect(status) {
+function isRedirect(status: number) {
   return status >= 300 && status < 400;
 }
 
-function isBlockedHostname(hostname) {
-  return (
-    hostname === "localhost" ||
-    hostname.endsWith(".localhost") ||
-    hostname.endsWith(".local") ||
-    hostname.endsWith(".internal")
-  );
-}
-
-function isIpv4Address(value) {
-  return /^(?:\d{1,3}\.){3}\d{1,3}$/.test(value) && value.split(".").every((part) => Number(part) <= 255);
-}
-
-function isBlockedIpv4(ip) {
-  const [a, b] = ip.split(".").map(Number);
-  return (
-    a === 0 ||
-    a === 10 ||
-    a === 127 ||
-    (a === 100 && b >= 64 && b <= 127) ||
-    (a === 169 && b === 254) ||
-    (a === 172 && b >= 16 && b <= 31) ||
-    (a === 192 && b === 168) ||
-    (a === 198 && (b === 18 || b === 19)) ||
-    a >= 224
-  );
-}
-
-function isLikelyIpv6Address(value) {
-  return value.includes(":");
-}
-
-function isBlockedIpv6(ip) {
-  const normalized = ip.toLowerCase();
-  return (
-    normalized === "::" ||
-    normalized === "::1" ||
-    normalized.startsWith("fc") ||
-    normalized.startsWith("fd") ||
-    normalized.startsWith("fe80:")
-  );
-}
-
-function stripIpv6Brackets(hostname) {
-  return hostname.startsWith("[") && hostname.endsWith("]") ? hostname.slice(1, -1) : hostname;
-}
-
-function json(body, status, extraHeaders) {
+function json(body: unknown, status: number, extraHeaders?: Record<string, string>) {
   return new Response(JSON.stringify(body), {
     status,
     headers: {
