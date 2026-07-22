@@ -18,8 +18,7 @@ Always read `MVP_PLAN.md` before making product, architecture, or implementation
 ## Stack Direction
 
 - Use Next.js on Vercel for the frontend and central API route handlers.
-- Use Neon Postgres for persistence when `DATABASE_URL` is configured.
-- Keep local JSON storage for development without a database.
+- Use URL-encoded share links for result persistence (no database required).
 - Deploy the application on Vercel.
 - Deploy probes and supporting edge services on Cloudflare.
 - Use Cloudflare Workers for regional probes with a provider-agnostic HTTP interface.
@@ -52,12 +51,9 @@ Always read `MVP_PLAN.md` before making product, architecture, or implementation
 ```txt
 Next.js app on Vercel
   /
-  /r/[id]
+  /r/[token]
   /api/tests
-  /api/tests/[id]
-        |
-        v
-Neon Postgres or local development storage
+  /api/tests/[token]
         |
         v
 Regional probe endpoints
@@ -158,7 +154,7 @@ https://api.example.com/health
 - Never store fetched response bodies.
 - Do not show fake regional data when `PROBE_ENDPOINTS` is missing.
 - Keep local development behavior honest: a local probe is useful for flow testing, not real regional latency.
-- Maintain compatibility with both Neon-backed persistence and local JSON development storage unless a task explicitly narrows the target.
+- Maintain stateless share links that encode full test runs in the URL.
 - Preserve existing user changes in the working tree. Do not revert unrelated files.
 
 ## Validation Commands

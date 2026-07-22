@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getTestRun, listRunsForUrl } from "@/lib/storage";
+import { decodeSharePayload } from "@/lib/share-payload";
 
 export const runtime = "nodejs";
 
@@ -9,12 +9,11 @@ type Context = {
 
 export async function GET(_request: Request, context: Context) {
   const { id } = await context.params;
-  const run = await getTestRun(id);
+  const run = decodeSharePayload(id);
 
   if (!run) {
-    return NextResponse.json({ error: "Test run not found." }, { status: 404 });
+    return NextResponse.json({ error: "Invalid or expired share link." }, { status: 404 });
   }
 
-  const history = await listRunsForUrl(run.normalizedUrl, 5);
-  return NextResponse.json({ run, history });
+  return NextResponse.json({ run });
 }

@@ -3,7 +3,12 @@
 import dynamic from "next/dynamic";
 import { useMemo } from "react";
 import { cn } from "@/lib/utils";
-import { LATENCYMAP_GLOBE_CONFIG, probeResultsToGlobeArcs } from "@/lib/aceternity-globe";
+import {
+  LATENCYMAP_GLOBE_CONFIG,
+  TERMINAL_GLOBE_CONFIG,
+  probeResultsToGlobeArcs,
+  probeResultsToTerminalGlobeArcs,
+} from "@/lib/aceternity-globe";
 import { formatLatency, formatProbeStatus } from "@/lib/latency-display";
 import { probeCountryName } from "@/lib/probe-regions";
 import type { ProbeResult } from "@/lib/types";
@@ -23,34 +28,27 @@ type Props = {
 };
 
 export function GlobePanel({ results, selectedRegion, onSelectRegion, variant = "default" }: Props) {
+  const isTerminal = variant === "minimal";
   const arcs = useMemo(
-    () => probeResultsToGlobeArcs(results, selectedRegion),
-    [results, selectedRegion],
+    () =>
+      isTerminal
+        ? probeResultsToTerminalGlobeArcs(results, selectedRegion)
+        : probeResultsToGlobeArcs(results, selectedRegion),
+    [isTerminal, results, selectedRegion],
   );
   const selectedResult = results.find((result) => result.region === selectedRegion) ?? results[0];
 
   const globe = (
     <AceternityWorld
-      globeConfig={LATENCYMAP_GLOBE_CONFIG}
+      globeConfig={isTerminal ? TERMINAL_GLOBE_CONFIG : LATENCYMAP_GLOBE_CONFIG}
       data={arcs}
       className="h-full w-full"
+      sceneVariant={isTerminal ? "terminal" : "default"}
     />
   );
 
-  if (variant === "minimal") {
-    return (
-      <div className="terminal-globe">
-        <div className="terminal-globe__frame">{globe}</div>
-        {selectedResult ? (
-          <p className="terminal-globe__caption">
-            <span className="terminal-globe__caption-country">{probeCountryName(selectedResult.region)}</span>
-            <span className="terminal-globe__caption-meta">
-              {formatLatency(selectedResult)} · {formatProbeStatus(selectedResult)}
-            </span>
-          </p>
-        ) : null}
-      </div>
-    );
+  if (isTerminal) {
+    return <div className="terminal-globe">{globe}</div>;
   }
 
   return (

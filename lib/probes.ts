@@ -8,15 +8,15 @@ export class ProbeConfigurationError extends Error {
   }
 }
 
+let cachedProbeConfig: ProbeConfig[] | null = null;
+let cachedProbeConfigRaw: string | undefined;
+
 export async function runRegionalTest(url: string): Promise<ProbeResult[]> {
   const probes = getProbeConfig();
   const probeSecret = getProbeSecret();
 
   return Promise.all(
-    probes.slice(0, 5).map(async (probe) => {
-      const testedAt = new Date().toISOString();
-      return callRemoteProbe(probe, url, testedAt, probeSecret);
-    }),
+    probes.slice(0, 5).map((probe) => callRemoteProbe(probe, url, probeSecret)),
   );
 }
 
@@ -24,6 +24,10 @@ export function getProbeConfig(): ProbeConfig[] {
   const raw = process.env.PROBE_ENDPOINTS;
   if (!raw) {
     throw new ProbeConfigurationError("No probe endpoints configured. Set PROBE_ENDPOINTS to real deployed probe URLs.");
+  }
+
+  if (cachedProbeConfig && cachedProbeConfigRaw === raw) {
+    return cachedProbeConfig;
   }
 
   let parsed: unknown;
@@ -42,6 +46,8 @@ export function getProbeConfig(): ProbeConfig[] {
     throw new ProbeConfigurationError("PROBE_ENDPOINTS did not contain any usable probe endpoints.");
   }
 
+  cachedProbeConfigRaw = raw;
+  cachedProbeConfig = usable;
   return usable;
 }
 
@@ -56,7 +62,8 @@ export function getProbeSecret(): string {
   return secret;
 }
 
-async function callRemoteProbe(probe: ProbeConfig, url: string, testedAt: string, probeSecret: string): Promise<ProbeResult> {
+async function callRemoteProbe(probe: ProbeConfig, url: string, probeSecret: string): Promise<ProbeResult> {
+  const testedAt = new Date().toISOString();
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), PROBE_CLIENT_TIMEOUT_MS);
 
@@ -112,7 +119,7 @@ async function callRemoteProbe(probe: ProbeConfig, url: string, testedAt: string
       placementRegion: coerceString(body?.placement_region ?? body?.placementRegion),
     };
   } catch (error) {
-    const message = error instanceof Error && error.name === "AbortError" ? "Probe timed out." : "Probe failed.";
+    const message = formatProbeFetchError(error, probe);
     return {
       region: probe.id,
       label: probe.label,
@@ -126,6 +133,35 @@ async function callRemoteProbe(probe: ProbeConfig, url: string, testedAt: string
   } finally {
     clearTimeout(timeout);
   }
+}
+
+export function formatProbeFetchError(error: unknown, probe: ProbeConfig): string {
+  if (error instanceof Error && error.name === "AbortError") {
+    return "Probe timed out.";
+  }
+
+  if (isConnectionRefusedError(error)) {
+    if (process.env.NODE_ENV === "production") {
+      return `Probe unreachable at ${probe.endpoint}. Check that the endpoint is deployed and PROBE_ENDPOINTS is correct.`;
+    }
+
+    return `Probe unreachable at ${probe.endpoint}. Start the local probe with npm run probe:dev or use npm run dev:local.`;
+  }
+
+  return "Probe failed.";
+}
+
+function isConnectionRefusedError(error: unknown): boolean {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const code = "code" in error ? error.code : "cause" in error ? getErrorCode(error.cause) : null;
+  return code === "ECONNREFUSED" || code === "ENOTFOUND";
+}
+
+function getErrorCode(value: unknown): unknown {
+  return value && typeof value === "object" && "code" in value ? value.code : null;
 }
 
 function coerceNumber(value: unknown): number | null {

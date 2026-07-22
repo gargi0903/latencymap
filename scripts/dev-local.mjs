@@ -1,5 +1,10 @@
 import { spawn } from "node:child_process";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { loadEnvLocal } from "./env-local.mjs";
+
+const repoRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 const envLocal = loadEnvLocal();
 const baseEnv = { ...envLocal, ...process.env };
@@ -11,15 +16,7 @@ const probePort = process.env.PROBE_PORT || "8787";
 const probeRegion = process.env.PROBE_REGION || "local";
 const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
 
-const localProbeConfig = JSON.stringify([
-  {
-    id: probeRegion,
-    label: "Local Probe",
-    lat: 28.6139,
-    lng: 77.209,
-    endpoint: `http://127.0.0.1:${probePort}/probe`,
-  },
-]);
+const localProbeConfig = getLocalFiveRegionProbeConfig(probePort);
 
 const appEnv = {
   ...baseEnv,
@@ -39,7 +36,7 @@ const probe = spawn(npmCommand, ["run", "probe:dev"], {
   env: probeEnv,
   stdio: "inherit",
 });
-const app = spawn(npmCommand, ["run", "dev", "--", "-H", appHost, "-p", appPort], {
+const app = spawn(npmCommand, ["run", "dev:app", "--", "-H", appHost, "-p", appPort], {
   env: appEnv,
   stdio: "inherit",
 });
@@ -103,4 +100,19 @@ function getConfiguredProbeEndpoints() {
   }
 
   return null;
+}
+
+function getLocalFiveRegionProbeConfig(probePort) {
+  const regionsPath = path.join(repoRoot, "probes", "regions.example.json");
+  const regions = JSON.parse(readFileSync(regionsPath, "utf8"));
+
+  return JSON.stringify(
+    regions.map((region) => ({
+      id: region.id,
+      label: region.label,
+      lat: region.lat,
+      lng: region.lng,
+      endpoint: `http://127.0.0.1:${probePort}/probe`,
+    })),
+  );
 }

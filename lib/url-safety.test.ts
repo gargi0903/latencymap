@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import dns from "node:dns/promises";
-import { isBlockedIp, normalizeAndValidatePublicUrl } from "@/lib/url-safety";
+import { clearDnsCacheForTests, isBlockedIp, normalizeAndValidatePublicUrl } from "@/lib/url-safety";
 
 vi.mock("node:dns/promises", () => ({
   default: {
@@ -33,6 +33,8 @@ describe("isBlockedIp", () => {
 
 describe("normalizeAndValidatePublicUrl", () => {
   beforeEach(() => {
+    clearDnsCacheForTests();
+    vi.mocked(dns.lookup).mockClear();
     vi.mocked(dns.lookup).mockResolvedValue(publicIpv4);
   });
 
@@ -92,5 +94,26 @@ describe("normalizeAndValidatePublicUrl", () => {
       url: "https://example.com/users?limit=10",
       hostname: "example.com",
     });
+  });
+
+  it("caches successful DNS lookups for the same hostname", async () => {
+    await normalizeAndValidatePublicUrl("https://example.com");
+    await normalizeAndValidatePublicUrl("https://example.com/health");
+
+    expect(vi.mocked(dns.lookup)).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not cache failed DNS lookups", async () => {
+    vi.mocked(dns.lookup).mockRejectedValueOnce(new Error("ENOTFOUND"));
+
+    await expect(normalizeAndValidatePublicUrl("https://missing.example")).resolves.toEqual({
+      ok: false,
+      error: "Hostname did not resolve.",
+    });
+
+    vi.mocked(dns.lookup).mockResolvedValue(publicIpv4);
+    await normalizeAndValidatePublicUrl("https://missing.example");
+
+    expect(vi.mocked(dns.lookup)).toHaveBeenCalledTimes(2);
   });
 });

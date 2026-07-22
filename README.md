@@ -5,8 +5,7 @@ A portfolio/demo MVP for testing a public API or website from multiple probe reg
 ## Stack
 
 - Next.js app and route handlers
-- Neon Postgres when `DATABASE_URL` is configured
-- local JSON storage in `.data/latencymap.json` for development without a database
+- URL-encoded share links (no database required)
 - Cloudflare Worker probe services
 - local Node.js probe service for development only
 - `react-globe.gl` for the interactive globe
@@ -39,7 +38,6 @@ Tests require `PROBE_ENDPOINTS`. The app does not show fake regional data when p
 Copy `.env.example` to `.env.local` and fill values as needed.
 
 ```txt
-DATABASE_URL=
 PROBE_ENDPOINTS=
 PROBE_SECRET=
 ```
@@ -165,6 +163,82 @@ npx wrangler secret put PROBE_SECRET --config probes/cloudflare/wrangler.jsonc -
 
 Repeat the secret command for each deployed environment.
 
+## Production Deployment
+
+### Prerequisites
+
+- Vercel account linked to this repository
+- Cloudflare account with Wrangler authenticated (`npx wrangler login`)
+
+### 1. Deploy Cloudflare probes
+
+Generate a strong shared secret and store it in every Worker environment:
+
+```bash
+# Repeat for iad, lhr, sin, syd, gru
+npx wrangler secret put PROBE_SECRET --config probes/cloudflare/wrangler.jsonc --env iad
+```
+
+Deploy all five regional probes:
+
+```bash
+npm run probe:cf:deploy:regions
+```
+
+Verify health checks (replace subdomain as needed):
+
+```bash
+curl https://latencymap-probe-iad.<your-workers-subdomain>.workers.dev/healthz
+```
+
+### 2. Configure Vercel environment variables
+
+In the Vercel project settings, set:
+
+| Variable | Required | Notes |
+| --- | --- | --- |
+| `PROBE_ENDPOINTS` | Yes | Single-line JSON array from `probes/regions.example.json` with real Worker URLs. |
+| `PROBE_SECRET` | Yes | Same value deployed to every Cloudflare probe. |
+
+No database is required. Share links encode the full test run in `/r/<token>`.
+
+`PROBE_ENDPOINTS` must be valid JSON on one line in Vercel. Copy from `probes/regions.example.json`, replace `<your-workers-subdomain>`, and minify if needed.
+
+### 3. Deploy the Next.js app
+
+```bash
+npx vercel link
+npx vercel env pull .env.local   # optional: sync env for local prod-like testing
+npx vercel --prod
+```
+
+Or connect the GitHub repository in the Vercel dashboard and deploy from `main`.
+
+`vercel.json` enables Fluid Compute, `iad1` region, and function timeouts. The app uses standard Next.js App Router routes:
+
+- `/` — latency test dashboard
+- `/api/tests` — `POST` to run a test
+- `/api/tests/[token]` — `GET` decoded share payload JSON
+- `/r/[token]` — shareable result page (base64url-encoded payload)
+
+### 4. Smoke test production
+
+```bash
+curl -X POST https://<your-vercel-domain>/api/tests \
+  -H 'content-type: application/json' \
+  -d '{"url":"https://example.com"}'
+```
+
+Open the returned `sharePath` (or `/r/<token>`) and confirm regional probe results appear on the globe and table.
+
+### Production checklist
+
+- [ ] `PROBE_SECRET` set in Vercel and all five Cloudflare environments
+- [ ] `PROBE_ENDPOINTS` points at deployed `/probe` URLs (not localhost)
+- [ ] All probe `/healthz` endpoints return `ok: true`
+- [ ] `npm run build` passes locally
+- [ ] Test run succeeds from the production dashboard
+
 ## Safety
 
 User-provided URLs are validated before fetches:
@@ -177,4 +251,4 @@ User-provided URLs are validated before fetches:
 - redirect targets are re-validated
 - request timeout is 5 seconds
 - response body reads are capped
-- anonymous test runs are rate limited (Postgres-backed when `DATABASE_URL` is set, local JSON buckets otherwise)
+- anonymous test runs are rate limited (in-memory per serverless instance)
