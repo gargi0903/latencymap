@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import { GlobePanel } from "@/components/globe-panel";
-import { latencyHexColor } from "@/lib/latency-display";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { formatLatency, formatProbeStatus } from "@/lib/latency-display";
 import { PROBE_COUNTRIES, PROBE_COUNTRY_LIST, probeCountryName } from "@/lib/probe-regions";
+import type { ProbeResult } from "@/lib/types";
 import { useLatencyTest } from "@/lib/use-latency-test";
 
 const INTERACTIVE_SELECTOR = "button, a, textarea, select, canvas, [role='button']";
-const BOOT_LINE_MS = 90;
+const BOOT_LINE_MS = 50;
+const BOOT_SKIP_KEY = "latencymap.boot-seen";
 
 type BootStep = {
   id: string;
@@ -17,14 +18,14 @@ type BootStep = {
 
 const BOOT_STEPS: BootStep[] = [
   {
-    id: "start",
+    id: "brand",
     className: "terminal__boot-line--brand",
-    render: () => (
-      <>
-        <CmdLabel />
-        <span className="terminal__boot-starting"> starting...</span>
-      </>
-    ),
+    render: () => <CmdLabel />,
+  },
+  {
+    id: "starting",
+    className: "terminal__boot-line--starting",
+    render: () => "starting...",
   },
   {
     id: "what",
@@ -48,6 +49,8 @@ const BOOT_STEPS: BootStep[] = [
   },
 ];
 
+const STARTING_STEP_INDEX = BOOT_STEPS.findIndex((step) => step.id === "starting");
+
 function isInteractiveTarget(target: EventTarget | null) {
   return target instanceof Element && Boolean(target.closest(INTERACTIVE_SELECTOR));
 }
@@ -61,33 +64,91 @@ function CmdLabel() {
   );
 }
 
+function Wordmark() {
+  return (
+    <p className="terminal__boot-line terminal__boot-line--brand terminal__masthead">
+      <CmdLabel />
+    </p>
+  );
+}
+
+function hasSeenBoot() {
+  try {
+    return sessionStorage.getItem(BOOT_SKIP_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function prefersReducedMotion() {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+function markBootSeen() {
+  try {
+    sessionStorage.setItem(BOOT_SKIP_KEY, "1");
+  } catch {
+    // Ignore storage failures in private browsing.
+  }
+}
+
+function sortResultsByLatencyDesc(results: ProbeResult[]) {
+  return [...results].sort((a, b) => {
+    if (a.totalMs === null && b.totalMs === null) return 0;
+    if (a.totalMs === null) return 1;
+    if (b.totalMs === null) return -1;
+    return b.totalMs - a.totalMs;
+  });
+}
+
 export function LatencyDashboard() {
   const inputRef = useRef<HTMLInputElement>(null);
   const runTestRef = useRef<(targetUrl?: string) => Promise<void>>(async () => {});
   const isLoadingRef = useRef(false);
   const bootReadyRef = useRef(false);
-  const { url, setUrl, run, error, isLoading, onSubmit, runTest } = useLatencyTest();
-  const [view, setView] = useState<"globe" | "table">("globe");
+  const { url, setUrl, run, sharePath, error, isLoading, onSubmit, runTest } = useLatencyTest();
   const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
   const [copyState, setCopyState] = useState<"idle" | "copied">("idle");
+  const [showBoot, setShowBoot] = useState(() => !hasSeenBoot());
   const [visibleBootLines, setVisibleBootLines] = useState(0);
 
-  const bootReady = visibleBootLines >= BOOT_STEPS.length;
+  const bootReady = !showBoot;
   const hasResults = Boolean(run && !isLoading);
+  const activeSharePath = sharePath ?? (run ? `/r/${run.id}` : null);
+  const sortedResults = useMemo(
+    () => (run ? sortResultsByLatencyDesc(run.results) : []),
+    [run],
+  );
+  const currentRegion = selectedRegion ?? sortedResults[0]?.region ?? null;
 
   runTestRef.current = runTest;
   isLoadingRef.current = isLoading;
   bootReadyRef.current = bootReady;
 
-  const currentRegion = selectedRegion ?? run?.results[0]?.region ?? null;
-
   function skipBoot() {
+    markBootSeen();
+    setShowBoot(false);
     setVisibleBootLines(BOOT_STEPS.length);
   }
 
   useEffect(() => {
-    if (bootReady) {
+    if (!showBoot) {
+      markBootSeen();
       inputRef.current?.focus({ preventScroll: true });
+      return;
+    }
+
+    if (prefersReducedMotion()) {
+      setShowBoot(false);
+      return;
+    }
+
+    if (visibleBootLines >= BOOT_STEPS.length) {
+      setShowBoot(false);
       return;
     }
 
@@ -96,7 +157,7 @@ export function LatencyDashboard() {
     }, BOOT_LINE_MS);
 
     return () => window.clearTimeout(timer);
-  }, [bootReady, visibleBootLines]);
+  }, [showBoot, visibleBootLines]);
 
   useEffect(() => {
     function focusInput() {
@@ -179,10 +240,10 @@ export function LatencyDashboard() {
   }, [setUrl]);
 
   async function copyShareLink() {
-    if (!run) return;
+    if (!activeSharePath) return;
 
     try {
-      await navigator.clipboard.writeText(`${window.location.origin}/r/${run.id}`);
+      await navigator.clipboard.writeText(`${window.location.origin}${activeSharePath}`);
       setCopyState("copied");
       window.setTimeout(() => setCopyState("idle"), 1800);
     } catch {
@@ -199,13 +260,22 @@ export function LatencyDashboard() {
         aria-label="Latency probe terminal"
       >
         <div className="terminal__console">
-          <div className="terminal__boot" aria-live="polite">
-            {BOOT_STEPS.slice(0, visibleBootLines).map((step) => (
-              <p key={step.id} className={["terminal__boot-line", step.className].filter(Boolean).join(" ")}>
-                {step.render()}
-              </p>
-            ))}
-          </div>
+          {bootReady && !hasResults ? <Wordmark /> : null}
+
+          {showBoot ? (
+            <div className="terminal__boot" aria-live="polite">
+              {BOOT_STEPS.slice(0, visibleBootLines)
+                .filter(
+                  (step) =>
+                    step.id !== "starting" || visibleBootLines <= STARTING_STEP_INDEX + 1,
+                )
+                .map((step) => (
+                  <p key={step.id} className={["terminal__boot-line", step.className].filter(Boolean).join(" ")}>
+                    {step.render()}
+                  </p>
+                ))}
+            </div>
+          ) : null}
 
           {bootReady ? (
             <form className="terminal__line terminal__line--prompt" onSubmit={onSubmit}>
@@ -244,82 +314,63 @@ export function LatencyDashboard() {
         </div>
 
         {hasResults && run ? (
-          <div className={["terminal__workspace", view === "globe" ? "terminal__workspace--globe" : "terminal__workspace--table"].join(" ")}>
+          <div className="terminal__workspace">
             <div className="terminal__feed">
-              <p className="terminal__log terminal__log--summary">
-                <span className="terminal__arrow">→</span>
-                <span className="terminal__summary-meta">{run.results.length} regions · </span>
-                <span className="terminal__summary-url">{run.normalizedUrl}</span>
+              <p className="terminal__log terminal__log--complete" role="status">
+                <span className="terminal__arrow">✓</span>
+                probe complete · {run.results.length} regions
               </p>
 
-              <div className="terminal__view" role="group" aria-label="Result view">
-                <button
-                  type="button"
-                  className="terminal__view-btn"
-                  aria-pressed={view === "globe"}
-                  onClick={() => setView("globe")}
-                >
-                  globe
-                </button>
-                <button
-                  type="button"
-                  className="terminal__view-btn"
-                  aria-pressed={view === "table"}
-                  onClick={() => setView("table")}
-                >
-                  table
-                </button>
-              </div>
+              <div className="terminal__results-body">
+                <h2 className="terminal__section-title">results</h2>
+                <div className="terminal__table" role="list" aria-label="Latency by country">
+                  {sortedResults.map((result, index) => {
+                    const selected = currentRegion === result.region;
+                    const failed = Boolean(result.error || result.totalMs === null);
 
-              {view === "table" ? (
-                <div className="terminal__table" role="table" aria-label="Latency by country">
-                  <div className="terminal__table-head" role="row">
-                    <span role="columnheader">country</span>
-                    <span role="columnheader">latency</span>
-                  </div>
-                  {run.results.map((result) => (
-                    <div key={result.region} className="terminal__table-row" role="row">
-                      <span className="terminal__region" role="cell">
-                        {probeCountryName(result.region)}
-                      </span>
-                      <span
-                        className="terminal__ms"
-                        role="cell"
-                        style={{ color: latencyHexColor(result.totalMs, result.error) }}
+                    return (
+                      <button
+                        key={result.region}
+                        type="button"
+                        className={[
+                          "terminal__table-row",
+                          selected ? "terminal__table-row--selected" : null,
+                          failed ? "terminal__table-row--failed" : null,
+                        ]
+                          .filter(Boolean)
+                          .join(" ")}
+                        role="listitem"
+                        aria-selected={selected}
+                        style={{ animationDelay: `${index * 45}ms` }}
+                        onClick={() => setSelectedRegion(result.region)}
                       >
-                        {result.error ?? `${result.totalMs} ms`}
-                      </span>
-                    </div>
-                  ))}
+                        <span className="terminal__region">{probeCountryName(result.region)}</span>
+                        <span
+                          className={["terminal__ms", failed ? "terminal__ms--failed" : null]
+                            .filter(Boolean)
+                            .join(" ")}
+                        >
+                          {failed ? formatProbeStatus(result) : formatLatency(result)}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
-              ) : null}
+              </div>
 
               <p className="terminal__log terminal__log--footer">
-                <span className="terminal__arrow">→</span>
-                {copyState === "copied" ? (
-                  "link copied"
-                ) : (
-                  <>
-                    share{" "}
-                    <button type="button" className="terminal__link" onClick={copyShareLink}>
-                      /r/{run.id}
-                    </button>
-                  </>
-                )}
+                {activeSharePath ? (
+                  <button
+                    type="button"
+                    className="terminal__link"
+                    title="Copy permanent share link"
+                    onClick={copyShareLink}
+                  >
+                    {copyState === "copied" ? "copied" : "share"}
+                  </button>
+                ) : null}
               </p>
             </div>
-
-            {view === "globe" ? (
-              <div className="terminal__stage">
-                <GlobePanel
-                  key={run.id}
-                  variant="minimal"
-                  results={run.results}
-                  selectedRegion={currentRegion}
-                  onSelectRegion={setSelectedRegion}
-                />
-              </div>
-            ) : null}
           </div>
         ) : null}
       </section>

@@ -13,3 +13,5 @@ skills-lock.json
 npm-debug.log*
 tsconfig.tsbuildinfo
 tsconfig.probes.tsbuildinfo
+.vercel
+.env*

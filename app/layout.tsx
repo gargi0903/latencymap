@@ -4,7 +4,7 @@ import "./styles.css";
 
 const ibmPlexMono = IBM_Plex_Mono({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+  weight: ["400", "600"],
   variable: "--font-app",
 });
 
@@ -16,7 +16,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className={ibmPlexMono.variable}>
-      <body className={`${ibmPlexMono.className} min-h-dvh bg-black text-foreground`}>{children}</body>
+      <body className={`${ibmPlexMono.className} min-h-dvh bg-black text-foreground antialiased`}>{children}</body>
     </html>
   );
 }

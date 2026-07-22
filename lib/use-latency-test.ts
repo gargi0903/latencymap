@@ -5,14 +5,14 @@ import type { TestRun } from "@/lib/types";
 
 type CreateTestResponse = {
   run: TestRun;
-  history: TestRun[];
+  sharePath: string;
   error?: string;
 };
 
 export function useLatencyTest() {
   const [url, setUrl] = useState("");
   const [run, setRun] = useState<TestRun | null>(null);
-  const [history, setHistory] = useState<TestRun[]>([]);
+  const [sharePath, setSharePath] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -23,7 +23,7 @@ export function useLatencyTest() {
     setUrl(trimmed);
     setError(null);
     setRun(null);
-    setHistory([]);
+    setSharePath(null);
     setIsLoading(true);
 
     try {
@@ -41,7 +41,7 @@ export function useLatencyTest() {
 
       const body = (await response.json()) as CreateTestResponse;
       setRun(body.run);
-      setHistory(body.history ?? []);
+      setSharePath(body.sharePath);
     } catch {
       setError("Unable to reach the Latencymap API.");
     } finally {
@@ -56,8 +56,8 @@ export function useLatencyTest() {
 
   function reset() {
     setRun(null);
+    setSharePath(null);
     setError(null);
-    setHistory([]);
   }
 
   const hasResults = Boolean(run);
@@ -66,7 +66,7 @@ export function useLatencyTest() {
     url,
     setUrl,
     run,
-    history,
+    sharePath,
     error,
     isLoading,
     hasResults,

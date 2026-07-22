@@ -24,9 +24,7 @@ Included:
 - one-time manual latency tests
 - any public `http://` or `https://` URL
 - real probes in 3-5 regions
-- saved test results
-- history grouped by normalized full URL
-- shareable public result page
+- shareable public result page (URL-encoded payload, no database)
 - developer-tool dashboard UI
 - 3D interactive globe beside exact results table
 
@@ -41,6 +39,7 @@ Excluded for MVP:
 - full P50/P95/P99 monitoring
 - arbitrary HTTP methods
 - custom request headers
+- server-side history or database persistence
 
 ## User Flow
 
@@ -50,9 +49,8 @@ Home page
   -> clicks Run Test
   -> backend validates URL
   -> backend calls probes in parallel
-  -> results are stored
   -> user sees globe + table
-  -> user can open/share permanent result URL
+  -> user can copy/open a shareable result URL
 ```
 
 ## Recommended Tech Stack
@@ -62,8 +60,7 @@ Frontend and central backend:
 - Next.js route handlers for backend API
 
 Database:
-- Neon Postgres when `DATABASE_URL` is configured
-- local JSON storage in `.data/latencymap.json` for development without a database
+- none required; share links encode the full test run in the URL path
 
 Probe service:
 - Cloudflare Workers for production regional probes
@@ -77,12 +74,9 @@ Probe service:
 ```txt
 Next.js app on Vercel
   /
-  /r/[id]
+  /r/[token]
   /api/tests
-  /api/tests/[id]
-        |
-        v
-Neon Postgres
+  /api/tests/[token]
         |
         v
 Regional probe endpoints
@@ -94,8 +88,10 @@ Central backend:
 
 ```txt
 POST /api/tests
-GET /api/tests/:id
+GET /api/tests/:token
 ```
+
+`:token` is a base64url-encoded share payload, not a database id.
 
 Probe service:
 
@@ -163,7 +159,7 @@ Skip for MVP:
 
 ## URL Normalization
 
-History should group by normalized full URL.
+Share links preserve the normalized full URL inside the encoded payload.
 
 Normalization rules:
 - lowercase scheme and host
@@ -224,7 +220,6 @@ Top bar
 URL input + Run Test button
 Current test summary
 3D globe beside results table
-Small history section for same URL
 Share link action
 ```
 
@@ -250,7 +245,7 @@ Do not show a fake heatmap with only 3-5 probes. Show honest probe markers.
 ## Resolved Implementation Notes
 
 - Probe hosting: Cloudflare Workers with one environment per region (`iad`, `lhr`, `sin`, `syd`, `gru`).
-- Persistence: raw SQL via `@neondatabase/serverless`, with inline schema migration in `lib/storage.ts` and reference DDL in `db/schema.sql`.
-- Rate limiting: Postgres-backed buckets when `DATABASE_URL` is set; local JSON buckets in `.data/rate-limits.json` for development.
+- Persistence: URL-encoded share links via `lib/share-payload.ts` (no database).
+- Rate limiting: in-memory buckets per serverless instance.
 - Probe env var: `PROBE_ENDPOINTS` JSON array (not `PROBES`).
 - UI results: Globe/Table switcher on smaller viewports; both views show the same honest probe evidence.

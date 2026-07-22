@@ -5,6 +5,18 @@ import { isBlockedIp } from "./ip-blocklist";
 export { isBlockedIp } from "./ip-blocklist";
 
 const BLOCKED_HOSTS = new Set(["localhost", "ip6-localhost", "ip6-loopback"]);
+const DNS_CACHE_TTL_MS = 60_000;
+
+type DnsCacheEntry = {
+  addresses: string[];
+  expiresAt: number;
+};
+
+const dnsCache = new Map<string, DnsCacheEntry>();
+
+export function clearDnsCacheForTests() {
+  dnsCache.clear();
+}
 
 type ValidationResult =
   | { ok: true; url: string; hostname: string }
@@ -97,13 +109,24 @@ function hasUrlScheme(value: string): boolean {
 }
 
 async function resolveHostname(hostname: string) {
+  const cached = dnsCache.get(hostname);
+  if (cached && cached.expiresAt > Date.now()) {
+    return { ok: true as const, addresses: cached.addresses };
+  }
+
   try {
     const records = await dns.lookup(hostname, { all: true, verbatim: true });
     if (records.length === 0) {
       return { ok: false as const, error: "Hostname did not resolve." };
     }
 
-    return { ok: true as const, addresses: records.map((record) => record.address) };
+    const addresses = records.map((record) => record.address);
+    dnsCache.set(hostname, {
+      addresses,
+      expiresAt: Date.now() + DNS_CACHE_TTL_MS,
+    });
+
+    return { ok: true as const, addresses };
   } catch {
     return { ok: false as const, error: "Hostname did not resolve." };
   }
