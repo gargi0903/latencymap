@@ -1,0 +1,257 @@
+# Latencymap MVP Plan
+
+## Product Goal
+
+Build a portfolio-quality demo that proves the core idea:
+
+> Enter a public URL, test it from multiple real probe regions, show latency results, and generate a shareable result page.
+
+Optimize for low cost, simple architecture, and a credible demo. This is not a full monitoring SaaS yet.
+
+## Primary Audience
+
+Primary user: backend/API developers checking their own public APIs.
+
+Secondary supported use cases:
+- startup founders checking public website latency
+- general users testing public HTTP/HTTPS URLs
+
+Positioning should stay API-first, even though websites are allowed.
+
+## MVP Scope
+
+Included:
+- one-time manual latency tests
+- any public `http://` or `https://` URL
+- real probes in 3-5 regions
+- saved test results
+- history grouped by normalized full URL
+- shareable public result page
+- developer-tool dashboard UI
+- 3D interactive globe beside exact results table
+
+Excluded for MVP:
+- user accounts
+- scheduled monitoring
+- alerting
+- billing
+- team dashboards
+- README badges
+- 20+ regions
+- full P50/P95/P99 monitoring
+- arbitrary HTTP methods
+- custom request headers
+
+## User Flow
+
+```txt
+Home page
+  -> user enters a public URL
+  -> clicks Run Test
+  -> backend validates URL
+  -> backend calls probes in parallel
+  -> results are stored
+  -> user sees globe + table
+  -> user can open/share permanent result URL
+```
+
+## Recommended Tech Stack
+
+Frontend and central backend:
+- Next.js on Vercel
+- Next.js route handlers for backend API
+
+Database:
+- Neon Postgres
+
+Probe service:
+- tiny Node.js HTTP service
+- provider-agnostic interface
+- hosting provider to be decided after cost comparison
+
+3D map:
+- `react-globe.gl`
+
+## Architecture
+
+```txt
+Next.js app on Vercel
+  /
+  /r/[id]
+  /api/tests
+  /api/tests/[id]
+        |
+        v
+Neon Postgres
+        |
+        v
+Regional probe endpoints
+```
+
+## API Shape
+
+Central backend:
+
+```txt
+POST /api/tests
+GET /api/tests/:id
+```
+
+Probe service:
+
+```txt
+POST /probe
+```
+
+Probe input:
+
+```json
+{
+  "url": "https://api.example.com"
+}
+```
+
+Probe output:
+
+```json
+{
+  "region": "sin",
+  "total_ms": 184,
+  "status_code": 200,
+  "error": null
+}
+```
+
+Probe configuration should be swappable:
+
+```txt
+PROBES=[
+  { region: "us-east", endpoint: "https://..." },
+  { region: "europe", endpoint: "https://..." },
+  { region: "asia", endpoint: "https://..." }
+]
+```
+
+## Probe Behavior
+
+Use `GET` with strict limits.
+
+Rules:
+- allow only `http://` and `https://`
+- timeout after 5 seconds
+- follow max 3 redirects
+- validate each redirect target before following
+- do not store response body
+- read only a tiny amount of response body, or stop after headers if practical
+- return total request time, status code, and error
+
+MVP timing data:
+- `region`
+- `total_ms`
+- `status_code`
+- `error`
+- `tested_at`
+
+Skip for MVP:
+- DNS timing
+- TCP timing
+- TLS timing
+- download timing
+- browser page performance metrics
+
+## URL Normalization
+
+History should group by normalized full URL.
+
+Normalization rules:
+- lowercase scheme and host
+- remove URL fragments
+- preserve path
+- preserve query string
+- remove default ports: `:443` for HTTPS, `:80` for HTTP
+- only remove trailing slash for the root path
+
+Examples treated as different URLs:
+
+```txt
+https://api.example.com/users
+https://api.example.com/users?limit=10
+https://api.example.com/health
+```
+
+## Abuse Protection
+
+This must exist from day one because the app asks your servers to request user-provided URLs.
+
+Protections:
+- block `localhost`
+- block `127.0.0.1`
+- block `0.0.0.0`
+- block private IPv4 ranges:
+  - `10.0.0.0/8`
+  - `172.16.0.0/12`
+  - `192.168.0.0/16`
+- block link-local/cloud metadata IPs, especially `169.254.169.254`
+- block unsupported schemes like `file:`, `ftp:`, `ssh:`
+- allow only HTTP and HTTPS
+- limit redirects to 3
+- validate every redirect target
+- use 5 second probe timeout
+- cap response bytes
+- rate limit by IP
+- do not allow custom headers in MVP
+- do not allow arbitrary HTTP methods in MVP
+
+Recommended anonymous rate limit:
+
+```txt
+10 test runs/hour/IP
+each test run: max 5 probe requests
+```
+
+## UI Direction
+
+Use a developer-tool dashboard style.
+
+The first screen should be the actual tool, not a marketing landing page.
+
+Layout:
+
+```txt
+Top bar
+URL input + Run Test button
+Current test summary
+3D globe beside results table
+Small history section for same URL
+Share link action
+```
+
+Globe behavior:
+- rotate and zoom
+- show markers for probe regions
+- marker color indicates latency
+- hover shows region, latency, status
+- click marker highlights table row
+- failed probes shown distinctly
+
+Latency colors:
+
+```txt
+green  = <150 ms
+yellow = 150-300 ms
+red    = >300 ms
+gray   = failed
+```
+
+Do not show a fake heatmap with only 3-5 probes. Show honest probe markers.
+
+## Open Decisions
+
+Still unresolved:
+- regional probe hosting provider
+- exact first 3-5 probe regions
+- database schema details
+- whether to use an ORM or raw SQL
+- rate limit implementation
+- deployment strategy for probe services
+- CLI/curl endpoint details
