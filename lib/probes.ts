@@ -10,11 +10,12 @@ export class ProbeConfigurationError extends Error {
 
 export async function runRegionalTest(url: string): Promise<ProbeResult[]> {
   const probes = getProbeConfig();
+  const probeSecret = getProbeSecret();
 
   return Promise.all(
     probes.slice(0, 5).map(async (probe) => {
       const testedAt = new Date().toISOString();
-      return callRemoteProbe(probe, url, testedAt);
+      return callRemoteProbe(probe, url, testedAt, probeSecret);
     }),
   );
 }
@@ -44,7 +45,18 @@ export function getProbeConfig(): ProbeConfig[] {
   return usable;
 }
 
-async function callRemoteProbe(probe: ProbeConfig, url: string, testedAt: string): Promise<ProbeResult> {
+export function getProbeSecret(): string {
+  const secret = process.env.PROBE_SECRET?.trim();
+  if (!secret) {
+    throw new ProbeConfigurationError(
+      "No probe credential configured. Set PROBE_SECRET to the same non-empty secret deployed to every probe.",
+    );
+  }
+
+  return secret;
+}
+
+async function callRemoteProbe(probe: ProbeConfig, url: string, testedAt: string, probeSecret: string): Promise<ProbeResult> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), PROBE_CLIENT_TIMEOUT_MS);
 
@@ -54,7 +66,7 @@ async function callRemoteProbe(probe: ProbeConfig, url: string, testedAt: string
       signal: controller.signal,
       headers: {
         "content-type": "application/json",
-        ...(process.env.PROBE_SECRET ? { "x-probe-secret": process.env.PROBE_SECRET } : {}),
+        "x-probe-secret": probeSecret,
       },
       body: JSON.stringify({ url }),
     });

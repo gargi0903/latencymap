@@ -4,6 +4,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import net from "node:net";
 import { performance } from "node:perf_hooks";
 import { isBlockedIp } from "../../lib/ip-blocklist";
+import { matchesProbeSecret } from "../../lib/probe-auth";
 import {
   isBlockedHostname,
   parsePublicHttpUrl,
@@ -14,10 +15,14 @@ import {
 const PORT = Number(process.env.PORT ?? 8787);
 const HOST = process.env.HOST ?? "127.0.0.1";
 const REGION = process.env.PROBE_REGION ?? "local";
-const SECRET = process.env.PROBE_SECRET;
+const SECRET = process.env.PROBE_SECRET?.trim();
 const MAX_REDIRECTS = 3;
 const MAX_BYTES = 64 * 1024;
 const TIMEOUT_MS = 5000;
+
+if (!SECRET) {
+  throw new Error("PROBE_SECRET must be set before starting the local probe.");
+}
 
 type FetchTimingResult = {
   totalMs: number | null;
@@ -49,7 +54,9 @@ const server = http.createServer(async (request, response) => {
     return;
   }
 
-  if (SECRET && request.headers["x-probe-secret"] !== SECRET) {
+  const providedSecret = request.headers["x-probe-secret"];
+  const secret = Array.isArray(providedSecret) ? providedSecret[0] : providedSecret ?? null;
+  if (!(await matchesProbeSecret(secret, SECRET))) {
     sendJson(response, 401, { error: "Unauthorized." });
     return;
   }

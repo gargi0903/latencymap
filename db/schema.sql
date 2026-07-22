@@ -23,6 +23,9 @@ create table if not exists probe_results (
   placement_region text
 );
 
+create unique index if not exists probe_results_test_run_id_region_key
+  on probe_results (test_run_id, region);
+
 create table if not exists rate_limit_buckets (
   bucket_key text primary key,
   count integer not null,

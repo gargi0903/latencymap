@@ -4,6 +4,6 @@
     "types": ["@cloudflare/workers-types", "node"],
     "noEmit": true
   },
-  "include": ["lib/ip-blocklist.ts", "lib/probe-url-safety.ts", "probes/**/*.ts"],
+  "include": ["lib/ip-blocklist.ts", "lib/probe-auth.ts", "lib/probe-url-safety.ts", "probes/**/*.ts"],
   "exclude": ["node_modules"]
 }

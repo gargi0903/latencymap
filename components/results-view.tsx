@@ -68,7 +68,7 @@ export function ResultsView({ initialRun, initialHistory = [] }: Props) {
     <div className="grid gap-6">
       <section className="flex flex-col items-start justify-between gap-3.5 border-b border-border pb-5 sm:flex-row sm:gap-5">
         <div className="min-w-0">
-          <p className="font-mono text-xs font-medium leading-tight text-[#173baf]">LATEST RESULT</p>
+          <p className="text-xs font-medium leading-tight text-accent-foreground">LATEST RESULT</p>
           <h2 title={initialRun.normalizedUrl} className="max-w-[calc(100vw-2rem)] truncate font-mono text-[15px] font-semibold leading-[1.45] sm:max-w-[min(760px,68vw)]">{initialRun.normalizedUrl}</h2>
           <span className="mt-1 block text-[13px] text-muted-foreground">Tested {formatProbeDateTime(initialRun.createdAt)} · {summary.successRate} probes completed</span>
         </div>
@@ -120,7 +120,7 @@ function ProbeTablePanel({
     <section className="min-w-0 overflow-hidden rounded-[2px] border border-border bg-white">
       <header className="flex items-center justify-between gap-3 p-[18px]">
         <div>
-          <p className="font-mono text-xs font-medium leading-tight text-[#173baf]">REGIONAL EVIDENCE</p>
+          <p className="text-xs font-medium leading-tight text-accent-foreground">REGIONAL EVIDENCE</p>
           <h2 className="mt-[3px] text-lg font-semibold leading-tight">Probe results</h2>
         </div>
       </header>
@@ -211,7 +211,7 @@ function SharePanel({
     <section className="min-w-0 pt-1">
       <header className="flex items-center justify-between gap-3">
         <div>
-          <p className="font-mono text-xs font-medium leading-tight text-[#173baf]">SHARE</p>
+          <p className="text-xs font-medium leading-tight text-accent-foreground">SHARE</p>
           <h2 className="mt-[3px] text-lg font-semibold leading-tight">Permanent result</h2>
         </div>
         <Button size="icon" variant="outline" type="button" title="Copy result link" onClick={onCopy} className="rounded-[2px] border-border bg-white text-muted-foreground shadow-none hover:border-primary hover:bg-secondary hover:text-accent-foreground">
@@ -219,7 +219,7 @@ function SharePanel({
         </Button>
       </header>
       <div className="pt-4">
-        <code className="block truncate rounded-[2px] border border-border bg-white p-3 text-sm text-[#173baf]">
+        <code className="block truncate rounded-[2px] border border-border bg-white p-3 text-sm text-primary">
           {sharePath}
         </code>
         <p className={cn("mt-2 text-sm text-muted-foreground", copyState === "failed" && "text-destructive")} role="status">
@@ -238,7 +238,7 @@ function HistoryPanel({ currentRun, history }: { currentRun: TestRun; history: T
   return (
     <section className="min-w-0 pt-1">
       <header className="flex items-center justify-between gap-3">
-        <div><p className="font-mono text-xs font-medium leading-tight text-[#173baf]">HISTORY</p><h2 className="mt-[3px] text-lg font-semibold leading-tight">Recent runs for this URL</h2></div>
+        <div><p className="text-xs font-medium leading-tight text-accent-foreground">HISTORY</p><h2 className="mt-[3px] text-lg font-semibold leading-tight">Recent runs for this URL</h2></div>
       </header>
       <div className="grid gap-1 pt-4">
         {history.map((run) => (
@@ -270,7 +270,7 @@ function Metric({
 }) {
   return (
     <div className="min-w-0 p-3.5 px-4 [&:not(:first-child)]:border-l [&:not(:first-child)]:border-border max-sm:[&:nth-child(3)]:border-l-0 max-sm:[&:nth-child(3)]:border-t max-sm:[&:nth-child(4)]:border-t">
-      <span className="font-mono text-xs font-medium leading-tight text-muted-foreground">{label}</span>
+      <span className="text-xs font-medium leading-tight text-muted-foreground">{label}</span>
       <strong className={cn("mt-[5px] block truncate text-[17px] leading-tight tabular-nums", toneClass(tone))} title={value}>
         {value}
       </strong>

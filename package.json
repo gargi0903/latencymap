@@ -10,19 +10,22 @@
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.probes.json",
     "lint": "eslint app components lib probes",
     "test": "vitest run",
-    "probe:dev": "tsx probes/node/server.ts",
+    "probe:dev": "node scripts/run-with-env-local.mjs tsx probes/node/server.ts",
     "probe:cf:dev": "wrangler dev --config probes/cloudflare/wrangler.jsonc",
-    "probe:cf:deploy": "wrangler deploy --config probes/cloudflare/wrangler.jsonc",
-    "probe:cf:deploy:iad": "wrangler deploy --config probes/cloudflare/wrangler.jsonc --env iad",
-    "probe:cf:deploy:lhr": "wrangler deploy --config probes/cloudflare/wrangler.jsonc --env lhr",
-    "probe:cf:deploy:sin": "wrangler deploy --config probes/cloudflare/wrangler.jsonc --env sin",
-    "probe:cf:deploy:syd": "wrangler deploy --config probes/cloudflare/wrangler.jsonc --env syd",
-    "probe:cf:deploy:gru": "wrangler deploy --config probes/cloudflare/wrangler.jsonc --env gru",
+    "probe:cf:deploy": "node scripts/verify-probe-secret.mjs && wrangler deploy --config probes/cloudflare/wrangler.jsonc",
+    "probe:cf:deploy:iad": "node scripts/verify-probe-secret.mjs iad && wrangler deploy --config probes/cloudflare/wrangler.jsonc --env iad",
+    "probe:cf:deploy:lhr": "node scripts/verify-probe-secret.mjs lhr && wrangler deploy --config probes/cloudflare/wrangler.jsonc --env lhr",
+    "probe:cf:deploy:sin": "node scripts/verify-probe-secret.mjs sin && wrangler deploy --config probes/cloudflare/wrangler.jsonc --env sin",
+    "probe:cf:deploy:syd": "node scripts/verify-probe-secret.mjs syd && wrangler deploy --config probes/cloudflare/wrangler.jsonc --env syd",
+    "probe:cf:deploy:gru": "node scripts/verify-probe-secret.mjs gru && wrangler deploy --config probes/cloudflare/wrangler.jsonc --env gru",
     "probe:cf:deploy:regions": "npm run probe:cf:deploy:iad && npm run probe:cf:deploy:lhr && npm run probe:cf:deploy:sin && npm run probe:cf:deploy:syd && npm run probe:cf:deploy:gru"
   },
   "dependencies": {
     "@neondatabase/serverless": "^0.10.4",
     "@radix-ui/react-slot": "^1.3.0",
+    "@react-three/drei": "^10.7.7",
+    "@react-three/fiber": "^9.6.1",
+    "@types/three": "^0.185.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.468.0",
@@ -31,9 +34,12 @@
     "react-dom": "^19.0.0",
     "react-globe.gl": "^2.38.0",
     "tailwind-merge": "^3.6.0",
+    "three": "^0.185.1",
+    "three-globe": "^2.45.2",
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260721.1",
     "@eslint/eslintrc": "^3.3.1",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^22.10.2",
@@ -46,7 +52,6 @@
     "tsx": "^4.20.3",
     "typescript": "^5.7.2",
     "vitest": "^3.2.4",
-    "@cloudflare/workers-types": "^5.20260721.1",
     "wrangler": "^4.25.0"
   }
 }

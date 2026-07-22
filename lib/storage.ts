@@ -1,6 +1,7 @@
 import { neon } from "@neondatabase/serverless";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { assertLocalStorageAllowed } from "@/lib/runtime-config";
 import type { CreateTestRunInput, ProbeResult, TestRun } from "@/lib/types";
 
 const LOCAL_STORE_PATH = path.join(process.cwd(), ".data", "latencymap.json");
@@ -21,14 +22,13 @@ export async function createTestRun(input: CreateTestRunInput): Promise<TestRun>
   if (process.env.DATABASE_URL) {
     await ensureSchema();
     const sql = neon(process.env.DATABASE_URL);
-    await sql`
-      insert into test_runs (id, input_url, normalized_url, created_at)
-      values (${run.id}, ${run.inputUrl}, ${run.normalizedUrl}, ${run.createdAt})
-    `;
-
-    await Promise.all(
-      run.results.map((result) =>
-        sql`
+    await sql.transaction((transaction) => [
+      transaction`
+        insert into test_runs (id, input_url, normalized_url, created_at)
+        values (${run.id}, ${run.inputUrl}, ${run.normalizedUrl}, ${run.createdAt})
+      `,
+      ...run.results.map(
+        (result) => transaction`
           insert into probe_results (
             id,
             test_run_id,
@@ -59,11 +59,12 @@ export async function createTestRun(input: CreateTestRunInput): Promise<TestRun>
           )
         `,
       ),
-    );
+    ]);
 
     return run;
   }
 
+  assertLocalStorageAllowed();
   const store = await readLocalStore();
   store.runs.unshift(run);
   await writeLocalStore(store);
@@ -96,6 +97,7 @@ export async function getTestRun(id: string): Promise<TestRun | null> {
     return isRealProbeRun(run) ? run : null;
   }
 
+  assertLocalStorageAllowed();
   const store = await readLocalStore();
   const run = store.runs.find((candidate) => candidate.id === id) ?? null;
   return run && isRealProbeRun(run) ? run : null;
@@ -106,28 +108,38 @@ export async function listRunsForUrl(normalizedUrl: string, limit: number): Prom
     await ensureSchema();
     const sql = neon(process.env.DATABASE_URL);
     const rows = await sql`
-      select id, input_url, normalized_url, created_at
-      from test_runs
-      where normalized_url = ${normalizedUrl}
-      order by created_at desc
-      limit ${limit}
+      select
+        runs.id,
+        runs.input_url,
+        runs.normalized_url,
+        runs.created_at,
+        results.region,
+        results.label,
+        results.lat,
+        results.lng,
+        results.total_ms,
+        results.status_code,
+        results.error,
+        results.tested_at,
+        results.cloudflare_colo,
+        results.placement_region
+      from (
+        select id, input_url, normalized_url, created_at
+        from test_runs
+        where normalized_url = ${normalizedUrl}
+        order by created_at desc
+        limit ${limit}
+      ) as runs
+      join probe_results as results on results.test_run_id = runs.id
+      order by runs.created_at desc, results.label asc
     `;
 
-    const runs = await Promise.all(
-      rows.map(async (row) => {
-        const results = await sql`
-          select region, label, lat, lng, total_ms, status_code, error, tested_at, cloudflare_colo, placement_region
-          from probe_results
-          where test_run_id = ${row.id}
-          order by label asc
-        `;
-        return mapRun(row, results);
-      }),
-    );
+    const runs = groupRunRows(rows);
 
     return runs.filter(isRealProbeRun);
   }
 
+  assertLocalStorageAllowed();
   const store = await readLocalStore();
   return store.runs
     .filter((run) => run.normalizedUrl === normalizedUrl && isRealProbeRun(run))
@@ -175,6 +187,7 @@ async function createSchema() {
   `;
   await sql`alter table probe_results add column if not exists cloudflare_colo text`;
   await sql`alter table probe_results add column if not exists placement_region text`;
+  await sql`create unique index if not exists probe_results_test_run_id_region_key on probe_results (test_run_id, region)`;
   await sql`
     create table if not exists rate_limit_buckets (
       bucket_key text primary key,
@@ -207,6 +220,22 @@ function mapProbeResult(result: Record<string, unknown>): ProbeResult {
     cloudflareColo: result.cloudflare_colo === null || result.cloudflare_colo === undefined ? null : String(result.cloudflare_colo),
     placementRegion: result.placement_region === null || result.placement_region === undefined ? null : String(result.placement_region),
   };
+}
+
+function groupRunRows(rows: Record<string, unknown>[]): TestRun[] {
+  const grouped = new Map<string, { run: Record<string, unknown>; results: Record<string, unknown>[] }>();
+
+  for (const row of rows) {
+    const id = String(row.id);
+    const group = grouped.get(id);
+    if (group) {
+      group.results.push(row);
+    } else {
+      grouped.set(id, { run: row, results: [row] });
+    }
+  }
+
+  return Array.from(grouped.values(), ({ run, results }) => mapRun(run, results));
 }
 
 async function readLocalStore(): Promise<LocalStore> {
