@@ -1,5 +1,8 @@
 import dns from "node:dns/promises";
 import net from "node:net";
+import { isBlockedIp } from "./ip-blocklist";
+
+export { isBlockedIp } from "./ip-blocklist";
 
 const BLOCKED_HOSTS = new Set(["localhost", "ip6-localhost", "ip6-loopback"]);
 
@@ -101,42 +104,3 @@ async function resolveHostname(hostname: string) {
   }
 }
 
-export function isBlockedIp(ip: string): boolean {
-  const family = net.isIP(ip);
-  if (family === 4) {
-    return isBlockedIpv4(ip);
-  }
-
-  if (family === 6) {
-    const normalized = ip.toLowerCase();
-    return (
-      normalized === "::1" ||
-      normalized === "::" ||
-      normalized.startsWith("fc") ||
-      normalized.startsWith("fd") ||
-      normalized.startsWith("fe80:")
-    );
-  }
-
-  return true;
-}
-
-function isBlockedIpv4(ip: string): boolean {
-  const parts = ip.split(".").map(Number);
-  if (parts.length !== 4 || parts.some((part) => Number.isNaN(part) || part < 0 || part > 255)) {
-    return true;
-  }
-
-  const [a, b] = parts;
-  return (
-    a === 0 ||
-    a === 10 ||
-    a === 127 ||
-    (a === 100 && b >= 64 && b <= 127) ||
-    (a === 169 && b === 254) ||
-    (a === 172 && b >= 16 && b <= 31) ||
-    (a === 192 && b === 168) ||
-    (a === 198 && (b === 18 || b === 19)) ||
-    a >= 224
-  );
-}

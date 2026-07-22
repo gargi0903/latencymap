@@ -1,14 +1,29 @@
 import dns from "node:dns/promises";
 import http from "node:http";
+import type { IncomingMessage, ServerResponse } from "node:http";
 import net from "node:net";
 import { performance } from "node:perf_hooks";
+import { isBlockedIp } from "../../lib/ip-blocklist";
+import {
+  isBlockedHostname,
+  parsePublicHttpUrl,
+  stripIpv6Brackets,
+  type UrlValidationResult,
+} from "../../lib/probe-url-safety";
 
 const PORT = Number(process.env.PORT ?? 8787);
-const REGION = process.env.PROBE_REGION ?? process.env.FLY_REGION ?? "local";
+const HOST = process.env.HOST ?? "127.0.0.1";
+const REGION = process.env.PROBE_REGION ?? "local";
 const SECRET = process.env.PROBE_SECRET;
 const MAX_REDIRECTS = 3;
 const MAX_BYTES = 64 * 1024;
 const TIMEOUT_MS = 5000;
+
+type FetchTimingResult = {
+  totalMs: number | null;
+  statusCode: number | null;
+  error: string | null;
+};
 
 const server = http.createServer(async (request, response) => {
   setCors(response);
@@ -20,7 +35,12 @@ const server = http.createServer(async (request, response) => {
   }
 
   if (request.method === "GET" && request.url === "/healthz") {
-    sendJson(response, 200, { ok: true, region: REGION });
+    sendJson(response, 200, {
+      ok: true,
+      region: REGION,
+      placement_region: null,
+      cloudflare_colo: null,
+    });
     return;
   }
 
@@ -35,7 +55,7 @@ const server = http.createServer(async (request, response) => {
   }
 
   try {
-    const body = JSON.parse(await readRequestBody(request));
+    const body = JSON.parse(await readRequestBody(request)) as { url?: unknown };
     if (typeof body.url !== "string") {
       sendJson(response, 400, { error: "Expected JSON body with a url field." });
       return;
@@ -44,6 +64,8 @@ const server = http.createServer(async (request, response) => {
     const result = await fetchWithTiming(body.url);
     sendJson(response, 200, {
       region: REGION,
+      placement_region: null,
+      cloudflare_colo: null,
       total_ms: result.totalMs,
       status_code: result.statusCode,
       error: result.error,
@@ -53,11 +75,22 @@ const server = http.createServer(async (request, response) => {
   }
 });
 
-server.listen(PORT, () => {
-  console.log(`Latencymap probe listening on :${PORT} for region ${REGION}`);
+server.on("error", (error: NodeJS.ErrnoException) => {
+  if (error.code === "EPERM") {
+    console.error(
+      `Latencymap probe could not listen on http://${HOST}:${PORT}. The current environment blocked opening a local server port. Run npm run dev:local from a normal terminal, or approve the command when Codex asks for local server permissions.`,
+    );
+    process.exit(1);
+  }
+
+  throw error;
 });
 
-async function fetchWithTiming(targetUrl) {
+server.listen(PORT, HOST, () => {
+  console.log(`Latencymap probe listening on http://${HOST}:${PORT} for region ${REGION}`);
+});
+
+async function fetchWithTiming(targetUrl: string): Promise<FetchTimingResult> {
   const started = performance.now();
   let currentUrl = targetUrl;
 
@@ -108,7 +141,7 @@ async function fetchWithTiming(targetUrl) {
   return { totalMs: null, statusCode: null, error: "Too many redirects." };
 }
 
-function complete(started, statusCode, error) {
+function complete(started: number, statusCode: number, error: string | null): FetchTimingResult {
   return {
     totalMs: Math.round(performance.now() - started),
     statusCode,
@@ -116,7 +149,7 @@ function complete(started, statusCode, error) {
   };
 }
 
-async function drainLimitedBody(fetchResponse) {
+async function drainLimitedBody(fetchResponse: Response) {
   if (!fetchResponse.body) {
     return;
   }
@@ -138,43 +171,21 @@ async function drainLimitedBody(fetchResponse) {
   }
 }
 
-async function normalizeAndValidatePublicUrl(rawUrl) {
-  let url;
-  try {
-    url = new URL(String(rawUrl).trim());
-  } catch {
-    return { ok: false, error: "Enter a valid absolute URL." };
+async function normalizeAndValidatePublicUrl(rawUrl: string): Promise<UrlValidationResult> {
+  const parsed = parsePublicHttpUrl(rawUrl);
+  if (!parsed.ok) {
+    return parsed;
   }
 
-  if (url.protocol !== "http:" && url.protocol !== "https:") {
-    return { ok: false, error: "Only HTTP and HTTPS URLs are allowed." };
-  }
-
-  if (url.username || url.password) {
-    return { ok: false, error: "URLs with embedded credentials are not allowed." };
-  }
-
-  url.hash = "";
-  url.protocol = url.protocol.toLowerCase();
-  url.hostname = url.hostname.toLowerCase();
-
-  if ((url.protocol === "https:" && url.port === "443") || (url.protocol === "http:" && url.port === "80")) {
-    url.port = "";
-  }
-
-  if (url.pathname === "/") {
-    url.pathname = "";
-  }
-
-  const hostname = url.hostname;
-  if (hostname === "localhost" || hostname.endsWith(".localhost")) {
+  const hostname = stripIpv6Brackets(parsed.url.hostname);
+  if (isBlockedHostname(hostname)) {
     return { ok: false, error: "Localhost URLs are not allowed." };
   }
 
   if (net.isIP(hostname)) {
     return isBlockedIp(hostname)
       ? { ok: false, error: "Private or internal IP addresses are not allowed." }
-      : { ok: true, url: url.toString() };
+      : { ok: true, url: parsed.url.toString() };
   }
 
   try {
@@ -186,43 +197,11 @@ async function normalizeAndValidatePublicUrl(rawUrl) {
     return { ok: false, error: "Hostname did not resolve." };
   }
 
-  return { ok: true, url: url.toString() };
+  return { ok: true, url: parsed.url.toString() };
 }
 
-function isBlockedIp(ip) {
-  const family = net.isIP(ip);
-  if (family === 4) {
-    const parts = ip.split(".").map(Number);
-    const [a, b] = parts;
-    return (
-      a === 0 ||
-      a === 10 ||
-      a === 127 ||
-      (a === 100 && b >= 64 && b <= 127) ||
-      (a === 169 && b === 254) ||
-      (a === 172 && b >= 16 && b <= 31) ||
-      (a === 192 && b === 168) ||
-      (a === 198 && (b === 18 || b === 19)) ||
-      a >= 224
-    );
-  }
-
-  if (family === 6) {
-    const normalized = ip.toLowerCase();
-    return (
-      normalized === "::1" ||
-      normalized === "::" ||
-      normalized.startsWith("fc") ||
-      normalized.startsWith("fd") ||
-      normalized.startsWith("fe80:")
-    );
-  }
-
-  return true;
-}
-
-function readRequestBody(request) {
-  return new Promise((resolve, reject) => {
+function readRequestBody(request: IncomingMessage) {
+  return new Promise<string>((resolve, reject) => {
     let body = "";
     request.on("data", (chunk) => {
       body += chunk;
@@ -236,13 +215,13 @@ function readRequestBody(request) {
   });
 }
 
-function sendJson(response, status, body) {
+function sendJson(response: ServerResponse, status: number, body: unknown) {
   setCors(response);
   response.writeHead(status, { "content-type": "application/json" });
   response.end(JSON.stringify(body));
 }
 
-function setCors(response) {
+function setCors(response: ServerResponse) {
   response.setHeader("access-control-allow-origin", "*");
   response.setHeader("access-control-allow-methods", "GET, POST, OPTIONS");
   response.setHeader("access-control-allow-headers", "content-type, x-probe-secret");

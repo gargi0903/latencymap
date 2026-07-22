@@ -26,38 +26,40 @@ export async function createTestRun(input: CreateTestRunInput): Promise<TestRun>
       values (${run.id}, ${run.inputUrl}, ${run.normalizedUrl}, ${run.createdAt})
     `;
 
-    for (const result of run.results) {
-      await sql`
-        insert into probe_results (
-          id,
-          test_run_id,
-          region,
-          label,
-          lat,
-          lng,
-          total_ms,
-          status_code,
-          error,
-          tested_at,
-          cloudflare_colo,
-          placement_region
-        )
-        values (
-          ${crypto.randomUUID()},
-          ${run.id},
-          ${result.region},
-          ${result.label},
-          ${result.lat},
-          ${result.lng},
-          ${result.totalMs},
-          ${result.statusCode},
-          ${result.error},
-          ${result.testedAt},
-          ${result.cloudflareColo ?? null},
-          ${result.placementRegion ?? null}
-        )
-      `;
-    }
+    await Promise.all(
+      run.results.map((result) =>
+        sql`
+          insert into probe_results (
+            id,
+            test_run_id,
+            region,
+            label,
+            lat,
+            lng,
+            total_ms,
+            status_code,
+            error,
+            tested_at,
+            cloudflare_colo,
+            placement_region
+          )
+          values (
+            ${crypto.randomUUID()},
+            ${run.id},
+            ${result.region},
+            ${result.label},
+            ${result.lat},
+            ${result.lng},
+            ${result.totalMs},
+            ${result.statusCode},
+            ${result.error},
+            ${result.testedAt},
+            ${result.cloudflareColo ?? null},
+            ${result.placementRegion ?? null}
+          )
+        `,
+      ),
+    );
 
     return run;
   }
@@ -111,21 +113,19 @@ export async function listRunsForUrl(normalizedUrl: string, limit: number): Prom
       limit ${limit}
     `;
 
-    const runs: TestRun[] = [];
-    for (const row of rows) {
-      const results = await sql`
-        select region, label, lat, lng, total_ms, status_code, error, tested_at, cloudflare_colo, placement_region
-        from probe_results
-        where test_run_id = ${row.id}
-        order by label asc
-      `;
-      const run = mapRun(row, results);
-      if (isRealProbeRun(run)) {
-        runs.push(run);
-      }
-    }
+    const runs = await Promise.all(
+      rows.map(async (row) => {
+        const results = await sql`
+          select region, label, lat, lng, total_ms, status_code, error, tested_at, cloudflare_colo, placement_region
+          from probe_results
+          where test_run_id = ${row.id}
+          order by label asc
+        `;
+        return mapRun(row, results);
+      }),
+    );
 
-    return runs;
+    return runs.filter(isRealProbeRun);
   }
 
   const store = await readLocalStore();
@@ -175,6 +175,13 @@ async function createSchema() {
   `;
   await sql`alter table probe_results add column if not exists cloudflare_colo text`;
   await sql`alter table probe_results add column if not exists placement_region text`;
+  await sql`
+    create table if not exists rate_limit_buckets (
+      bucket_key text primary key,
+      count integer not null,
+      reset_at timestamptz not null
+    )
+  `;
 }
 
 function mapRun(run: Record<string, unknown>, results: Record<string, unknown>[]): TestRun {

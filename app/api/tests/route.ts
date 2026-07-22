@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
     request.headers.get("x-real-ip") ||
     "unknown";
 
-  const allowed = checkRateLimit(ip);
+  const allowed = await checkRateLimit(ip);
   if (!allowed.ok) {
     return NextResponse.json(
       { error: `Rate limit exceeded. Try again in ${allowed.retryAfterSeconds}s.` },

@@ -37,7 +37,7 @@ Always read `MVP_PLAN.md` before making product, architecture, or implementation
 - Keep project-specific custom components for domain surfaces such as the globe, probe markers, latency summaries, result history, and share-page composition.
 - Do not turn this into a generic component-library showcase. The UI should stay dense, clean, technical, and readable.
 - Avoid marketing hero layouts. Keep the dashboard/tool experience as the first viewport.
-- Exact probe numbers must remain visible in a table beside the globe.
+- Exact probe numbers must remain available in the table view and compact inspector details on the globe view.
 - The 3D globe should show honest probe markers, not a fake heatmap.
 - Use clear region labels, timestamps, status codes, Cloudflare colo values, and latency units.
 - Failed probes must be visually distinct from slow probes.
@@ -166,8 +166,9 @@ https://api.example.com/health
 Run the smallest relevant checks for the change. Common commands:
 
 ```bash
-npm run lint
 npm run typecheck
+npm run lint
+npm test
 npm run build
 ```
 
@@ -194,3 +195,22 @@ npm run probe:dev
 - When decisions are missing, continue the design interview one question at a time and include a recommended answer.
 - When a reasonable MVP-safe default exists, choose it and document the assumption.
 - Explain tradeoffs briefly when changing product scope, security behavior, deployment shape, or UI system conventions.
+
+## Agent skills
+
+### Issue tracker
+
+Issues and PRDs are tracked in GitHub Issues for `gargi0903/latencymap`. See `docs/agents/issue-tracker.md`.
+
+### Domain docs
+
+Domain documentation uses a single-context layout with root `CONTEXT.md` and root ADRs in `docs/adr/`. See `docs/agents/domain.md`.
+
+### Loopy
+
+Use the Loopy skill for repeatable AI-agent workflows: discover loop opportunities in code or threads, find published loops from [Loop Library](https://signals.forwardfuture.com/loop-library/), audit or repair an existing loop, craft a new bounded loop, run one with an evidence receipt, debrief completed runs, or prepare a loop for publication.
+
+- Skill source: `.agents/skills/loopy/SKILL.md`
+- Invoke in Cursor Agent with `/loopy` or by describing the task clearly
+- Saved project loops live in root `LOOPS.md` when the user asks to keep one
+- Installing Loopy does not grant runtime permissions or authorize consequential actions
