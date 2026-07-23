@@ -20,6 +20,7 @@ const sampleRun: TestRun = {
       testedAt: "2026-07-22T12:00:01.000Z",
       cloudflareColo: "IAD",
       placementRegion: "aws:us-east-1",
+      executionColo: null,
     },
     {
       region: "sin",
@@ -33,6 +34,7 @@ const sampleRun: TestRun = {
       testedAt: "2026-07-22T12:00:02.000Z",
       cloudflareColo: "SIN",
       placementRegion: "aws:ap-southeast-1",
+      executionColo: null,
     },
   ],
 };

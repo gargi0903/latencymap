@@ -55,7 +55,6 @@ const server = http.createServer(async (request, response) => {
       placement_region: null,
       cloudflare_colo: null,
       total_ms: result.totalMs,
-      ttfb_ms: result.ttfbMs,
       status_code: result.statusCode,
       error: result.error,
     });

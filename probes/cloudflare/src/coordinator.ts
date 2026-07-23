@@ -1,7 +1,6 @@
 import { PROBE_REGIONS } from "../../../lib/probe-regions";
+import { readLimitedRequestText } from "../../../lib/probe-request-body";
 import { matchesProbeSecret } from "./auth";
-
-const MAX_BODY_BYTES = 16 * 1024;
 
 type RegionalProbeBinding = {
   id: string;
@@ -23,7 +22,6 @@ type RegionalProbeResponse = {
   cloudflare_colo?: string | null;
   execution_colo?: string | null;
   total_ms?: number | null;
-  ttfb_ms?: number | null;
   status_code?: number | null;
   error?: string | null;
 };
@@ -122,7 +120,6 @@ async function fanOutProbe(url: string, env: CoordinatorEnv) {
             cloudflare_colo: null,
             execution_colo: null,
             total_ms: null,
-            ttfb_ms: null,
             status_code: response.status,
             error: errorMessage,
           };
@@ -136,7 +133,6 @@ async function fanOutProbe(url: string, env: CoordinatorEnv) {
           cloudflare_colo: probeBody?.cloudflare_colo ?? null,
           execution_colo: probeBody?.execution_colo ?? null,
           total_ms: probeBody?.total_ms ?? null,
-          ttfb_ms: probeBody?.ttfb_ms ?? null,
           status_code: probeBody?.status_code ?? null,
           error: probeBody?.error ?? null,
         };
@@ -147,7 +143,6 @@ async function fanOutProbe(url: string, env: CoordinatorEnv) {
           cloudflare_colo: null,
           execution_colo: null,
           total_ms: null,
-          ttfb_ms: null,
           status_code: null,
           error: "Regional probe failed.",
         };
@@ -165,48 +160,6 @@ function createProbeRequest(url: string, probeSecret: string) {
     },
     body: JSON.stringify({ url }),
   });
-}
-
-async function readLimitedRequestText(request: Request) {
-  const contentLength = request.headers.get("content-length");
-  if (contentLength && Number(contentLength) > MAX_BODY_BYTES) {
-    throw new Error("Request body too large.");
-  }
-
-  if (!request.body) {
-    return "";
-  }
-
-  const reader = request.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let received = 0;
-
-  try {
-    while (received <= MAX_BODY_BYTES) {
-      const { done, value } = await reader.read();
-      if (done) {
-        break;
-      }
-
-      received += value.byteLength;
-      if (received > MAX_BODY_BYTES) {
-        throw new Error("Request body too large.");
-      }
-
-      chunks.push(value);
-    }
-  } finally {
-    await reader.cancel().catch(() => undefined);
-  }
-
-  const body = new Uint8Array(received);
-  let offset = 0;
-  for (const chunk of chunks) {
-    body.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-
-  return new TextDecoder().decode(body);
 }
 
 function json(body: unknown, status: number, extraHeaders?: Record<string, string>) {

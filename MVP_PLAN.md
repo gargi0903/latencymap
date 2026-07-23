@@ -25,8 +25,8 @@ Included:
 - any public `http://` or `https://` URL
 - real probes in 3-5 regions
 - shareable public result page (URL-encoded payload, no database)
-- developer-tool dashboard UI
-- 3D interactive globe beside exact results table
+- developer-tool terminal dashboard UI
+- regional results table with selected-row inspector
 
 Excluded for MVP:
 - user accounts
@@ -49,7 +49,7 @@ Home page
   -> clicks Run Test
   -> backend validates URL
   -> backend calls probes in parallel
-  -> user sees globe + table
+  -> user sees regional results table + inspector
   -> user can copy/open a shareable result URL
 ```
 
@@ -67,7 +67,7 @@ Probe service:
 - local Node.js probe for development flow testing only
 
 3D map:
-- `react-globe.gl`
+- deferred; current UI uses a terminal-style results table
 
 ## Architecture
 
@@ -135,7 +135,7 @@ Use `GET` with strict limits.
 
 Rules:
 - allow only `http://` and `https://`
-- timeout after 5 seconds
+- timeout after 12 seconds per probe measurement budget
 - follow max 3 redirects
 - validate each redirect target before following
 - do not store response body
@@ -193,7 +193,7 @@ Protections:
 - allow only HTTP and HTTPS
 - limit redirects to 3
 - validate every redirect target
-- use 5 second probe timeout
+- use 12 second probe measurement budget
 - cap response bytes
 - rate limit by IP
 - do not allow custom headers in MVP
@@ -215,19 +215,17 @@ The first screen should be the actual tool, not a marketing landing page.
 Layout:
 
 ```txt
-Top bar
-URL input + Run Test button
-Current test summary
-3D globe beside results table
+Terminal-style prompt
+URL input
+Regional results table in fixed probe order
+Selected-row inspector with status, colo, placement, and timestamp
 Share link action
 ```
 
-Globe behavior:
-- rotate and zoom
-- show markers for probe regions
-- marker color indicates latency
-- hover shows region, latency, status
-- click marker highlights table row
+Results behavior:
+- keep countries in stable probe-region order
+- color latency values with the latency contract
+- show exact probe metadata in the selected-row inspector
 - failed probes shown distinctly
 
 Latency colors:
@@ -239,12 +237,10 @@ red    = >300 ms
 gray   = failed
 ```
 
-Do not show a fake heatmap with only 3-5 probes. Show honest probe markers.
-
 ## Resolved Implementation Notes
 
 - Probe hosting: Cloudflare Workers with one environment per region (`iad`, `lhr`, `sin`, `syd`, `gru`).
 - Persistence: URL-encoded share links via `lib/share-payload.ts` (no database).
 - Rate limiting: in-memory buckets per serverless instance.
 - Probe env vars: `PROBE_COORDINATOR_ENDPOINT` and `PROBE_SECRET`; region metadata in `lib/probe-regions.ts`.
-- UI results: Globe/Table switcher on smaller viewports; both views show the same honest probe evidence.
+- UI results: terminal dashboard with a shared `ProbeResultsPanel` for dashboard and share pages.

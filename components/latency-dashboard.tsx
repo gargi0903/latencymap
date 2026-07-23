@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { formatLatency, formatProbeStatus } from "@/lib/latency-display";
-import { PROBE_COUNTRIES, PROBE_COUNTRY_LIST, probeCountryName } from "@/lib/probe-regions";
-import type { ProbeResult } from "@/lib/types";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { CmdLabel } from "@/components/cmd-label";
+import { ProbeResultsPanel } from "@/components/probe-results-panel";
+import { PROBE_COUNTRIES, PROBE_COUNTRY_LIST } from "@/lib/probe-regions";
 import { useLatencyTest } from "@/lib/use-latency-test";
 
 const INTERACTIVE_SELECTOR = "button, a, textarea, select, canvas, [role='button']";
@@ -20,7 +20,7 @@ const BOOT_STEPS: BootStep[] = [
   {
     id: "brand",
     className: "terminal__boot-line--brand",
-    render: () => <CmdLabel />,
+    render: () => <CmdLabelWrapper />,
   },
   {
     id: "starting",
@@ -55,13 +55,8 @@ function isInteractiveTarget(target: EventTarget | null) {
   return target instanceof Element && Boolean(target.closest(INTERACTIVE_SELECTOR));
 }
 
-function CmdLabel() {
-  return (
-    <>
-      <span className="terminal__cmd-latency">latency</span>{" "}
-      <span className="terminal__cmd-map">map</span>
-    </>
-  );
+function CmdLabelWrapper() {
+  return <CmdLabel />;
 }
 
 function Wordmark() {
@@ -96,22 +91,12 @@ function markBootSeen() {
   }
 }
 
-function sortResultsByLatencyDesc(results: ProbeResult[]) {
-  return [...results].sort((a, b) => {
-    if (a.totalMs === null && b.totalMs === null) return 0;
-    if (a.totalMs === null) return 1;
-    if (b.totalMs === null) return -1;
-    return b.totalMs - a.totalMs;
-  });
-}
-
 export function LatencyDashboard() {
   const inputRef = useRef<HTMLInputElement>(null);
   const runTestRef = useRef<(targetUrl?: string) => Promise<void>>(async () => {});
   const isLoadingRef = useRef(false);
   const bootReadyRef = useRef(false);
   const { url, setUrl, run, sharePath, error, isLoading, onSubmit, runTest } = useLatencyTest();
-  const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
   const [copyState, setCopyState] = useState<"idle" | "copied">("idle");
   const [showBoot, setShowBoot] = useState(true);
   const [visibleBootLines, setVisibleBootLines] = useState(0);
@@ -120,11 +105,6 @@ export function LatencyDashboard() {
   const bootReady = !showBoot;
   const hasResults = Boolean(run && !isLoading);
   const activeSharePath = sharePath ?? (run ? `/r/${run.id}` : null);
-  const sortedResults = useMemo(
-    () => (run ? sortResultsByLatencyDesc(run.results) : []),
-    [run],
-  );
-  const currentRegion = selectedRegion ?? sortedResults[0]?.region ?? null;
 
   runTestRef.current = runTest;
   isLoadingRef.current = isLoading;
@@ -326,60 +306,22 @@ export function LatencyDashboard() {
         {hasResults && run ? (
           <div className="terminal__workspace">
             <div className="terminal__feed">
-              <p className="terminal__log terminal__log--complete" role="status">
-                <span className="terminal__arrow">✓</span>
-                probe complete · {run.results.length} regions
-              </p>
-
-              <div className="terminal__results-body">
-                <h2 className="terminal__section-title">results</h2>
-                <div className="terminal__table" role="list" aria-label="Latency by country">
-                  {sortedResults.map((result, index) => {
-                    const selected = currentRegion === result.region;
-                    const failed = Boolean(result.error || result.totalMs === null);
-
-                    return (
-                      <button
-                        key={result.region}
-                        type="button"
-                        className={[
-                          "terminal__table-row",
-                          selected ? "terminal__table-row--selected" : null,
-                          failed ? "terminal__table-row--failed" : null,
-                        ]
-                          .filter(Boolean)
-                          .join(" ")}
-                        role="listitem"
-                        aria-selected={selected}
-                        style={{ animationDelay: `${index * 45}ms` }}
-                        onClick={() => setSelectedRegion(result.region)}
-                      >
-                        <span className="terminal__region">{probeCountryName(result.region)}</span>
-                        <span
-                          className={["terminal__ms", failed ? "terminal__ms--failed" : null]
-                            .filter(Boolean)
-                            .join(" ")}
-                        >
-                          {failed ? formatProbeStatus(result) : formatLatency(result)}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <p className="terminal__log terminal__log--footer">
-                {activeSharePath ? (
-                  <button
-                    type="button"
-                    className="terminal__link"
-                    title="Copy permanent share link"
-                    onClick={copyShareLink}
-                  >
-                    {copyState === "copied" ? "copied" : "share"}
-                  </button>
-                ) : null}
-              </p>
+              <ProbeResultsPanel
+                key={run.id}
+                results={run.results}
+                footer={
+                  activeSharePath ? (
+                    <button
+                      type="button"
+                      className="terminal__link"
+                      title="Copy permanent share link"
+                      onClick={copyShareLink}
+                    >
+                      {copyState === "copied" ? "copied" : "share"}
+                    </button>
+                  ) : null
+                }
+              />
             </div>
           </div>
         ) : null}

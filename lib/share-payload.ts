@@ -13,6 +13,7 @@ type WireProbe = {
   d: string;
   c?: string | null;
   p?: string | null;
+  x?: string | null;
 };
 
 type WirePayload = {
@@ -81,14 +82,17 @@ function probeToWire(result: ProbeResult): WireProbe {
     a: result.lat,
     o: result.lng,
     m: result.totalMs,
-    f: result.ttfbMs,
     s: result.statusCode,
     e: result.error,
     d: result.testedAt,
   };
 
+  if (result.ttfbMs !== null && result.ttfbMs !== result.totalMs) {
+    wire.f = result.ttfbMs;
+  }
   if (result.cloudflareColo) wire.c = result.cloudflareColo;
   if (result.placementRegion) wire.p = result.placementRegion;
+  if (result.executionColo) wire.x = result.executionColo;
   return wire;
 }
 
@@ -105,6 +109,7 @@ function wireToProbe(wire: WireProbe): ProbeResult {
     testedAt: wire.d,
     cloudflareColo: wire.c ?? null,
     placementRegion: wire.p ?? null,
+    executionColo: wire.x ?? null,
   };
 }
 

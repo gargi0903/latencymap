@@ -1,5 +1,5 @@
 import { PROBE_CLIENT_TIMEOUT_MS } from "@/lib/constants";
-import { getLocalProbeEndpoint, getProbeRegions, usesCoordinatorEndpoint } from "@/lib/probe-regions";
+import { getLocalProbeEndpoint, getProbeRegions } from "@/lib/probe-regions";
 import type { ProbeConfig, ProbeResult } from "@/lib/types";
 
 export class ProbeConfigurationError extends Error {
@@ -126,7 +126,6 @@ async function callCoordinator(
       }
 
       const totalMs = coerceNumber(result.total_ms ?? result.totalMs);
-      const ttfbMs = coerceNumber(result.ttfb_ms ?? result.ttfbMs) ?? totalMs;
 
       return {
         region: probe.id,
@@ -134,7 +133,7 @@ async function callCoordinator(
         lat: probe.lat,
         lng: probe.lng,
         totalMs,
-        ttfbMs,
+        ttfbMs: totalMs,
         statusCode: coerceNumber(result.status_code ?? result.statusCode),
         error: result.error ?? null,
         testedAt,
@@ -251,7 +250,6 @@ async function callRemoteProbe(probe: ProbeConfig, url: string, probeSecret: str
     } | null;
 
     const totalMs = coerceNumber(body?.total_ms ?? body?.totalMs);
-    const ttfbMs = coerceNumber(body?.ttfb_ms ?? body?.ttfbMs) ?? totalMs;
 
     return {
       region: probe.id,
@@ -259,7 +257,7 @@ async function callRemoteProbe(probe: ProbeConfig, url: string, probeSecret: str
       lat: probe.lat,
       lng: probe.lng,
       totalMs,
-      ttfbMs,
+      ttfbMs: totalMs,
       statusCode: coerceNumber(body?.status_code ?? body?.statusCode),
       error: body?.error ?? null,
       testedAt,
@@ -329,9 +327,4 @@ function isValidHttpUrl(value: string) {
   } catch {
     return false;
   }
-}
-
-// Kept for tests and diagnostics that need to know whether coordinator mode is active.
-export function isCoordinatorModeEnabled() {
-  return usesCoordinatorEndpoint();
 }

@@ -1,6 +1,6 @@
 # Latencymap
 
-A portfolio/demo MVP for testing a public API or website from multiple probe regions and showing the results on a 3D globe.
+A portfolio/demo MVP for testing a public API or website from multiple probe regions and showing honest regional latency results in a terminal-style dashboard.
 
 ## Stack
 
@@ -8,7 +8,6 @@ A portfolio/demo MVP for testing a public API or website from multiple probe reg
 - URL-encoded share links (no database required)
 - Cloudflare Worker probe services
 - local Node.js probe service for development only
-- `react-globe.gl` for the interactive globe
 
 ## Local Development
 
@@ -43,7 +42,7 @@ PROBE_COORDINATOR_ENDPOINT=
 PROBE_SECRET=
 ```
 
-Production region metadata (labels and globe coordinates) is committed in `lib/probe-regions.ts`.
+Production region metadata (labels and coordinates) is committed in `lib/probe-regions.ts`.
 In production, the app calls the coordinator Worker once and maps results onto those regions.
 
 For local development, run the local Node probe. A single local region is enough to test the flow, but it is not regional latency data.
@@ -119,7 +118,7 @@ The probe exposes two colo fields so callers can distinguish ingress from execut
 
 `GET /healthz` also returns a `diagnostics` object with `trace_ms`, `trace_colo`, `ingress_colo`, and `source` (`trace` or `subrequest`) to help verify placement without running a full probe.
 
-The UI stores and displays `cloudflare_colo` beside the configured region label today. `execution_colo` is available in probe JSON for operators and future UI work.
+The UI shows each region's latency, HTTP status, Cloudflare colo values, placement region, and test timestamp in the selected-row inspector.
 
 Run the Cloudflare Worker probe locally with Wrangler:
 
@@ -247,7 +246,7 @@ curl -X POST https://<your-vercel-domain>/api/tests \
   -d '{"url":"https://example.com"}'
 ```
 
-Open the returned `sharePath` (or `/r/<token>`) and confirm regional probe results appear on the globe and table.
+Open the returned `sharePath` (or `/r/<token>`) and confirm regional probe results appear in the table and inspector.
 
 ### Production checklist
 
@@ -267,6 +266,6 @@ User-provided URLs are validated before fetches:
 - no private/internal IPs
 - no cloud metadata IPs
 - redirect targets are re-validated
-- request timeout is 5 seconds
+- request timeout is 12 seconds per probe measurement budget
 - response body reads are capped
 - anonymous test runs are rate limited (in-memory per serverless instance)

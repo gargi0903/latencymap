@@ -1,7 +1,12 @@
+import {
+  PROBE_FETCH_MEASURE_SAMPLE_COUNT,
+  PROBE_FETCH_SAMPLE_SPREAD_RATIO,
+} from "@/lib/probe-fetch";
 import type { ProbeResult } from "@/lib/types";
 
 export const LATENCY_FAST_MS = 150;
 export const LATENCY_MODERATE_MS = 300;
+export const LATENCY_MARGIN_OF_ERROR_PERCENT = Math.round(PROBE_FETCH_SAMPLE_SPREAD_RATIO * 100);
 
 export const LATENCY_COLORS = {
   fast: "#16833a",
@@ -18,6 +23,11 @@ export function formatProbeStatus(result: Pick<ProbeResult, "error" | "statusCod
   if (result.error) return result.error;
   return result.statusCode === null ? "n/a" : `${result.statusCode}`;
 }
+
+export function latencyMeasurementNote() {
+  return `median ttfb from ${PROBE_FETCH_MEASURE_SAMPLE_COUNT} warmed requests · margin of error ±${LATENCY_MARGIN_OF_ERROR_PERCENT}% on repeat tests`;
+}
+
 export function latencyHexColor(totalMs: number | null, error: string | null) {
   if (error || totalMs === null) return LATENCY_COLORS.failed;
   if (totalMs < LATENCY_FAST_MS) return LATENCY_COLORS.fast;
@@ -25,11 +35,21 @@ export function latencyHexColor(totalMs: number | null, error: string | null) {
   return LATENCY_COLORS.slow;
 }
 
-export function latencyTailwindClass(totalMs: number | null, error: string | null) {
-  const color = latencyHexColor(totalMs, error);
-  if (color === LATENCY_COLORS.fast) return "bg-[#16833a]";
-  if (color === LATENCY_COLORS.moderate) return "bg-[#b26a00]";
-  if (color === LATENCY_COLORS.slow) return "bg-[#c3362b]";
-  return "bg-[#737b8c]";
+export function formatProbeTimestamp(value: string) {
+  try {
+    return new Intl.DateTimeFormat(undefined, {
+      dateStyle: "medium",
+      timeStyle: "medium",
+    }).format(new Date(value));
+  } catch {
+    return value;
+  }
 }
 
+export function formatProbeMetadataValue(value: string | number | null | undefined) {
+  if (value === null || value === undefined || value === "") {
+    return "n/a";
+  }
+
+  return String(value);
+}

@@ -1,3 +1,5 @@
+import { getCloudflareResponseColo } from "../../../lib/cf-response";
+
 export const TRACE_ENDPOINT = "https://cloudflare.com/cdn-cgi/trace";
 export const TRACE_TIMEOUT_MS = 1500;
 
@@ -6,12 +8,6 @@ export type ColoDiagnostics = {
   trace_colo: string | null;
   ingress_colo: string | null;
   source: "trace" | "subrequest" | null;
-};
-
-type FetchResponseWithCf = Response & {
-  cf?: {
-    colo?: string;
-  };
 };
 
 export function parseTraceColo(text: string): string | null {
@@ -29,8 +25,7 @@ export function parseTraceColo(text: string): string | null {
 }
 
 export function getResponseColo(response: Response): string | null {
-  const colo = (response as FetchResponseWithCf).cf?.colo;
-  return typeof colo === "string" && colo.trim().length > 0 ? colo : null;
+  return getCloudflareResponseColo(response);
 }
 
 export async function resolveTraceColo(

@@ -2,7 +2,7 @@
 
 ## Project
 
-Latencymap is a portfolio/demo MVP for testing public API or website latency from multiple real probe regions and visualizing results on a 3D globe.
+Latencymap is a portfolio/demo MVP for testing public API or website latency from multiple real probe regions and visualizing results in a terminal-style dashboard.
 
 Always read `MVP_PLAN.md` before making product, architecture, or implementation decisions. If this file and `MVP_PLAN.md` conflict, preserve the current explicit user direction in this file and update `MVP_PLAN.md` only when asked.
 
@@ -23,7 +23,7 @@ Always read `MVP_PLAN.md` before making product, architecture, or implementation
 - Deploy probes and supporting edge services on Cloudflare.
 - Use Cloudflare Workers for regional probes with a provider-agnostic HTTP interface.
 - Use Wrangler JSON config and named Worker environments for probe regions.
-- Use `react-globe.gl` for the interactive 3D globe.
+- Use a terminal-style regional results table with a selected-row inspector.
 - Use `lucide-react` icons.
 - Prefer simple, explicit code over premature abstractions.
 
@@ -33,11 +33,10 @@ Always read `MVP_PLAN.md` before making product, architecture, or implementation
 - Use prebuilt `shadcn/ui` components for common UI primitives because they are extensible, modular, and easy to customize.
 - Use `components.json` as the source of truth for shadcn setup: New York style, RSC enabled, TSX, Tailwind CSS variables, `slate` base color, lucide icons, and `@/components/ui` aliases.
 - Add or reuse shadcn components for primitive UI needs such as buttons, inputs, tables, dialogs, tooltips, tabs, dropdowns, forms, alerts, and toasts.
-- Keep project-specific custom components for domain surfaces such as the globe, probe markers, latency summaries, result history, and share-page composition.
+- Keep project-specific custom components for domain surfaces such as probe results, latency summaries, and share-page composition.
 - Do not turn this into a generic component-library showcase. The UI should stay dense, clean, technical, and readable.
 - Avoid marketing hero layouts. Keep the dashboard/tool experience as the first viewport.
-- Exact probe numbers must remain available in the table view and compact inspector details on the globe view.
-- The 3D globe should show honest probe markers, not a fake heatmap.
+- Exact probe numbers must remain available in the results table and selected-row inspector.
 - Use clear region labels, timestamps, status codes, Cloudflare colo values, and latency units.
 - Failed probes must be visually distinct from slow probes.
 - Use the latency color contract:
@@ -114,7 +113,7 @@ Any implementation that fetches user-provided URLs must:
 - validate DNS-resolved targets where practical
 - validate every redirect target before following it
 - cap redirects at 3
-- set short timeouts, currently 5 seconds
+- set short timeouts, currently 12 seconds per probe measurement budget
 - cap response bytes
 - avoid storing response bodies
 - avoid allowing user-supplied headers in the MVP

@@ -1,20 +1,17 @@
+import { getCloudflareResponseColo } from "@/lib/cf-response";
 import type { UrlValidationResult } from "@/lib/probe-url-safety";
 import { parsePublicHttpUrl, stripIpv6Brackets } from "@/lib/probe-url-safety";
 
 export const PROBE_FETCH_MAX_REDIRECTS = 3;
-export const PROBE_FETCH_MAX_RESPONSE_BYTES = 64 * 1024;
 export const PROBE_FETCH_TIMEOUT_MS = 12_000;
-export const PROBE_FETCH_WARMUP_COUNT = 4;
-export const PROBE_FETCH_WARMUP_TIMEOUT_MS = 5_000;
-export const PROBE_FETCH_MEASURE_SAMPLE_COUNT = 7;
-export const PROBE_FETCH_MIN_SUCCESSFUL_SAMPLES = 5;
-export const PROBE_FETCH_INTER_SAMPLE_DELAY_MS = 100;
-export const PROBE_FETCH_MEASURE_TIMEOUT_MS = 5_000;
-export const PROBE_FETCH_OUTLIERS_TRIMMED_PER_SIDE = 1;
+export const PROBE_FETCH_WARMUP_COUNT = 1;
+export const PROBE_FETCH_MEASURE_SAMPLE_COUNT = 3;
+export const PROBE_FETCH_MIN_SUCCESSFUL_SAMPLES = 3;
+export const PROBE_FETCH_PASS_TIMEOUT_MS = 4_000;
+export const PROBE_FETCH_SAMPLE_SPREAD_RATIO = 0.5;
 
 export type ProbeFetchResult = {
   totalMs: number | null;
-  ttfbMs: number | null;
   statusCode: number | null;
   error: string | null;
   executionColo?: string | null;
@@ -27,6 +24,21 @@ type ProbeFetchOptions = {
   fetchImpl?: typeof fetch;
 };
 
+type ProbePassResult =
+  | {
+      ok: true;
+      resolvedUrl: string;
+      totalMs: number | null;
+      statusCode: number;
+      executionColo?: string | null;
+    }
+  | {
+      ok: false;
+      error: string;
+      statusCode: number | null;
+      totalMs: number | null;
+    };
+
 function bindFetch(fetchImpl?: typeof fetch) {
   return fetchImpl ?? ((input: RequestInfo | URL, init?: RequestInit) => fetch(input, init));
 }
@@ -37,61 +49,65 @@ export async function runProbeMeasurement(
   options: ProbeFetchOptions,
 ): Promise<ProbeFetchResult> {
   const fetchImpl = bindFetch(options.fetchImpl);
+  const deadlineAt = performance.now() + PROBE_FETCH_TIMEOUT_MS;
+  const remainingMs = () => Math.max(0, deadlineAt - performance.now());
+  const passTimeoutMs = () =>
+    Math.max(250, Math.min(PROBE_FETCH_PASS_TIMEOUT_MS, remainingMs() - 250));
+
   const initialValidation = await validateUrl(targetUrl);
   if (!initialValidation.ok) {
-    return {
-      totalMs: null,
-      ttfbMs: null,
-      statusCode: null,
-      error: initialValidation.error,
-    };
+    return failureResult(initialValidation.error);
+  }
+
+  if (remainingMs() < 500) {
+    return failureResult("Request timed out.");
   }
 
   const validateCachedUrl = createMeasurementUrlValidator(validateUrl);
-
-  const resolvedTarget = await resolveProbeTargetUrl(targetUrl, validateCachedUrl, {
+  const resolved = await runProbePass(targetUrl, validateCachedUrl, {
     fetchImpl,
     userAgent: options.userAgent,
-    timeoutMs: PROBE_FETCH_WARMUP_TIMEOUT_MS,
+    timeoutMs: passTimeoutMs(),
+    measure: false,
   });
-  if (!resolvedTarget.ok) {
-    return {
-      totalMs: null,
-      ttfbMs: null,
-      statusCode: null,
-      error: resolvedTarget.error,
-    };
+
+  if (!resolved.ok) {
+    return failureResult(resolved.error, resolved.statusCode);
   }
 
-  const measureUrl = resolvedTarget.url;
+  const measureUrl = resolved.resolvedUrl;
 
   for (let warmup = 0; warmup < PROBE_FETCH_WARMUP_COUNT; warmup += 1) {
-    await runProbeFetchPass(measureUrl, validateCachedUrl, {
+    if (remainingMs() < 500) {
+      break;
+    }
+
+    await runProbePass(measureUrl, validateCachedUrl, {
       fetchImpl,
       userAgent: options.userAgent,
+      timeoutMs: passTimeoutMs(),
       measure: false,
-      timeoutMs: PROBE_FETCH_WARMUP_TIMEOUT_MS,
     }).catch(() => undefined);
   }
 
   const samples: number[] = [];
-  let lastSuccess: ProbeFetchResult | null = null;
+  let lastSuccess: Extract<ProbePassResult, { ok: true }> | null = null;
   let lastError: string | null = null;
 
   for (let sample = 0; sample < PROBE_FETCH_MEASURE_SAMPLE_COUNT; sample += 1) {
-    if (sample > 0) {
-      await delay(PROBE_FETCH_INTER_SAMPLE_DELAY_MS);
+    if (remainingMs() < passTimeoutMs()) {
+      break;
     }
 
-    const result = await runProbeFetchPass(measureUrl, validateCachedUrl, {
+    const result = await runProbePass(measureUrl, validateCachedUrl, {
       fetchImpl,
       userAgent: options.userAgent,
+      timeoutMs: passTimeoutMs(),
       measure: true,
-      timeoutMs: PROBE_FETCH_MEASURE_TIMEOUT_MS,
     });
 
-    if (result.error || result.totalMs === null) {
-      lastError = result.error;
+    if (!result.ok || result.totalMs === null) {
+      lastError = result.ok ? "Request failed." : result.error;
       continue;
     }
 
@@ -102,32 +118,29 @@ export async function runProbeMeasurement(
   if (samples.length < PROBE_FETCH_MIN_SUCCESSFUL_SAMPLES) {
     return {
       totalMs: null,
-      ttfbMs: null,
       statusCode: lastSuccess?.statusCode ?? null,
-      error: lastError ?? "Request failed.",
+      error: lastError ?? "Request timed out.",
     };
   }
 
-  const latencyMs = aggregateLatencySamples(samples);
   return {
-    totalMs: latencyMs,
-    ttfbMs: latencyMs,
+    totalMs: aggregateLatencySamples(samples),
     statusCode: lastSuccess!.statusCode,
     error: null,
     executionColo: lastSuccess!.executionColo ?? null,
   };
 }
 
-async function runProbeFetchPass(
+async function runProbePass(
   targetUrl: string,
   validateUrl: ValidateUrl,
   options: {
     fetchImpl: typeof fetch;
     userAgent: string;
-    measure: boolean;
     timeoutMs: number;
+    measure: boolean;
   },
-): Promise<ProbeFetchResult> {
+): Promise<ProbePassResult> {
   let currentUrl = targetUrl;
   let measuredStarted: number | null = null;
   const fetchImpl = bindFetch(options.fetchImpl);
@@ -135,7 +148,7 @@ async function runProbeFetchPass(
   for (let redirects = 0; redirects <= PROBE_FETCH_MAX_REDIRECTS; redirects += 1) {
     const validation = await validateUrl(currentUrl);
     if (!validation.ok) {
-      return { totalMs: null, ttfbMs: null, statusCode: null, error: validation.error };
+      return { ok: false, error: validation.error, statusCode: null, totalMs: null };
     }
 
     const controller = new AbortController();
@@ -156,27 +169,26 @@ async function runProbeFetchPass(
       if (isRedirect(response.status)) {
         const location = response.headers.get("location");
         if (!location) {
-          return complete(options.measure, measuredStarted, response.status, "Redirect response did not include a location header.");
+          return passError(options.measure, measuredStarted, response.status, "Redirect response did not include a location header.");
         }
 
         if (redirects === PROBE_FETCH_MAX_REDIRECTS) {
-          return complete(options.measure, measuredStarted, response.status, "Too many redirects.");
+          return passError(options.measure, measuredStarted, response.status, "Too many redirects.");
         }
 
-        await drainLimitedBody(response);
         currentUrl = new URL(location, validation.url).toString();
         continue;
       }
 
       const totalMs =
         options.measure && measuredStarted !== null ? Math.round(performance.now() - measuredStarted) : null;
-      await drainLimitedBody(response);
+
       return {
+        ok: true,
+        resolvedUrl: validation.url,
         totalMs,
-        ttfbMs: totalMs,
         statusCode: response.status,
-        error: null,
-        executionColo: options.measure ? getResponseColo(response) : undefined,
+        executionColo: options.measure ? getCloudflareResponseColo(response) : undefined,
       };
     } catch (error) {
       const message =
@@ -185,75 +197,13 @@ async function runProbeFetchPass(
           : error instanceof Error && error.message
             ? `Request failed: ${error.message}`
             : "Request failed.";
-      return { totalMs: null, ttfbMs: null, statusCode: null, error: message };
+      return { ok: false, error: message, statusCode: null, totalMs: null };
     } finally {
       clearTimeout(timeout);
     }
   }
 
-  return { totalMs: null, ttfbMs: null, statusCode: null, error: "Too many redirects." };
-}
-
-async function resolveProbeTargetUrl(
-  targetUrl: string,
-  validateUrl: ValidateUrl,
-  options: {
-    fetchImpl: typeof fetch;
-    userAgent: string;
-    timeoutMs: number;
-  },
-): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
-  let currentUrl = targetUrl;
-  const fetchImpl = bindFetch(options.fetchImpl);
-
-  for (let redirects = 0; redirects <= PROBE_FETCH_MAX_REDIRECTS; redirects += 1) {
-    const validation = await validateUrl(currentUrl);
-    if (!validation.ok) {
-      return { ok: false, error: validation.error };
-    }
-
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), options.timeoutMs);
-
-    try {
-      const response = await fetchImpl(validation.url, {
-        method: "GET",
-        redirect: "manual",
-        signal: controller.signal,
-        headers: probeFetchHeaders(options.userAgent),
-      });
-
-      if (isRedirect(response.status)) {
-        const location = response.headers.get("location");
-        if (!location) {
-          return { ok: false, error: "Redirect response did not include a location header." };
-        }
-
-        if (redirects === PROBE_FETCH_MAX_REDIRECTS) {
-          return { ok: false, error: "Too many redirects." };
-        }
-
-        await drainLimitedBody(response);
-        currentUrl = new URL(location, validation.url).toString();
-        continue;
-      }
-
-      await drainLimitedBody(response);
-      return { ok: true, url: validation.url };
-    } catch (error) {
-      const message =
-        error instanceof Error && error.name === "AbortError"
-          ? "Request timed out."
-          : error instanceof Error && error.message
-            ? `Request failed: ${error.message}`
-            : "Request failed.";
-      return { ok: false, error: message };
-    } finally {
-      clearTimeout(timeout);
-    }
-  }
-
-  return { ok: false, error: "Too many redirects." };
+  return { ok: false, error: "Too many redirects.", statusCode: null, totalMs: null };
 }
 
 function probeFetchHeaders(userAgent: string): HeadersInit {
@@ -276,55 +226,52 @@ function median(values: number[]): number {
   return sorted[middle]!;
 }
 
-/** Drop the slowest and fastest samples, then take the median of the rest. */
+function filterSpreadOutliers(samples: number[]): number[] {
+  if (samples.length < PROBE_FETCH_MIN_SUCCESSFUL_SAMPLES) {
+    return samples;
+  }
+
+  const center = median(samples);
+  const lowerBound = center * (1 - PROBE_FETCH_SAMPLE_SPREAD_RATIO);
+  const upperBound = center * (1 + PROBE_FETCH_SAMPLE_SPREAD_RATIO);
+  const filtered = samples.filter((sample) => sample >= lowerBound && sample <= upperBound);
+
+  return filtered.length >= PROBE_FETCH_MIN_SUCCESSFUL_SAMPLES ? filtered : samples;
+}
+
+/** Drop cold-start spikes, then take the median. */
 export function aggregateLatencySamples(samples: number[]): number {
   if (samples.length === 0) {
     throw new Error("aggregateLatencySamples requires at least one sample.");
   }
 
-  const sorted = [...samples].sort((left, right) => left - right);
-  const trimCount =
-    sorted.length >= PROBE_FETCH_MIN_SUCCESSFUL_SAMPLES
-      ? Math.min(PROBE_FETCH_OUTLIERS_TRIMMED_PER_SIDE, Math.floor((sorted.length - 1) / 2))
-      : 0;
-  const trimmed =
-    trimCount > 0 ? sorted.slice(trimCount, sorted.length - trimCount) : sorted;
-
-  return median(trimmed);
+  return median(filterSpreadOutliers(samples));
 }
 
-function delay(ms: number) {
-  return new Promise<void>((resolve) => {
-    setTimeout(resolve, ms);
-  });
-}
-
-async function drainLimitedBody(_response: Response) {
-  // TTFB is measured at response headers; no body drain needed.
-}
-
-function complete(
-  measure: boolean,
-  measuredStarted: number | null,
-  statusCode: number,
-  error: string,
-): ProbeFetchResult {
-  const totalMs = measure && measuredStarted !== null ? Math.round(performance.now() - measuredStarted) : null;
+function failureResult(error: string, statusCode: number | null = null): ProbeFetchResult {
   return {
-    totalMs,
-    ttfbMs: totalMs,
+    totalMs: null,
     statusCode,
     error,
   };
 }
 
-function isRedirect(status: number) {
-  return status >= 300 && status < 400;
+function passError(
+  measure: boolean,
+  measuredStarted: number | null,
+  statusCode: number,
+  error: string,
+): ProbePassResult {
+  return {
+    ok: false,
+    error,
+    statusCode,
+    totalMs: measure && measuredStarted !== null ? Math.round(performance.now() - measuredStarted) : null,
+  };
 }
 
-function getResponseColo(response: Response): string | null {
-  const colo = (response as Response & { cf?: { colo?: string } }).cf?.colo;
-  return typeof colo === "string" && colo.trim().length > 0 ? colo : null;
+function isRedirect(status: number) {
+  return status >= 300 && status < 400;
 }
 
 function createMeasurementUrlValidator(validateUrl: ValidateUrl): ValidateUrl {

@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   PROBE_FETCH_MEASURE_SAMPLE_COUNT,
-  PROBE_FETCH_MEASURE_TIMEOUT_MS,
   PROBE_FETCH_MIN_SUCCESSFUL_SAMPLES,
+  PROBE_FETCH_PASS_TIMEOUT_MS,
+  PROBE_FETCH_TIMEOUT_MS,
   PROBE_FETCH_WARMUP_COUNT,
-  PROBE_FETCH_WARMUP_TIMEOUT_MS,
   aggregateLatencySamples,
   runProbeMeasurement,
 } from "./probe-fetch";
@@ -46,9 +46,9 @@ function mockMeasuredResponses(fetchImpl: ReturnType<typeof vi.fn>, delaysMs: nu
 }
 
 describe("runProbeMeasurement", () => {
-  it("warms up, samples TTFB seven times, trims outliers, and returns the stabilized median", async () => {
+  it("warms up, samples TTFB three times, and returns the stabilized median", async () => {
     const fetchImpl = vi.fn();
-    const restoreNow = mockMeasuredResponses(fetchImpl, [10, 30, 20, 50, 15, 25, 18]);
+    const restoreNow = mockMeasuredResponses(fetchImpl, [10, 30, 20]);
 
     const result = await runProbeMeasurement("https://example.com", validateUrl, {
       userAgent: "test-probe",
@@ -70,7 +70,6 @@ describe("runProbeMeasurement", () => {
       statusCode: 200,
       error: null,
       totalMs: 20,
-      ttfbMs: 20,
     });
   });
 
@@ -98,7 +97,6 @@ describe("runProbeMeasurement", () => {
       statusCode: 200,
       error: null,
       totalMs: 12,
-      ttfbMs: 12,
     });
   });
 
@@ -115,7 +113,6 @@ describe("runProbeMeasurement", () => {
     expect(fetchImpl).not.toHaveBeenCalled();
     expect(result).toEqual({
       totalMs: null,
-      ttfbMs: null,
       statusCode: null,
       error: "Localhost URLs are not allowed.",
     });
@@ -151,13 +148,12 @@ describe("runProbeMeasurement", () => {
     expect(fetchImpl).toHaveBeenCalledTimes(1 + PROBE_FETCH_WARMUP_COUNT + PROBE_FETCH_MEASURE_SAMPLE_COUNT);
     expect(result).toMatchObject({
       totalMs: expect.any(Number),
-      ttfbMs: expect.any(Number),
       statusCode: 200,
       error: null,
     });
   });
 
-  it("uses shorter warmup and per-sample measure timeouts within the total budget", async () => {
+  it("keeps the full measurement run inside the total probe budget", async () => {
     const fetchImpl = vi.fn(async (_url, init) => {
       const signal = init?.signal;
       await new Promise((resolve, reject) => {
@@ -177,9 +173,11 @@ describe("runProbeMeasurement", () => {
       }),
     ).resolves.toMatchObject({ statusCode: 200, error: null });
 
-    expect(PROBE_FETCH_WARMUP_TIMEOUT_MS * PROBE_FETCH_WARMUP_COUNT).toBeLessThan(
-      PROBE_FETCH_MEASURE_TIMEOUT_MS * PROBE_FETCH_MEASURE_SAMPLE_COUNT,
-    );
+    const maxPasses = 1 + PROBE_FETCH_WARMUP_COUNT + PROBE_FETCH_MEASURE_SAMPLE_COUNT;
+    expect(
+      PROBE_FETCH_PASS_TIMEOUT_MS * maxPasses,
+    ).toBeGreaterThan(PROBE_FETCH_TIMEOUT_MS);
+    expect(maxPasses * 10).toBeLessThan(PROBE_FETCH_TIMEOUT_MS);
   });
 
   it("captures execution colo metadata from measured subrequests when available", async () => {
@@ -208,50 +206,6 @@ describe("runProbeMeasurement", () => {
     });
   });
 
-  it("returns the stabilized median when some measured samples fail", async () => {
-    const fetchImpl = vi.fn();
-    let callCount = 0;
-    let measureIndex = 0;
-    let now = 0;
-    const nowSpy = vi.spyOn(performance, "now").mockImplementation(() => now);
-    const delaysMs = [10, 30, 20, 50, 15, 25, 18];
-
-    fetchImpl.mockImplementation(async () => {
-      const index = callCount++;
-
-      if (index === 0) {
-        return new Response("resolve", { status: 200 });
-      }
-
-      if (index <= PROBE_FETCH_WARMUP_COUNT) {
-        return new Response("warmup", { status: 200 });
-      }
-
-      if (measureIndex === 2) {
-        measureIndex += 1;
-        throw new Error("sample failed");
-      }
-
-      const delay = delaysMs[measureIndex++] ?? 0;
-      const started = performance.now();
-      now = started + delay;
-      return new Response("measured", { status: 200 });
-    });
-
-    const result = await runProbeMeasurement("https://example.com", validateUrl, {
-      userAgent: "test-probe",
-      fetchImpl,
-    });
-    nowSpy.mockRestore();
-
-    expect(result).toMatchObject({
-      statusCode: 200,
-      error: null,
-      totalMs: expect.any(Number),
-      ttfbMs: expect.any(Number),
-    });
-  });
-
   it("fails when too few measured samples succeed", async () => {
     const fetchImpl = vi.fn();
     fetchImpl.mockResolvedValueOnce(new Response("resolve", { status: 200 }));
@@ -269,7 +223,6 @@ describe("runProbeMeasurement", () => {
 
     expect(result).toEqual({
       totalMs: null,
-      ttfbMs: null,
       statusCode: null,
       error: "Request failed: sample failed",
     });
@@ -318,8 +271,9 @@ describe("runProbeMeasurement", () => {
     expect(callCount).toBe(2 + PROBE_FETCH_WARMUP_COUNT + PROBE_FETCH_MEASURE_SAMPLE_COUNT);
   });
 
-  it("drops the fastest and slowest measured samples before taking the median", () => {
-    expect(aggregateLatencySamples([10, 30, 20, 50, 15, 25, 18])).toBe(20);
+  it("drops cold-start spikes before taking the median", () => {
+    expect(aggregateLatencySamples([10, 30, 20])).toBe(20);
+    expect(aggregateLatencySamples([100, 105, 98, 102, 200])).toBe(101);
     expect(aggregateLatencySamples([100, 120, 110])).toBe(110);
   });
 });

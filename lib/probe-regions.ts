@@ -6,7 +6,6 @@ export type ProbeRegionDefinition = {
   country: string;
   lat: number;
   lng: number;
-  placement: string;
 };
 
 export const PROBE_REGIONS = [
@@ -16,7 +15,6 @@ export const PROBE_REGIONS = [
     country: "United States",
     lat: 39.0438,
     lng: -77.4874,
-    placement: "aws:us-east-1",
   },
   {
     id: "lhr",
@@ -24,7 +22,6 @@ export const PROBE_REGIONS = [
     country: "United Kingdom",
     lat: 51.5072,
     lng: -0.1276,
-    placement: "aws:eu-west-2",
   },
   {
     id: "sin",
@@ -32,7 +29,6 @@ export const PROBE_REGIONS = [
     country: "Singapore",
     lat: 1.3521,
     lng: 103.8198,
-    placement: "aws:ap-southeast-1",
   },
   {
     id: "syd",
@@ -40,7 +36,6 @@ export const PROBE_REGIONS = [
     country: "Australia",
     lat: -33.8688,
     lng: 151.2093,
-    placement: "aws:ap-southeast-2",
   },
   {
     id: "gru",
@@ -48,7 +43,6 @@ export const PROBE_REGIONS = [
     country: "Brazil",
     lat: -23.5558,
     lng: -46.6396,
-    placement: "aws:sa-east-1",
   },
 ] as const satisfies readonly ProbeRegionDefinition[];
 
