@@ -70,7 +70,7 @@ export function GlobePanel({ results, selectedRegion, onSelectRegion, variant = 
         {selectedResult ? (
           <div className="mt-3 grid gap-2 border-t border-[#1a1a1a] pt-3 sm:grid-cols-3">
             <InspectorValue label="Country" value={probeCountryName(selectedResult.region)} />
-            <InspectorValue label="Latency" value={formatLatency(selectedResult)} />
+            <InspectorValue label="TTFB" value={formatLatency(selectedResult)} />
             <InspectorValue label="Status" value={formatProbeStatus(selectedResult)} />
           </div>
         ) : null}

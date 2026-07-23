@@ -12,12 +12,28 @@ let cachedProbeConfig: ProbeConfig[] | null = null;
 let cachedProbeConfigRaw: string | undefined;
 
 export async function runRegionalTest(url: string): Promise<ProbeResult[]> {
-  const probes = getProbeConfig();
+  const probes = getProbeConfig().slice(0, 5);
   const probeSecret = getProbeSecret();
+  const coordinatorEndpoint = getCoordinatorEndpoint();
 
-  return Promise.all(
-    probes.slice(0, 5).map((probe) => callRemoteProbe(probe, url, probeSecret)),
-  );
+  if (coordinatorEndpoint) {
+    return callCoordinator(coordinatorEndpoint, url, probes, probeSecret);
+  }
+
+  return Promise.all(probes.map((probe) => callRemoteProbe(probe, url, probeSecret)));
+}
+
+function getCoordinatorEndpoint(): string | null {
+  const endpoint = process.env.PROBE_COORDINATOR_ENDPOINT?.trim();
+  if (!endpoint) {
+    return null;
+  }
+
+  if (!isValidHttpUrl(endpoint)) {
+    throw new ProbeConfigurationError("PROBE_COORDINATOR_ENDPOINT must be a valid http or https URL.");
+  }
+
+  return endpoint;
 }
 
 export function getProbeConfig(): ProbeConfig[] {
@@ -62,6 +78,129 @@ export function getProbeSecret(): string {
   return secret;
 }
 
+async function callCoordinator(
+  coordinatorEndpoint: string,
+  url: string,
+  probes: ProbeConfig[],
+  probeSecret: string,
+): Promise<ProbeResult[]> {
+  const testedAt = new Date().toISOString();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), PROBE_CLIENT_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(coordinatorEndpoint, {
+      method: "POST",
+      signal: controller.signal,
+      headers: {
+        "content-type": "application/json",
+        "x-probe-secret": probeSecret,
+      },
+      body: JSON.stringify({ url }),
+    });
+
+    if (!response.ok) {
+      const errorBody = (await response.json().catch(() => null)) as { error?: string | null } | null;
+      const message = errorBody?.error ?? `Coordinator returned HTTP ${response.status}.`;
+      return probes.map((probe) => coordinatorFailureResult(probe, testedAt, message, response.status));
+    }
+
+    const body = (await response.json().catch(() => null)) as {
+      results?: Array<{
+        region?: string;
+        total_ms?: number;
+        totalMs?: number;
+        ttfb_ms?: number;
+        ttfbMs?: number;
+        status_code?: number;
+        statusCode?: number;
+        cloudflare_colo?: string | null;
+        cloudflareColo?: string | null;
+        placement_region?: string | null;
+        placementRegion?: string | null;
+        error?: string | null;
+      }>;
+    } | null;
+
+    if (!body?.results || !Array.isArray(body.results)) {
+      return probes.map((probe) =>
+        coordinatorFailureResult(probe, testedAt, "Coordinator returned an invalid response.", null),
+      );
+    }
+
+    const resultsByRegion = new Map(
+      body.results
+        .filter((result) => typeof result.region === "string")
+        .map((result) => [result.region as string, result]),
+    );
+
+    return probes.map((probe) => {
+      const result = resultsByRegion.get(probe.id);
+      if (!result) {
+        return coordinatorFailureResult(probe, testedAt, "Coordinator did not return this region.", null);
+      }
+
+      const totalMs = coerceNumber(result.total_ms ?? result.totalMs);
+      const ttfbMs = coerceNumber(result.ttfb_ms ?? result.ttfbMs) ?? totalMs;
+
+      return {
+        region: probe.id,
+        label: probe.label,
+        lat: probe.lat,
+        lng: probe.lng,
+        totalMs,
+        ttfbMs,
+        statusCode: coerceNumber(result.status_code ?? result.statusCode),
+        error: result.error ?? null,
+        testedAt,
+        cloudflareColo: coerceString(result.cloudflare_colo ?? result.cloudflareColo),
+        placementRegion: coerceString(result.placement_region ?? result.placementRegion),
+      };
+    });
+  } catch (error) {
+    const message =
+      error instanceof Error && error.name === "AbortError"
+        ? "Coordinator timed out."
+        : formatCoordinatorFetchError(error, coordinatorEndpoint);
+    return probes.map((probe) => coordinatorFailureResult(probe, testedAt, message, null));
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function coordinatorFailureResult(
+  probe: ProbeConfig,
+  testedAt: string,
+  error: string,
+  statusCode: number | null,
+): ProbeResult {
+  return {
+    region: probe.id,
+    label: probe.label,
+    lat: probe.lat,
+    lng: probe.lng,
+    totalMs: null,
+    ttfbMs: null,
+    statusCode,
+    error,
+    testedAt,
+    cloudflareColo: null,
+    placementRegion: null,
+  };
+}
+
+function formatCoordinatorFetchError(error: unknown, coordinatorEndpoint: string): string {
+  if (isConnectionRefusedError(error)) {
+    if (process.env.NODE_ENV === "production") {
+      return `Coordinator unreachable at ${coordinatorEndpoint}. Check deployment and PROBE_COORDINATOR_ENDPOINT.`;
+    }
+
+    return `Coordinator unreachable at ${coordinatorEndpoint}. Deploy the coordinator Worker or unset PROBE_COORDINATOR_ENDPOINT.`;
+  }
+
+  return "Coordinator failed.";
+}
+
 async function callRemoteProbe(probe: ProbeConfig, url: string, probeSecret: string): Promise<ProbeResult> {
   const testedAt = new Date().toISOString();
   const controller = new AbortController();
@@ -86,6 +225,7 @@ async function callRemoteProbe(probe: ProbeConfig, url: string, probeSecret: str
         lat: probe.lat,
         lng: probe.lng,
         totalMs: null,
+        ttfbMs: null,
         statusCode: response.status,
         error: errorBody?.error ?? `Probe returned HTTP ${response.status}.`,
         testedAt,
@@ -97,26 +237,35 @@ async function callRemoteProbe(probe: ProbeConfig, url: string, probeSecret: str
     const body = (await response.json().catch(() => null)) as {
       total_ms?: number;
       totalMs?: number;
+      ttfb_ms?: number;
+      ttfbMs?: number;
       status_code?: number;
       statusCode?: number;
       cloudflare_colo?: string | null;
       cloudflareColo?: string | null;
       placement_region?: string | null;
       placementRegion?: string | null;
+      execution_colo?: string | null;
+      executionColo?: string | null;
       error?: string | null;
     } | null;
+
+    const totalMs = coerceNumber(body?.total_ms ?? body?.totalMs);
+    const ttfbMs = coerceNumber(body?.ttfb_ms ?? body?.ttfbMs) ?? totalMs;
 
     return {
       region: probe.id,
       label: probe.label,
       lat: probe.lat,
       lng: probe.lng,
-      totalMs: coerceNumber(body?.total_ms ?? body?.totalMs),
+      totalMs,
+      ttfbMs,
       statusCode: coerceNumber(body?.status_code ?? body?.statusCode),
       error: body?.error ?? null,
       testedAt,
       cloudflareColo: coerceString(body?.cloudflare_colo ?? body?.cloudflareColo),
       placementRegion: coerceString(body?.placement_region ?? body?.placementRegion),
+      executionColo: coerceString(body?.execution_colo ?? body?.executionColo),
     };
   } catch (error) {
     const message = formatProbeFetchError(error, probe);
@@ -126,6 +275,7 @@ async function callRemoteProbe(probe: ProbeConfig, url: string, probeSecret: str
       lat: probe.lat,
       lng: probe.lng,
       totalMs: null,
+      ttfbMs: null,
       statusCode: null,
       error: message,
       testedAt,

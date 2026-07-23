@@ -9,7 +9,8 @@ const repoRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const envLocal = loadEnvLocal();
 const baseEnv = { ...envLocal, ...process.env };
 
-const appHost = process.env.APP_HOST || "127.0.0.1";
+// Bind dual-stack (::) so http://localhost works when localhost resolves to ::1.
+const appHost = process.env.APP_HOST || "::";
 const appPort = process.env.APP_PORT || "3000";
 const probeHost = process.env.PROBE_HOST || "127.0.0.1";
 const probePort = process.env.PROBE_PORT || "8787";

@@ -1,9 +1,10 @@
-import { afterEach, describe, expect, it } from "vitest";
-import { formatProbeFetchError, getProbeConfig, getProbeSecret, ProbeConfigurationError } from "./probes";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { formatProbeFetchError, getProbeConfig, getProbeSecret, ProbeConfigurationError, runRegionalTest } from "./probes";
 import type { ProbeConfig } from "./types";
 
 const originalProbeEndpoints = process.env.PROBE_ENDPOINTS;
 const originalProbeSecret = process.env.PROBE_SECRET;
+const originalCoordinatorEndpoint = process.env.PROBE_COORDINATOR_ENDPOINT;
 const probe: ProbeConfig = {
   id: "local",
   label: "Local Probe",
@@ -24,6 +25,14 @@ afterEach(() => {
   } else {
     process.env.PROBE_SECRET = originalProbeSecret;
   }
+
+  if (originalCoordinatorEndpoint === undefined) {
+    delete process.env.PROBE_COORDINATOR_ENDPOINT;
+  } else {
+    process.env.PROBE_COORDINATOR_ENDPOINT = originalCoordinatorEndpoint;
+  }
+
+  vi.unstubAllGlobals();
 });
 
 describe("formatProbeFetchError", () => {
@@ -89,5 +98,56 @@ describe("getProbeConfig", () => {
     const second = getProbeConfig();
 
     expect(second).toBe(first);
+  });
+});
+
+describe("runRegionalTest coordinator mode", () => {
+  it("calls the coordinator once and maps regional results", async () => {
+    process.env.PROBE_ENDPOINTS = JSON.stringify([probe]);
+    process.env.PROBE_SECRET = "configured-secret";
+    process.env.PROBE_COORDINATOR_ENDPOINT = "https://coordinator.example/probe";
+
+    const fetchMock = vi.fn(async () =>
+      new Response(
+        JSON.stringify({
+          results: [
+            {
+              region: "local",
+              placement_region: "aws:us-east-1",
+              cloudflare_colo: "IAD",
+              total_ms: 88,
+              ttfb_ms: 86,
+              status_code: 200,
+              error: null,
+            },
+          ],
+        }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const results = await runRegionalTest("https://example.com");
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://coordinator.example/probe",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({
+          "x-probe-secret": "configured-secret",
+        }),
+      }),
+    );
+    expect(results).toEqual([
+      expect.objectContaining({
+        region: "local",
+        totalMs: 88,
+        ttfbMs: 86,
+        statusCode: 200,
+        cloudflareColo: "IAD",
+        placementRegion: "aws:us-east-1",
+      }),
+    ]);
   });
 });

@@ -1,16 +1,10 @@
-import dns from "node:dns/promises";
 import http from "node:http";
 import type { IncomingMessage, ServerResponse } from "node:http";
-import net from "node:net";
-import { isBlockedIp } from "../../lib/ip-blocklist";
+import { createNodeDnsResolver } from "../../lib/dns-resolve-node";
+import { withDnsCache } from "../../lib/dns-resolve";
 import { matchesProbeSecret } from "../../lib/probe-auth";
 import { runProbeMeasurement } from "../../lib/probe-fetch";
-import {
-  isBlockedHostname,
-  parsePublicHttpUrl,
-  stripIpv6Brackets,
-  type UrlValidationResult,
-} from "../../lib/probe-url-safety";
+import { validatePublicUrlWithDns } from "../../lib/probe-url-safety";
 
 const PORT = Number(process.env.PORT ?? 8787);
 const HOST = process.env.HOST ?? "127.0.0.1";
@@ -20,15 +14,10 @@ if (!SECRET) {
   throw new Error("PROBE_SECRET must be set before starting the local probe.");
 }
 
+const resolvePublicHostname = withDnsCache(createNodeDnsResolver());
+const validatePublicUrl = (rawUrl: string) => validatePublicUrlWithDns(rawUrl, resolvePublicHostname);
+
 const server = http.createServer(async (request, response) => {
-  setCors(response);
-
-  if (request.method === "OPTIONS") {
-    response.writeHead(204);
-    response.end();
-    return;
-  }
-
   if (request.method === "GET" && request.url === "/healthz") {
     sendJson(response, 200, {
       ok: true,
@@ -58,7 +47,7 @@ const server = http.createServer(async (request, response) => {
       return;
     }
 
-    const result = await runProbeMeasurement(body.url, normalizeAndValidatePublicUrl, {
+    const result = await runProbeMeasurement(body.url, validatePublicUrl, {
       userAgent: "Latencymap-Probe/0.1",
     });
     sendJson(response, 200, {
@@ -66,6 +55,7 @@ const server = http.createServer(async (request, response) => {
       placement_region: null,
       cloudflare_colo: null,
       total_ms: result.totalMs,
+      ttfb_ms: result.ttfbMs,
       status_code: result.statusCode,
       error: result.error,
     });
@@ -89,35 +79,6 @@ server.listen(PORT, HOST, () => {
   console.log(`Latencymap probe listening on http://${HOST}:${PORT} for region ${REGION}`);
 });
 
-async function normalizeAndValidatePublicUrl(rawUrl: string): Promise<UrlValidationResult> {
-  const parsed = parsePublicHttpUrl(rawUrl);
-  if (!parsed.ok) {
-    return parsed;
-  }
-
-  const hostname = stripIpv6Brackets(parsed.url.hostname);
-  if (isBlockedHostname(hostname)) {
-    return { ok: false, error: "Localhost URLs are not allowed." };
-  }
-
-  if (net.isIP(hostname)) {
-    return isBlockedIp(hostname)
-      ? { ok: false, error: "Private or internal IP addresses are not allowed." }
-      : { ok: true, url: parsed.url.toString() };
-  }
-
-  try {
-    const records = await dns.lookup(hostname, { all: true, verbatim: true });
-    if (records.length === 0 || records.some((record) => isBlockedIp(record.address))) {
-      return { ok: false, error: "This hostname resolves to a private or internal IP address." };
-    }
-  } catch {
-    return { ok: false, error: "Hostname did not resolve." };
-  }
-
-  return { ok: true, url: parsed.url.toString() };
-}
-
 function readRequestBody(request: IncomingMessage) {
   return new Promise<string>((resolve, reject) => {
     let body = "";
@@ -134,13 +95,6 @@ function readRequestBody(request: IncomingMessage) {
 }
 
 function sendJson(response: ServerResponse, status: number, body: unknown) {
-  setCors(response);
   response.writeHead(status, { "content-type": "application/json" });
   response.end(JSON.stringify(body));
-}
-
-function setCors(response: ServerResponse) {
-  response.setHeader("access-control-allow-origin", "*");
-  response.setHeader("access-control-allow-methods", "GET, POST, OPTIONS");
-  response.setHeader("access-control-allow-headers", "content-type, x-probe-secret");
 }

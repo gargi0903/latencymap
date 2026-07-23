@@ -89,6 +89,7 @@ Output:
   "region": "local",
   "placement_region": null,
   "cloudflare_colo": null,
+  "execution_colo": null,
   "total_ms": 184,
   "status_code": 200,
   "error": null
@@ -119,7 +120,18 @@ Use one Worker environment per intended probe region. `probes/cloudflare/wrangle
 - `syd`: targeted near `aws:ap-southeast-2`
 - `gru`: targeted near `aws:sa-east-1`
 
-Cloudflare Worker placement hints choose a Cloudflare data center close to the configured infrastructure region. They are not a guarantee that the Worker executed in the exact city label. For that reason, the probe returns `cloudflare_colo` from `request.cf.colo`, and the UI stores/displays it beside the configured region label.
+Cloudflare Worker placement hints choose a Cloudflare data center close to the configured infrastructure region. They are not a guarantee that the Worker executed in the exact city label.
+
+The probe exposes two colo fields so callers can distinguish ingress from execution:
+
+| Field | Meaning |
+| --- | --- |
+| `cloudflare_colo` | Ingress colo from `request.cf.colo`: where the caller's request entered Cloudflare. When the central API on Vercel calls a probe, this is often the Vercel-to-Cloudflare entry point (for example `IAD`), not the probe's configured region. |
+| `execution_colo` | Where the Worker actually executed the outbound fetch. Prefer `response.cf.colo` from the measured subrequest when available; otherwise infer from a lightweight `https://cloudflare.com/cdn-cgi/trace` fetch. |
+
+`GET /healthz` also returns a `diagnostics` object with `trace_ms`, `trace_colo`, `ingress_colo`, and `source` (`trace` or `subrequest`) to help verify placement without running a full probe.
+
+The UI stores and displays `cloudflare_colo` beside the configured region label today. `execution_colo` is available in probe JSON for operators and future UI work.
 
 Run the Cloudflare Worker probe locally with Wrangler:
 
@@ -137,6 +149,30 @@ Deploy all configured environments:
 
 ```bash
 npm run probe:cf:deploy:regions
+```
+
+### Coordinator Worker (recommended for Vercel)
+
+When Vercel calls each regional `/probe` URL directly, ingress often lands in one Cloudflare colo (for example `IAD`), so every probe can report the same `cloudflare_colo` even though each Worker has targeted placement.
+
+Deploy the coordinator Worker after the five regional Workers are live. It accepts one `POST /probe` request, fans out to regional Workers through Service Bindings, and returns aggregated regional results.
+
+```bash
+npm run probe:cf:deploy:coordinator
+```
+
+Set this in Vercel alongside the existing probe metadata:
+
+```bash
+PROBE_COORDINATOR_ENDPOINT=https://latencymap-probe-coordinator.<your-workers-subdomain>.workers.dev/probe
+```
+
+`PROBE_ENDPOINTS` remains required for region labels and globe coordinates. When `PROBE_COORDINATOR_ENDPOINT` is set, the app calls the coordinator once instead of calling each regional endpoint directly. Direct regional `/probe` URLs continue to work for debugging and backwards compatibility.
+
+Deploy the coordinator secret separately:
+
+```bash
+npx wrangler secret put PROBE_SECRET --config probes/cloudflare/wrangler.jsonc --env coordinator
 ```
 
 After deployment, set `PROBE_ENDPOINTS` in Vercel or `.env.local` to the JSON array from `probes/regions.example.json`, replacing `<your-workers-subdomain>` with your actual Workers subdomain.
@@ -198,6 +234,7 @@ In the Vercel project settings, set:
 | Variable | Required | Notes |
 | --- | --- | --- |
 | `PROBE_ENDPOINTS` | Yes | Single-line JSON array from `probes/regions.example.json` with real Worker URLs. |
+| `PROBE_COORDINATOR_ENDPOINT` | No | When set, Vercel calls this `/probe` URL once and the coordinator fans out to regional Workers via Service Bindings. |
 | `PROBE_SECRET` | Yes | Same value deployed to every Cloudflare probe. |
 
 No database is required. Share links encode the full test run in `/r/<token>`.

@@ -1,3 +1,4 @@
+import type { DnsResolver } from "@/lib/dns-resolve";
 import { isBlockedIp, isIpv4Literal } from "@/lib/ip-blocklist";
 
 export { isBlockedIp } from "@/lib/ip-blocklist";
@@ -80,6 +81,37 @@ export function validateHostnameOnly(rawUrl: string): UrlValidationResult {
     return isBlockedIp(hostname)
       ? { ok: false, error: "Private or internal IP addresses are not allowed." }
       : { ok: true, url: parsed.url.toString() };
+  }
+
+  return { ok: true, url: parsed.url.toString() };
+}
+
+export async function validatePublicUrlWithDns(
+  rawUrl: string,
+  resolveAddresses: DnsResolver,
+): Promise<UrlValidationResult> {
+  const hostnameResult = validateHostnameOnly(rawUrl);
+  if (!hostnameResult.ok) {
+    return hostnameResult;
+  }
+
+  const parsed = parsePublicHttpUrl(rawUrl);
+  if (!parsed.ok) {
+    return parsed;
+  }
+
+  const hostname = stripIpv6Brackets(parsed.url.hostname);
+  if (isIpv4Literal(hostname) || isLikelyIpv6Address(hostname)) {
+    return hostnameResult;
+  }
+
+  const resolved = await resolveAddresses(hostname);
+  if (!resolved.ok) {
+    return resolved;
+  }
+
+  if (resolved.addresses.some(isBlockedIp)) {
+    return { ok: false, error: "This hostname resolves to a private or internal IP address." };
   }
 
   return { ok: true, url: parsed.url.toString() };

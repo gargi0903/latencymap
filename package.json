@@ -19,7 +19,9 @@
     "probe:cf:deploy:sin": "node scripts/verify-probe-secret.mjs sin && wrangler deploy --config probes/cloudflare/wrangler.jsonc --env sin",
     "probe:cf:deploy:syd": "node scripts/verify-probe-secret.mjs syd && wrangler deploy --config probes/cloudflare/wrangler.jsonc --env syd",
     "probe:cf:deploy:gru": "node scripts/verify-probe-secret.mjs gru && wrangler deploy --config probes/cloudflare/wrangler.jsonc --env gru",
-    "probe:cf:deploy:regions": "npm run probe:cf:deploy:iad && npm run probe:cf:deploy:lhr && npm run probe:cf:deploy:sin && npm run probe:cf:deploy:syd && npm run probe:cf:deploy:gru"
+    "probe:cf:deploy:regions": "npm run probe:cf:deploy:iad && npm run probe:cf:deploy:lhr && npm run probe:cf:deploy:sin && npm run probe:cf:deploy:syd && npm run probe:cf:deploy:gru",
+    "probe:cf:dev:coordinator": "wrangler dev --config probes/cloudflare/wrangler.jsonc --env coordinator",
+    "probe:cf:deploy:coordinator": "node scripts/verify-probe-secret.mjs coordinator && wrangler deploy --config probes/cloudflare/wrangler.jsonc --env coordinator"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.3.0",

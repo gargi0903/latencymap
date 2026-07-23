@@ -4,11 +4,13 @@ export type ProbeResult = {
   lat: number;
   lng: number;
   totalMs: number | null;
+  ttfbMs: number | null;
   statusCode: number | null;
   error: string | null;
   testedAt: string;
   cloudflareColo?: string | null;
   placementRegion?: string | null;
+  executionColo?: string | null;
 };
 
 export type TestRun = {
