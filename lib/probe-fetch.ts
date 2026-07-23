@@ -30,12 +30,16 @@ type ProbeFetchOptions = {
   fetchImpl?: typeof fetch;
 };
 
+function bindFetch(fetchImpl?: typeof fetch) {
+  return fetchImpl ?? ((input: RequestInfo | URL, init?: RequestInit) => fetch(input, init));
+}
+
 export async function runProbeMeasurement(
   targetUrl: string,
   validateUrl: ValidateUrl,
   options: ProbeFetchOptions,
 ): Promise<ProbeFetchResult> {
-  const fetchImpl = options.fetchImpl ?? fetch;
+  const fetchImpl = bindFetch(options.fetchImpl);
   const initialValidation = await validateUrl(targetUrl);
   if (!initialValidation.ok) {
     return {
@@ -113,6 +117,7 @@ async function runProbeFetchPass(
 ): Promise<ProbeFetchResult> {
   let currentUrl = targetUrl;
   let measuredStarted: number | null = null;
+  const fetchImpl = bindFetch(options.fetchImpl);
 
   for (let redirects = 0; redirects <= PROBE_FETCH_MAX_REDIRECTS; redirects += 1) {
     const validation = await validateUrl(currentUrl);
@@ -128,7 +133,7 @@ async function runProbeFetchPass(
         measuredStarted = performance.now();
       }
 
-      const response = await options.fetchImpl(validation.url, {
+      const response = await fetchImpl(validation.url, {
         method: "GET",
         redirect: "manual",
         signal: controller.signal,
@@ -164,7 +169,12 @@ async function runProbeFetchPass(
         executionColo: options.measure ? getResponseColo(response) : undefined,
       };
     } catch (error) {
-      const message = error instanceof Error && error.name === "AbortError" ? "Request timed out." : "Request failed.";
+      const message =
+        error instanceof Error && error.name === "AbortError"
+          ? "Request timed out."
+          : error instanceof Error && error.message
+            ? `Request failed: ${error.message}`
+            : "Request failed.";
       return { totalMs: null, ttfbMs: null, statusCode: null, error: message };
     } finally {
       clearTimeout(timeout);
@@ -191,26 +201,8 @@ function delay(ms: number) {
   });
 }
 
-async function drainLimitedBody(response: Response) {
-  if (!response.body) {
-    return;
-  }
-
-  const reader = response.body.getReader();
-  let received = 0;
-
-  try {
-    while (received < PROBE_FETCH_MAX_RESPONSE_BYTES) {
-      const { done, value } = await reader.read();
-      if (done) {
-        break;
-      }
-
-      received += value.byteLength;
-    }
-  } finally {
-    await reader.cancel().catch(() => undefined);
-  }
+async function drainLimitedBody(_response: Response) {
+  // TTFB is measured at response headers; no body drain needed.
 }
 
 function complete(

@@ -101,21 +101,13 @@ function getRegionalBindings(env: CoordinatorEnv): RegionalProbeBinding[] {
 
 async function fanOutProbe(url: string, env: CoordinatorEnv) {
   const probeSecret = env.PROBE_SECRET!;
-  const probeRequest = new Request("https://probe-internal/probe", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "x-probe-secret": probeSecret,
-    },
-    body: JSON.stringify({ url }),
-  });
 
   const bindings = getRegionalBindings(env);
 
   return Promise.all(
     bindings.map(async ({ id, fetcher }) => {
       try {
-        const response = await fetcher.fetch(probeRequest);
+        const response = await fetcher.fetch(createProbeRequest(url, probeSecret));
         const body = (await response.json().catch(() => null)) as RegionalProbeResponse | { error?: string } | null;
 
         if (!response.ok) {
@@ -162,6 +154,17 @@ async function fanOutProbe(url: string, env: CoordinatorEnv) {
       }
     }),
   );
+}
+
+function createProbeRequest(url: string, probeSecret: string) {
+  return new Request("https://probe-internal/probe", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-probe-secret": probeSecret,
+    },
+    body: JSON.stringify({ url }),
+  });
 }
 
 async function readLimitedRequestText(request: Request) {

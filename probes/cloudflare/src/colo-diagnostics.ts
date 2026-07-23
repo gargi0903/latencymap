@@ -37,12 +37,13 @@ export async function resolveTraceColo(
   fetchImpl: typeof fetch = fetch,
   timeoutMs = TRACE_TIMEOUT_MS,
 ): Promise<{ colo: string | null; traceMs: number | null }> {
+  const boundFetch = fetchImpl ?? ((input: RequestInfo | URL, init?: RequestInit) => fetch(input, init));
   const started = performance.now();
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const response = await fetchImpl(
+    const response = await boundFetch(
       new Request(TRACE_ENDPOINT, {
         method: "GET",
         cache: "no-store",

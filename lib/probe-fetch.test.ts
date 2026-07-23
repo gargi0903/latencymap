@@ -230,7 +230,7 @@ describe("runProbeMeasurement", () => {
       totalMs: null,
       ttfbMs: null,
       statusCode: null,
-      error: "Request failed.",
+      error: "Request failed: sample failed",
     });
     expect(PROBE_FETCH_MIN_SUCCESSFUL_SAMPLES).toBeGreaterThan(1);
   });

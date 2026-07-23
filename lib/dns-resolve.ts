@@ -41,11 +41,12 @@ type DohResponse = {
 };
 
 export function createDohDnsResolver(fetchImpl: typeof fetch = fetch): DnsResolver {
+  const boundFetch = fetchImpl ?? ((input: RequestInfo | URL, init?: RequestInit) => fetch(input, init));
   return async (hostname) => {
     try {
       const [ipv4, ipv6] = await Promise.all([
-        queryDohRecords(hostname, 1, fetchImpl),
-        queryDohRecords(hostname, 28, fetchImpl),
+        queryDohRecords(hostname, 1, boundFetch),
+        queryDohRecords(hostname, 28, boundFetch),
       ]);
       const addresses = [...ipv4, ...ipv6];
 
