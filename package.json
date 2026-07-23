@@ -19,23 +19,16 @@
     "probe:cf:deploy:sin": "node scripts/verify-probe-secret.mjs sin && wrangler deploy --config probes/cloudflare/wrangler.jsonc --env sin",
     "probe:cf:deploy:syd": "node scripts/verify-probe-secret.mjs syd && wrangler deploy --config probes/cloudflare/wrangler.jsonc --env syd",
     "probe:cf:deploy:gru": "node scripts/verify-probe-secret.mjs gru && wrangler deploy --config probes/cloudflare/wrangler.jsonc --env gru",
-    "probe:cf:deploy:regions": "npm run probe:cf:deploy:iad && npm run probe:cf:deploy:lhr && npm run probe:cf:deploy:sin && npm run probe:cf:deploy:syd && npm run probe:cf:deploy:gru"
+    "probe:cf:deploy:regions": "npm run probe:cf:deploy:iad && npm run probe:cf:deploy:lhr && npm run probe:cf:deploy:sin && npm run probe:cf:deploy:syd && npm run probe:cf:deploy:gru",
+    "probe:cf:dev:coordinator": "wrangler dev --config probes/cloudflare/wrangler.jsonc --env coordinator",
+    "probe:cf:deploy:coordinator": "node scripts/verify-probe-secret.mjs coordinator && wrangler deploy --config probes/cloudflare/wrangler.jsonc --env coordinator",
+    "probe:cf:print-env": "node scripts/print-probe-env.mjs",
+    "probe:cf:secrets:set": "node scripts/set-probe-secrets.mjs"
   },
   "dependencies": {
-    "@radix-ui/react-slot": "^1.3.0",
-    "@react-three/drei": "^10.7.7",
-    "@react-three/fiber": "^9.6.1",
-    "@types/three": "^0.185.1",
-    "class-variance-authority": "^0.7.1",
-    "clsx": "^2.1.1",
-    "lucide-react": "^0.468.0",
     "next": "^15.0.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "react-globe.gl": "^2.38.0",
-    "tailwind-merge": "^3.6.0",
-    "three": "^0.185.1",
-    "three-globe": "^2.45.2",
     "zod": "^3.24.1"
   },
   "devDependencies": {

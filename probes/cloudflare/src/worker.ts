@@ -1,11 +1,15 @@
 import { matchesProbeSecret } from "./auth";
-import { validateHostnameOnly } from "../../../lib/probe-url-safety";
+import {
+  buildColoDiagnostics,
+  pickExecutionColo,
+  resolveTraceColo,
+} from "./colo-diagnostics";
+import { createDohDnsResolver, withDnsCache } from "../../../lib/dns-resolve";
+import { runProbeMeasurement } from "../../../lib/probe-fetch";
+import { validatePublicUrlWithDns } from "../../../lib/probe-url-safety";
 
 const DEFAULT_REGION = "cloudflare";
 const MAX_BODY_BYTES = 16 * 1024;
-const MAX_RESPONSE_BYTES = 64 * 1024;
-const MAX_REDIRECTS = 3;
-const TIMEOUT_MS = 5000;
 
 type ProbeEnv = {
   PROBE_REGION?: string;
@@ -19,44 +23,43 @@ type CloudflareRequest = Request & {
   };
 };
 
-type FetchTimingResult = {
-  totalMs: number | null;
-  statusCode: number | null;
-  error: string | null;
-};
+const resolvePublicHostname = withDnsCache(createDohDnsResolver());
+const validatePublicUrl = (rawUrl: string) => validatePublicUrlWithDns(rawUrl, resolvePublicHostname);
 
 const worker = {
   async fetch(request: CloudflareRequest, env: ProbeEnv) {
-    const corsHeaders = getCorsHeaders();
-
-    if (request.method === "OPTIONS") {
-      return new Response(null, { status: 204, headers: corsHeaders });
-    }
-
     const requestUrl = new URL(request.url);
+    const ingressColo = request.cf?.colo || null;
+
     if (request.method === "GET" && requestUrl.pathname === "/healthz") {
-      return json(
-        {
-          ok: true,
-          region: env.PROBE_REGION || DEFAULT_REGION,
-          placement_region: env.PLACEMENT_REGION || null,
-          cloudflare_colo: request.cf?.colo || null,
-        },
-        200,
-        corsHeaders,
-      );
+      const trace = await resolveTraceColo();
+      const execution = pickExecutionColo(null, trace.colo);
+
+      return json({
+        ok: true,
+        region: env.PROBE_REGION || DEFAULT_REGION,
+        placement_region: env.PLACEMENT_REGION || null,
+        cloudflare_colo: ingressColo,
+        execution_colo: execution.colo,
+        diagnostics: buildColoDiagnostics({
+          ingressColo,
+          executionColo: execution.colo,
+          traceMs: trace.traceMs,
+          source: execution.source,
+        }),
+      });
     }
 
     if (request.method !== "POST" || requestUrl.pathname !== "/probe") {
-      return json({ error: "Not found." }, 404, corsHeaders);
+      return json({ error: "Not found." }, 404);
     }
 
     if (!env.PROBE_SECRET) {
-      return json({ error: "Probe is not configured." }, 503, corsHeaders);
+      return json({ error: "Probe is not configured." }, 503);
     }
 
     if (!(await matchesProbeSecret(request.headers.get("x-probe-secret"), env.PROBE_SECRET))) {
-      return json({ error: "Unauthorized." }, 401, corsHeaders);
+      return json({ error: "Unauthorized." }, 401);
     }
 
     try {
@@ -64,80 +67,30 @@ const worker = {
       const body = JSON.parse(text) as { url?: unknown };
 
       if (typeof body.url !== "string") {
-        return json({ error: "Expected JSON body with a url field." }, 400, corsHeaders);
+        return json({ error: "Expected JSON body with a url field." }, 400);
       }
 
-      const result = await fetchWithTiming(body.url);
-      return json(
-        {
-          region: env.PROBE_REGION || DEFAULT_REGION,
-          placement_region: env.PLACEMENT_REGION || null,
-          cloudflare_colo: request.cf?.colo || null,
-          total_ms: result.totalMs,
-          status_code: result.statusCode,
-          error: result.error,
-        },
-        200,
-        corsHeaders,
-      );
+      const result = await runProbeMeasurement(body.url, validatePublicUrl, {
+        userAgent: "Latencymap-Cloudflare-Probe/0.1",
+      });
+
+      return json({
+        region: env.PROBE_REGION || DEFAULT_REGION,
+        placement_region: env.PLACEMENT_REGION || null,
+        cloudflare_colo: ingressColo,
+        execution_colo: result.executionColo ?? null,
+        total_ms: result.totalMs,
+        ttfb_ms: result.ttfbMs,
+        status_code: result.statusCode,
+        error: result.error,
+      });
     } catch {
-      return json({ error: "Invalid request." }, 400, corsHeaders);
+      return json({ error: "Invalid request." }, 400);
     }
   },
 };
 
 export default worker;
-
-async function fetchWithTiming(targetUrl: string): Promise<FetchTimingResult> {
-  const started = performance.now();
-  let currentUrl = targetUrl;
-
-  for (let redirects = 0; redirects <= MAX_REDIRECTS; redirects += 1) {
-    const validation = validateHostnameOnly(currentUrl);
-    if (!validation.ok) {
-      return { totalMs: null, statusCode: null, error: validation.error };
-    }
-
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
-
-    try {
-      const response = await fetch(validation.url, {
-        method: "GET",
-        redirect: "manual",
-        signal: controller.signal,
-        headers: {
-          "user-agent": "Latencymap-Cloudflare-Probe/0.1",
-          accept: "*/*",
-        },
-      });
-
-      if (isRedirect(response.status)) {
-        const location = response.headers.get("location");
-        if (!location) {
-          return complete(started, response.status, "Redirect response did not include a location header.");
-        }
-
-        if (redirects === MAX_REDIRECTS) {
-          return complete(started, response.status, "Too many redirects.");
-        }
-
-        currentUrl = new URL(location, validation.url).toString();
-        continue;
-      }
-
-      await drainLimitedBody(response);
-      return complete(started, response.status, null);
-    } catch (error) {
-      const message = error instanceof Error && error.name === "AbortError" ? "Request timed out." : "Request failed.";
-      return { totalMs: null, statusCode: null, error: message };
-    } finally {
-      clearTimeout(timeout);
-    }
-  }
-
-  return { totalMs: null, statusCode: null, error: "Too many redirects." };
-}
 
 async function readLimitedRequestText(request: Request) {
   const contentLength = request.headers.get("content-length");
@@ -181,54 +134,11 @@ async function readLimitedRequestText(request: Request) {
   return new TextDecoder().decode(body);
 }
 
-async function drainLimitedBody(response: Response) {
-  if (!response.body) {
-    return;
-  }
-
-  const reader = response.body.getReader();
-  let received = 0;
-
-  try {
-    while (received < MAX_RESPONSE_BYTES) {
-      const { done, value } = await reader.read();
-      if (done) {
-        break;
-      }
-
-      received += value.byteLength;
-    }
-  } finally {
-    await reader.cancel().catch(() => undefined);
-  }
-}
-
-function complete(started: number, statusCode: number, error: string | null): FetchTimingResult {
-  return {
-    totalMs: Math.round(performance.now() - started),
-    statusCode,
-    error,
-  };
-}
-
-function isRedirect(status: number) {
-  return status >= 300 && status < 400;
-}
-
-function json(body: unknown, status: number, extraHeaders?: Record<string, string>) {
+function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
     headers: {
-      ...extraHeaders,
       "content-type": "application/json",
     },
   });
-}
-
-function getCorsHeaders() {
-  return {
-    "access-control-allow-origin": "*",
-    "access-control-allow-methods": "GET, POST, OPTIONS",
-    "access-control-allow-headers": "content-type, x-probe-secret",
-  };
 }

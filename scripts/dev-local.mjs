@@ -1,28 +1,23 @@
 import { spawn } from "node:child_process";
-import { readFileSync } from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { loadEnvLocal } from "./env-local.mjs";
-
-const repoRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 const envLocal = loadEnvLocal();
 const baseEnv = { ...envLocal, ...process.env };
 
-const appHost = process.env.APP_HOST || "127.0.0.1";
+// Bind dual-stack (::) so http://localhost works when localhost resolves to ::1.
+const appHost = process.env.APP_HOST || "::";
 const appPort = process.env.APP_PORT || "3000";
 const probeHost = process.env.PROBE_HOST || "127.0.0.1";
 const probePort = process.env.PROBE_PORT || "8787";
 const probeRegion = process.env.PROBE_REGION || "local";
 const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
 
-const localProbeConfig = getLocalFiveRegionProbeConfig(probePort);
-
 const appEnv = {
   ...baseEnv,
   APP_HOST: appHost,
   APP_PORT: appPort,
-  PROBE_ENDPOINTS: getConfiguredProbeEndpoints() || localProbeConfig,
+  PROBE_HOST: probeHost,
+  PROBE_PORT: probePort,
 };
 
 const probeEnv = {
@@ -92,27 +87,4 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
       }
     }
   });
-}
-
-function getConfiguredProbeEndpoints() {
-  if (baseEnv.PROBE_ENDPOINTS) {
-    return baseEnv.PROBE_ENDPOINTS;
-  }
-
-  return null;
-}
-
-function getLocalFiveRegionProbeConfig(probePort) {
-  const regionsPath = path.join(repoRoot, "probes", "regions.example.json");
-  const regions = JSON.parse(readFileSync(regionsPath, "utf8"));
-
-  return JSON.stringify(
-    regions.map((region) => ({
-      id: region.id,
-      label: region.label,
-      lat: region.lat,
-      lng: region.lng,
-      endpoint: `http://127.0.0.1:${probePort}/probe`,
-    })),
-  );
 }

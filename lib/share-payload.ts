@@ -7,6 +7,7 @@ type WireProbe = {
   a: number;
   o: number;
   m: number | null;
+  f?: number | null;
   s: number | null;
   e: string | null;
   d: string;
@@ -80,6 +81,7 @@ function probeToWire(result: ProbeResult): WireProbe {
     a: result.lat,
     o: result.lng,
     m: result.totalMs,
+    f: result.ttfbMs,
     s: result.statusCode,
     e: result.error,
     d: result.testedAt,
@@ -97,6 +99,7 @@ function wireToProbe(wire: WireProbe): ProbeResult {
     lat: wire.a,
     lng: wire.o,
     totalMs: wire.m,
+    ttfbMs: wire.f ?? wire.m,
     statusCode: wire.s,
     error: wire.e,
     testedAt: wire.d,

@@ -113,8 +113,9 @@ export function LatencyDashboard() {
   const { url, setUrl, run, sharePath, error, isLoading, onSubmit, runTest } = useLatencyTest();
   const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
   const [copyState, setCopyState] = useState<"idle" | "copied">("idle");
-  const [showBoot, setShowBoot] = useState(() => !hasSeenBoot());
+  const [showBoot, setShowBoot] = useState(true);
   const [visibleBootLines, setVisibleBootLines] = useState(0);
+  const [bootResolved, setBootResolved] = useState(false);
 
   const bootReady = !showBoot;
   const hasResults = Boolean(run && !isLoading);
@@ -136,14 +137,23 @@ export function LatencyDashboard() {
   }
 
   useEffect(() => {
-    if (!showBoot) {
+    if (hasSeenBoot() || prefersReducedMotion()) {
       markBootSeen();
-      inputRef.current?.focus({ preventScroll: true });
+      setShowBoot(false);
+      setVisibleBootLines(BOOT_STEPS.length);
+    }
+
+    setBootResolved(true);
+  }, []);
+
+  useEffect(() => {
+    if (!bootResolved) {
       return;
     }
 
-    if (prefersReducedMotion()) {
-      setShowBoot(false);
+    if (!showBoot) {
+      markBootSeen();
+      inputRef.current?.focus({ preventScroll: true });
       return;
     }
 
@@ -157,7 +167,7 @@ export function LatencyDashboard() {
     }, BOOT_LINE_MS);
 
     return () => window.clearTimeout(timer);
-  }, [showBoot, visibleBootLines]);
+  }, [bootResolved, showBoot, visibleBootLines]);
 
   useEffect(() => {
     function focusInput() {

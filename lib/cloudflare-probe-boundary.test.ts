@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import worker from "../probes/cloudflare/src/worker";
 
 function probeRequest(url: string, secret?: string) {
@@ -13,6 +13,33 @@ function probeRequest(url: string, secret?: string) {
 }
 
 describe("Cloudflare probe boundary", () => {
+  it("returns ingress and execution diagnostics on healthz", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("colo=SIN\n", { status: 200 }));
+
+    const request = new Request("https://probe.example/healthz", { method: "GET" });
+    const response = await worker.fetch(
+      Object.assign(request, { cf: { colo: "IAD" } }),
+      { PROBE_REGION: "sin", PLACEMENT_REGION: "aws:ap-southeast-1" },
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      ok: true,
+      region: "sin",
+      placement_region: "aws:ap-southeast-1",
+      cloudflare_colo: "IAD",
+      execution_colo: "SIN",
+      diagnostics: {
+        trace_ms: expect.any(Number),
+        trace_colo: "SIN",
+        ingress_colo: "IAD",
+        source: "trace",
+      },
+    });
+
+    fetchSpy.mockRestore();
+  });
+
   it("fails closed when the probe secret is missing", async () => {
     const response = await worker.fetch(probeRequest("https://example.com"), {});
 

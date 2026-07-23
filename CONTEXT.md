@@ -28,7 +28,7 @@ Cloudflare Worker probes (production) or Node probe (local dev)
 
 - Only `http://` and `https://` URLs with SSRF protections on every fetch path.
 - No accounts, billing, scheduled monitoring, or custom headers in the MVP.
-- Probe configuration via `PROBE_ENDPOINTS` JSON array; no fake regional data when probes are missing.
+- Production probe configuration via `PROBE_COORDINATOR_ENDPOINT` and `PROBE_SECRET`; region metadata is committed in `lib/probe-regions.ts`.
 - Anonymous rate limit: 10 test runs/hour/IP, max 5 probes per run.
 - Latency colors: green `<150 ms`, yellow `150-300 ms`, red `>300 ms`, gray failed.
 

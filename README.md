@@ -30,35 +30,23 @@ Open:
 http://localhost:3000
 ```
 
-Tests require `PROBE_ENDPOINTS`. The app does not show fake regional data when probes are missing.
-`npm run dev:local` supplies a single local probe endpoint when `PROBE_ENDPOINTS` is not already set. Use `npm run dev` when you want to run only the Next.js app against separately managed probes.
+Tests require `PROBE_SECRET`. In production, also set `PROBE_COORDINATOR_ENDPOINT`.
+`npm run dev:local` starts the Next.js app and a single local probe with no extra env setup.
+Use `npm run dev:app` when you only want the Next.js app and will run probes separately.
 
 ## Environment
 
 Copy `.env.example` to `.env.local` and fill values as needed.
 
 ```txt
-PROBE_ENDPOINTS=
+PROBE_COORDINATOR_ENDPOINT=
 PROBE_SECRET=
 ```
 
-`PROBE_ENDPOINTS` is a JSON array:
+Production region metadata (labels and globe coordinates) is committed in `lib/probe-regions.ts`.
+In production, the app calls the coordinator Worker once and maps results onto those regions.
 
-```json
-[
-  {
-    "id": "us-east",
-    "label": "US East",
-    "lat": 39.0438,
-    "lng": -77.4874,
-    "endpoint": "https://example-probe-us-east.com/probe"
-  }
-]
-```
-
-For local development, run one or more probe services yourself and point `PROBE_ENDPOINTS` at them. A single local probe is useful for testing the flow, but it is not regional latency data.
-
-For real MVP data, deploy 3-5 Cloudflare Worker probe environments and set `PROBE_ENDPOINTS` to those `/probe` URLs. A ready-to-edit 5-region template lives in `probes/regions.example.json`.
+For local development, run the local Node probe. A single local region is enough to test the flow, but it is not regional latency data.
 
 ## Probe Service
 
@@ -89,6 +77,7 @@ Output:
   "region": "local",
   "placement_region": null,
   "cloudflare_colo": null,
+  "execution_colo": null,
   "total_ms": 184,
   "status_code": 200,
   "error": null
@@ -111,7 +100,7 @@ GET /healthz
 
 The application deploys on Vercel. Probes deploy on Cloudflare Workers.
 
-Use one Worker environment per intended probe region. `probes/cloudflare/wrangler.jsonc` defines five environments:
+Use one Worker environment per intended probe region. `probes/cloudflare/wrangler.jsonc` defines five environments aligned with `lib/probe-regions.ts`:
 
 - `iad`: targeted near `aws:us-east-1`
 - `lhr`: targeted near `aws:eu-west-2`
@@ -119,7 +108,18 @@ Use one Worker environment per intended probe region. `probes/cloudflare/wrangle
 - `syd`: targeted near `aws:ap-southeast-2`
 - `gru`: targeted near `aws:sa-east-1`
 
-Cloudflare Worker placement hints choose a Cloudflare data center close to the configured infrastructure region. They are not a guarantee that the Worker executed in the exact city label. For that reason, the probe returns `cloudflare_colo` from `request.cf.colo`, and the UI stores/displays it beside the configured region label.
+Cloudflare Worker placement hints choose a Cloudflare data center close to the configured infrastructure region. They are not a guarantee that the Worker executed in the exact city label.
+
+The probe exposes two colo fields so callers can distinguish ingress from execution:
+
+| Field | Meaning |
+| --- | --- |
+| `cloudflare_colo` | Ingress colo from `request.cf.colo`: where the caller's request entered Cloudflare. When the central API on Vercel calls a probe, this is often the Vercel-to-Cloudflare entry point (for example `IAD`), not the probe's configured region. |
+| `execution_colo` | Where the Worker actually executed the outbound fetch. Prefer `response.cf.colo` from the measured subrequest when available; otherwise infer from a lightweight `https://cloudflare.com/cdn-cgi/trace` fetch. |
+
+`GET /healthz` also returns a `diagnostics` object with `trace_ms`, `trace_colo`, `ingress_colo`, and `source` (`trace` or `subrequest`) to help verify placement without running a full probe.
+
+The UI stores and displays `cloudflare_colo` beside the configured region label today. `execution_colo` is available in probe JSON for operators and future UI work.
 
 Run the Cloudflare Worker probe locally with Wrangler:
 
@@ -139,20 +139,38 @@ Deploy all configured environments:
 npm run probe:cf:deploy:regions
 ```
 
-After deployment, set `PROBE_ENDPOINTS` in Vercel or `.env.local` to the JSON array from `probes/regions.example.json`, replacing `<your-workers-subdomain>` with your actual Workers subdomain.
+### Coordinator Worker (required for Vercel)
 
-Example:
+When Vercel calls each regional `/probe` URL directly, ingress often lands in one Cloudflare colo (for example `IAD`), so every probe can report the same `cloudflare_colo` even though each Worker has targeted placement.
 
-```json
-[
-  {
-    "id": "iad",
-    "label": "US East (Ashburn)",
-    "lat": 39.0438,
-    "lng": -77.4874,
-    "endpoint": "https://latencymap-probe-iad.<your-workers-subdomain>.workers.dev/probe"
-  }
-]
+Deploy the coordinator Worker after the five regional Workers are live. It accepts one `POST /probe` request, fans out to regional Workers through Service Bindings, and returns aggregated regional results.
+
+```bash
+npm run probe:cf:deploy:coordinator
+```
+
+Set this in Vercel:
+
+```bash
+PROBE_COORDINATOR_ENDPOINT=https://latencymap-probe-coordinator.<your-workers-subdomain>.workers.dev/probe
+```
+
+Print the exact production env block after deploy:
+
+```bash
+npm run probe:cf:print-env -- <your-workers-subdomain>
+```
+
+Deploy the coordinator secret separately:
+
+```bash
+npx wrangler secret put PROBE_SECRET --config probes/cloudflare/wrangler.jsonc --env coordinator
+```
+
+Or set the secret on every environment in one pass:
+
+```bash
+npm run probe:cf:secrets:set
 ```
 
 Probe authentication is required. Set the same non-empty `PROBE_SECRET` in the Vercel app and every Cloudflare Worker environment before running or deploying probes:
@@ -197,12 +215,12 @@ In the Vercel project settings, set:
 
 | Variable | Required | Notes |
 | --- | --- | --- |
-| `PROBE_ENDPOINTS` | Yes | Single-line JSON array from `probes/regions.example.json` with real Worker URLs. |
+| `PROBE_COORDINATOR_ENDPOINT` | Yes | Coordinator `/probe` URL. Required in production. |
 | `PROBE_SECRET` | Yes | Same value deployed to every Cloudflare probe. |
 
 No database is required. Share links encode the full test run in `/r/<token>`.
 
-`PROBE_ENDPOINTS` must be valid JSON on one line in Vercel. Copy from `probes/regions.example.json`, replace `<your-workers-subdomain>`, and minify if needed.
+Use `npm run probe:cf:print-env -- <your-workers-subdomain>` to print the production env block.
 
 ### 3. Deploy the Next.js app
 
@@ -233,8 +251,8 @@ Open the returned `sharePath` (or `/r/<token>`) and confirm regional probe resul
 
 ### Production checklist
 
-- [ ] `PROBE_SECRET` set in Vercel and all five Cloudflare environments
-- [ ] `PROBE_ENDPOINTS` points at deployed `/probe` URLs (not localhost)
+- [ ] `PROBE_SECRET` set in Vercel and all six Cloudflare environments
+- [ ] `PROBE_COORDINATOR_ENDPOINT` points at the deployed coordinator `/probe` URL
 - [ ] All probe `/healthz` endpoints return `ok: true`
 - [ ] `npm run build` passes locally
 - [ ] Test run succeeds from the production dashboard

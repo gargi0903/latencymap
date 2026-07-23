@@ -11,6 +11,7 @@
     "enabled": true
   },
   "env": {
+    // Region ids and placement hints are defined in lib/probe-regions.ts.
     "iad": {
       "name": "latencymap-probe-iad",
       "workers_dev": true,
@@ -69,6 +70,21 @@
       "vars": {
         "PROBE_REGION": "gru",
         "PLACEMENT_REGION": "aws:sa-east-1"
+      }
+    },
+    "coordinator": {
+      "name": "latencymap-probe-coordinator",
+      "main": "src/coordinator.ts",
+      "workers_dev": true,
+      "services": [
+        { "binding": "PROBE_IAD", "service": "latencymap-probe-iad" },
+        { "binding": "PROBE_LHR", "service": "latencymap-probe-lhr" },
+        { "binding": "PROBE_SIN", "service": "latencymap-probe-sin" },
+        { "binding": "PROBE_SYD", "service": "latencymap-probe-syd" },
+        { "binding": "PROBE_GRU", "service": "latencymap-probe-gru" }
+      ],
+      "vars": {
+        "PROBE_REGION": "coordinator"
       }
     }
   }
