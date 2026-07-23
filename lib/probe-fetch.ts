@@ -4,16 +4,13 @@ import { parsePublicHttpUrl, stripIpv6Brackets } from "@/lib/probe-url-safety";
 export const PROBE_FETCH_MAX_REDIRECTS = 3;
 export const PROBE_FETCH_MAX_RESPONSE_BYTES = 64 * 1024;
 export const PROBE_FETCH_TIMEOUT_MS = 12_000;
-export const PROBE_FETCH_WARMUP_COUNT = 2;
-export const PROBE_FETCH_WARMUP_TIMEOUT_MS = 2_000;
-export const PROBE_FETCH_MEASURE_SAMPLE_COUNT = 5;
-export const PROBE_FETCH_MIN_SUCCESSFUL_SAMPLES = 3;
-export const PROBE_FETCH_INTER_SAMPLE_DELAY_MS = 40;
-export const PROBE_FETCH_MEASURE_BUDGET_MS =
-  PROBE_FETCH_TIMEOUT_MS - PROBE_FETCH_WARMUP_COUNT * PROBE_FETCH_WARMUP_TIMEOUT_MS;
-export const PROBE_FETCH_MEASURE_TIMEOUT_MS = Math.floor(
-  PROBE_FETCH_MEASURE_BUDGET_MS / PROBE_FETCH_MEASURE_SAMPLE_COUNT,
-);
+export const PROBE_FETCH_WARMUP_COUNT = 4;
+export const PROBE_FETCH_WARMUP_TIMEOUT_MS = 5_000;
+export const PROBE_FETCH_MEASURE_SAMPLE_COUNT = 7;
+export const PROBE_FETCH_MIN_SUCCESSFUL_SAMPLES = 5;
+export const PROBE_FETCH_INTER_SAMPLE_DELAY_MS = 100;
+export const PROBE_FETCH_MEASURE_TIMEOUT_MS = 5_000;
+export const PROBE_FETCH_OUTLIERS_TRIMMED_PER_SIDE = 1;
 
 export type ProbeFetchResult = {
   totalMs: number | null;
@@ -52,8 +49,24 @@ export async function runProbeMeasurement(
 
   const validateCachedUrl = createMeasurementUrlValidator(validateUrl);
 
+  const resolvedTarget = await resolveProbeTargetUrl(targetUrl, validateCachedUrl, {
+    fetchImpl,
+    userAgent: options.userAgent,
+    timeoutMs: PROBE_FETCH_WARMUP_TIMEOUT_MS,
+  });
+  if (!resolvedTarget.ok) {
+    return {
+      totalMs: null,
+      ttfbMs: null,
+      statusCode: null,
+      error: resolvedTarget.error,
+    };
+  }
+
+  const measureUrl = resolvedTarget.url;
+
   for (let warmup = 0; warmup < PROBE_FETCH_WARMUP_COUNT; warmup += 1) {
-    await runProbeFetchPass(targetUrl, validateCachedUrl, {
+    await runProbeFetchPass(measureUrl, validateCachedUrl, {
       fetchImpl,
       userAgent: options.userAgent,
       measure: false,
@@ -70,7 +83,7 @@ export async function runProbeMeasurement(
       await delay(PROBE_FETCH_INTER_SAMPLE_DELAY_MS);
     }
 
-    const result = await runProbeFetchPass(targetUrl, validateCachedUrl, {
+    const result = await runProbeFetchPass(measureUrl, validateCachedUrl, {
       fetchImpl,
       userAgent: options.userAgent,
       measure: true,
@@ -95,10 +108,10 @@ export async function runProbeMeasurement(
     };
   }
 
-  const ttfbMs = median(samples);
+  const latencyMs = aggregateLatencySamples(samples);
   return {
-    totalMs: ttfbMs,
-    ttfbMs,
+    totalMs: latencyMs,
+    ttfbMs: latencyMs,
     statusCode: lastSuccess!.statusCode,
     error: null,
     executionColo: lastSuccess!.executionColo ?? null,
@@ -137,10 +150,7 @@ async function runProbeFetchPass(
         method: "GET",
         redirect: "manual",
         signal: controller.signal,
-        headers: {
-          "user-agent": options.userAgent,
-          accept: "*/*",
-        },
+        headers: probeFetchHeaders(options.userAgent),
       });
 
       if (isRedirect(response.status)) {
@@ -184,6 +194,77 @@ async function runProbeFetchPass(
   return { totalMs: null, ttfbMs: null, statusCode: null, error: "Too many redirects." };
 }
 
+async function resolveProbeTargetUrl(
+  targetUrl: string,
+  validateUrl: ValidateUrl,
+  options: {
+    fetchImpl: typeof fetch;
+    userAgent: string;
+    timeoutMs: number;
+  },
+): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
+  let currentUrl = targetUrl;
+  const fetchImpl = bindFetch(options.fetchImpl);
+
+  for (let redirects = 0; redirects <= PROBE_FETCH_MAX_REDIRECTS; redirects += 1) {
+    const validation = await validateUrl(currentUrl);
+    if (!validation.ok) {
+      return { ok: false, error: validation.error };
+    }
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), options.timeoutMs);
+
+    try {
+      const response = await fetchImpl(validation.url, {
+        method: "GET",
+        redirect: "manual",
+        signal: controller.signal,
+        headers: probeFetchHeaders(options.userAgent),
+      });
+
+      if (isRedirect(response.status)) {
+        const location = response.headers.get("location");
+        if (!location) {
+          return { ok: false, error: "Redirect response did not include a location header." };
+        }
+
+        if (redirects === PROBE_FETCH_MAX_REDIRECTS) {
+          return { ok: false, error: "Too many redirects." };
+        }
+
+        await drainLimitedBody(response);
+        currentUrl = new URL(location, validation.url).toString();
+        continue;
+      }
+
+      await drainLimitedBody(response);
+      return { ok: true, url: validation.url };
+    } catch (error) {
+      const message =
+        error instanceof Error && error.name === "AbortError"
+          ? "Request timed out."
+          : error instanceof Error && error.message
+            ? `Request failed: ${error.message}`
+            : "Request failed.";
+      return { ok: false, error: message };
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  return { ok: false, error: "Too many redirects." };
+}
+
+function probeFetchHeaders(userAgent: string): HeadersInit {
+  return {
+    "user-agent": userAgent,
+    accept: "*/*",
+    "cache-control": "no-cache",
+    pragma: "no-cache",
+  };
+}
+
 function median(values: number[]): number {
   const sorted = [...values].sort((left, right) => left - right);
   const middle = Math.floor(sorted.length / 2);
@@ -193,6 +274,23 @@ function median(values: number[]): number {
   }
 
   return sorted[middle]!;
+}
+
+/** Drop the slowest and fastest samples, then take the median of the rest. */
+export function aggregateLatencySamples(samples: number[]): number {
+  if (samples.length === 0) {
+    throw new Error("aggregateLatencySamples requires at least one sample.");
+  }
+
+  const sorted = [...samples].sort((left, right) => left - right);
+  const trimCount =
+    sorted.length >= PROBE_FETCH_MIN_SUCCESSFUL_SAMPLES
+      ? Math.min(PROBE_FETCH_OUTLIERS_TRIMMED_PER_SIDE, Math.floor((sorted.length - 1) / 2))
+      : 0;
+  const trimmed =
+    trimCount > 0 ? sorted.slice(trimCount, sorted.length - trimCount) : sorted;
+
+  return median(trimmed);
 }
 
 function delay(ms: number) {

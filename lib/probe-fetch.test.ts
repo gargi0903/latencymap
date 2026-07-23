@@ -5,6 +5,7 @@ import {
   PROBE_FETCH_MIN_SUCCESSFUL_SAMPLES,
   PROBE_FETCH_WARMUP_COUNT,
   PROBE_FETCH_WARMUP_TIMEOUT_MS,
+  aggregateLatencySamples,
   runProbeMeasurement,
 } from "./probe-fetch";
 
@@ -23,7 +24,13 @@ function mockMeasuredResponses(fetchImpl: ReturnType<typeof vi.fn>, delaysMs: nu
   const nowSpy = vi.spyOn(performance, "now").mockImplementation(() => now);
 
   fetchImpl.mockImplementation(async () => {
-    if (callCount++ < PROBE_FETCH_WARMUP_COUNT) {
+    const index = callCount++;
+
+    if (index === 0) {
+      return new Response("resolve", { status: 200 });
+    }
+
+    if (index <= PROBE_FETCH_WARMUP_COUNT) {
       return new Response("warmup", { status: 200 });
     }
 
@@ -39,9 +46,9 @@ function mockMeasuredResponses(fetchImpl: ReturnType<typeof vi.fn>, delaysMs: nu
 }
 
 describe("runProbeMeasurement", () => {
-  it("warms up twice, samples TTFB five times, and returns the median", async () => {
+  it("warms up, samples TTFB seven times, trims outliers, and returns the stabilized median", async () => {
     const fetchImpl = vi.fn();
-    const restoreNow = mockMeasuredResponses(fetchImpl, [10, 30, 20, 50, 15]);
+    const restoreNow = mockMeasuredResponses(fetchImpl, [10, 30, 20, 50, 15, 25, 18]);
 
     const result = await runProbeMeasurement("https://example.com", validateUrl, {
       userAgent: "test-probe",
@@ -49,11 +56,15 @@ describe("runProbeMeasurement", () => {
     });
     restoreNow();
 
-    expect(fetchImpl).toHaveBeenCalledTimes(PROBE_FETCH_WARMUP_COUNT + PROBE_FETCH_MEASURE_SAMPLE_COUNT);
+    expect(fetchImpl).toHaveBeenCalledTimes(1 + PROBE_FETCH_WARMUP_COUNT + PROBE_FETCH_MEASURE_SAMPLE_COUNT);
     expect(fetchImpl.mock.calls[0]?.[1]).toMatchObject({
       method: "GET",
       redirect: "manual",
-      headers: { "user-agent": "test-probe" },
+      headers: {
+        "user-agent": "test-probe",
+        "cache-control": "no-cache",
+        pragma: "no-cache",
+      },
     });
     expect(result).toMatchObject({
       statusCode: 200,
@@ -117,7 +128,12 @@ describe("runProbeMeasurement", () => {
     const nowSpy = vi.spyOn(performance, "now").mockImplementation(() => now);
 
     fetchImpl.mockImplementation(async () => {
-      if (callCount++ < PROBE_FETCH_WARMUP_COUNT) {
+      const index = callCount++;
+      if (index === 0) {
+        return new Response("resolve", { status: 200 });
+      }
+
+      if (index <= PROBE_FETCH_WARMUP_COUNT) {
         throw new Error("warmup failed");
       }
 
@@ -132,7 +148,7 @@ describe("runProbeMeasurement", () => {
     });
     nowSpy.mockRestore();
 
-    expect(fetchImpl).toHaveBeenCalledTimes(PROBE_FETCH_WARMUP_COUNT + PROBE_FETCH_MEASURE_SAMPLE_COUNT);
+    expect(fetchImpl).toHaveBeenCalledTimes(1 + PROBE_FETCH_WARMUP_COUNT + PROBE_FETCH_MEASURE_SAMPLE_COUNT);
     expect(result).toMatchObject({
       totalMs: expect.any(Number),
       ttfbMs: expect.any(Number),
@@ -168,6 +184,7 @@ describe("runProbeMeasurement", () => {
 
   it("captures execution colo metadata from measured subrequests when available", async () => {
     const fetchImpl = vi.fn();
+    fetchImpl.mockResolvedValueOnce(new Response("resolve", { status: 200 }));
     for (let index = 0; index < PROBE_FETCH_WARMUP_COUNT; index += 1) {
       fetchImpl.mockResolvedValueOnce(new Response("warmup", { status: 200 }));
     }
@@ -191,18 +208,41 @@ describe("runProbeMeasurement", () => {
     });
   });
 
-  it("returns the median when some measured samples fail", async () => {
+  it("returns the stabilized median when some measured samples fail", async () => {
     const fetchImpl = vi.fn();
-    const restoreNow = mockMeasuredResponses(fetchImpl, [10, 30, 20, 50, 15]);
-    fetchImpl.mockImplementationOnce(async () => {
-      throw new Error("sample failed");
+    let callCount = 0;
+    let measureIndex = 0;
+    let now = 0;
+    const nowSpy = vi.spyOn(performance, "now").mockImplementation(() => now);
+    const delaysMs = [10, 30, 20, 50, 15, 25, 18];
+
+    fetchImpl.mockImplementation(async () => {
+      const index = callCount++;
+
+      if (index === 0) {
+        return new Response("resolve", { status: 200 });
+      }
+
+      if (index <= PROBE_FETCH_WARMUP_COUNT) {
+        return new Response("warmup", { status: 200 });
+      }
+
+      if (measureIndex === 2) {
+        measureIndex += 1;
+        throw new Error("sample failed");
+      }
+
+      const delay = delaysMs[measureIndex++] ?? 0;
+      const started = performance.now();
+      now = started + delay;
+      return new Response("measured", { status: 200 });
     });
 
     const result = await runProbeMeasurement("https://example.com", validateUrl, {
       userAgent: "test-probe",
       fetchImpl,
     });
-    restoreNow();
+    nowSpy.mockRestore();
 
     expect(result).toMatchObject({
       statusCode: 200,
@@ -214,6 +254,7 @@ describe("runProbeMeasurement", () => {
 
   it("fails when too few measured samples succeed", async () => {
     const fetchImpl = vi.fn();
+    fetchImpl.mockResolvedValueOnce(new Response("resolve", { status: 200 }));
     for (let index = 0; index < PROBE_FETCH_WARMUP_COUNT; index += 1) {
       fetchImpl.mockResolvedValueOnce(new Response("warmup", { status: 200 }));
     }
@@ -245,6 +286,40 @@ describe("runProbeMeasurement", () => {
 
     expect(validateUrl).toHaveBeenCalled();
     const callCount = validateUrl.mock.calls.length;
-    expect(callCount).toBeLessThan(PROBE_FETCH_WARMUP_COUNT + PROBE_FETCH_MEASURE_SAMPLE_COUNT);
+    expect(callCount).toBeLessThan(1 + PROBE_FETCH_WARMUP_COUNT + PROBE_FETCH_MEASURE_SAMPLE_COUNT);
+  });
+
+  it("resolves redirects once and measures the final URL", async () => {
+    const fetchImpl = vi.fn();
+    let callCount = 0;
+
+    fetchImpl.mockImplementation(async (input) => {
+      const url = String(input);
+      callCount += 1;
+
+      if (url.includes("youtube.com") && !url.includes("www.")) {
+        return Response.redirect("https://www.youtube.com/", 301);
+      }
+
+      return new Response("ok", { status: 200 });
+    });
+
+    const result = await runProbeMeasurement("https://youtube.com", validateUrl, {
+      userAgent: "test-probe",
+      fetchImpl,
+    });
+
+    expect(result.error).toBeNull();
+    expect(fetchImpl.mock.calls.some(([url]) => String(url).includes("www.youtube.com"))).toBe(true);
+    expect(
+      fetchImpl.mock.calls.filter(([url]) => String(url).includes("youtube.com") && !String(url).includes("www."))
+        .length,
+    ).toBe(1);
+    expect(callCount).toBe(2 + PROBE_FETCH_WARMUP_COUNT + PROBE_FETCH_MEASURE_SAMPLE_COUNT);
+  });
+
+  it("drops the fastest and slowest measured samples before taking the median", () => {
+    expect(aggregateLatencySamples([10, 30, 20, 50, 15, 25, 18])).toBe(20);
+    expect(aggregateLatencySamples([100, 120, 110])).toBe(110);
   });
 });

@@ -101,6 +101,8 @@ async function callCoordinator(
         cloudflareColo?: string | null;
         placement_region?: string | null;
         placementRegion?: string | null;
+        execution_colo?: string | null;
+        executionColo?: string | null;
         error?: string | null;
       }>;
     } | null;
@@ -138,6 +140,7 @@ async function callCoordinator(
         testedAt,
         cloudflareColo: coerceString(result.cloudflare_colo ?? result.cloudflareColo),
         placementRegion: coerceString(result.placement_region ?? result.placementRegion),
+        executionColo: coerceString(result.execution_colo ?? result.executionColo),
       };
     });
   } catch (error) {
