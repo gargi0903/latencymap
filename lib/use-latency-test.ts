@@ -54,14 +54,6 @@ export function useLatencyTest() {
     await runTest();
   }
 
-  function reset() {
-    setRun(null);
-    setSharePath(null);
-    setError(null);
-  }
-
-  const hasResults = Boolean(run);
-
   return {
     url,
     setUrl,
@@ -69,9 +61,7 @@ export function useLatencyTest() {
     sharePath,
     error,
     isLoading,
-    hasResults,
     runTest,
     onSubmit,
-    reset,
   };
 }

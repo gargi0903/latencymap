@@ -133,7 +133,6 @@ describe("runRegionalTest coordinator mode", () => {
               placement_region: "aws:us-east-1",
               cloudflare_colo: "IAD",
               total_ms: 88,
-              ttfb_ms: 86,
               status_code: 200,
               error: null,
             },
@@ -161,7 +160,7 @@ describe("runRegionalTest coordinator mode", () => {
         expect.objectContaining({
           region: "iad",
           totalMs: 88,
-          ttfbMs: 86,
+          ttfbMs: 88,
           statusCode: 200,
           cloudflareColo: "IAD",
           placementRegion: "aws:us-east-1",
@@ -184,7 +183,6 @@ describe("runRegionalTest local mode", () => {
         JSON.stringify({
           region: "local",
           total_ms: 42,
-          ttfb_ms: 40,
           status_code: 200,
           error: null,
         }),
@@ -200,7 +198,7 @@ describe("runRegionalTest local mode", () => {
       expect.objectContaining({
         region: "local",
         totalMs: 42,
-        ttfbMs: 40,
+        ttfbMs: 42,
         statusCode: 200,
       }),
     ]);

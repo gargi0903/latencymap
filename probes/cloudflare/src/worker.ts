@@ -5,11 +5,11 @@ import {
   resolveTraceColo,
 } from "./colo-diagnostics";
 import { createDohDnsResolver, withDnsCache } from "../../../lib/dns-resolve";
+import { readLimitedRequestText } from "../../../lib/probe-request-body";
 import { runProbeMeasurement } from "../../../lib/probe-fetch";
 import { validatePublicUrlWithDns } from "../../../lib/probe-url-safety";
 
 const DEFAULT_REGION = "cloudflare";
-const MAX_BODY_BYTES = 16 * 1024;
 
 type ProbeEnv = {
   PROBE_REGION?: string;
@@ -80,7 +80,6 @@ const worker = {
         cloudflare_colo: ingressColo,
         execution_colo: result.executionColo ?? null,
         total_ms: result.totalMs,
-        ttfb_ms: result.ttfbMs,
         status_code: result.statusCode,
         error: result.error,
       });
@@ -91,48 +90,6 @@ const worker = {
 };
 
 export default worker;
-
-async function readLimitedRequestText(request: Request) {
-  const contentLength = request.headers.get("content-length");
-  if (contentLength && Number(contentLength) > MAX_BODY_BYTES) {
-    throw new Error("Request body too large.");
-  }
-
-  if (!request.body) {
-    return "";
-  }
-
-  const reader = request.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let received = 0;
-
-  try {
-    while (received <= MAX_BODY_BYTES) {
-      const { done, value } = await reader.read();
-      if (done) {
-        break;
-      }
-
-      received += value.byteLength;
-      if (received > MAX_BODY_BYTES) {
-        throw new Error("Request body too large.");
-      }
-
-      chunks.push(value);
-    }
-  } finally {
-    await reader.cancel().catch(() => undefined);
-  }
-
-  const body = new Uint8Array(received);
-  let offset = 0;
-  for (const chunk of chunks) {
-    body.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-
-  return new TextDecoder().decode(body);
-}
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
