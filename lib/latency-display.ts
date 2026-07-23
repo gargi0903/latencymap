@@ -18,7 +18,6 @@ export function formatProbeStatus(result: Pick<ProbeResult, "error" | "statusCod
   if (result.error) return result.error;
   return result.statusCode === null ? "n/a" : `${result.statusCode}`;
 }
-
 export function latencyHexColor(totalMs: number | null, error: string | null) {
   if (error || totalMs === null) return LATENCY_COLORS.failed;
   if (totalMs < LATENCY_FAST_MS) return LATENCY_COLORS.fast;
@@ -33,3 +32,4 @@ export function latencyTailwindClass(totalMs: number | null, error: string | nul
   if (color === LATENCY_COLORS.slow) return "bg-[#c3362b]";
   return "bg-[#737b8c]";
 }
+

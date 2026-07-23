@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>On your computer — Latencymap</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="layout">
+      <aside class="sidebar">
+        <h1>Latencymap</h1>
+        <p class="tagline">Plain-language guide</p>
+        <nav>
+          <ul>
+            <li><a href="index.html">Overview</a></li>
+            <li><a href="getting-started.html">Getting started</a></li>
+            <li><a href="concepts.html">How it works</a></li>
+            <li><a href="local-development.html" aria-current="page">On your computer</a></li>
+            <li><a href="architecture.html">Behind the scenes</a></li>
+          </ul>
+        </nav>
+      </aside>
+
+      <main>
+        <h1 class="page-title">On your computer</h1>
+        <p class="lead">Passwords, ports, and why local testing is simpler than the live site.</p>
+
+        <section class="prose">
+          <h2>Two programs, one command</h2>
+          <p>
+            When you run the project locally, two separate programs start. The
+            <strong>website</strong> is what you see in the browser. The
+            <strong>practice probe</strong> is a small helper that actually fetches URLs and measures
+            time. A launcher script starts both so you do not have to manage them manually.
+          </p>
+        </section>
+
+        <section>
+          <h2>What starts when you run dev:local</h2>
+          <div id="dev-local-diagram" class="viz-host"></div>
+        </section>
+
+        <section>
+          <h2>Settings (environment variables)</h2>
+          <p class="prose">
+            Programs read secret settings from a local config file (not committed to git). You only
+            need to care about a couple of names:
+          </p>
+          <div id="env-cards" class="viz-host"></div>
+        </section>
+
+        <section>
+          <h2>PROBE_SECRET — the shared password</h2>
+          <div class="prose">
+            <p>
+              Think of this as a handshake between the website and the probes. The website says
+              “I am allowed to run tests” by sending a password. Probes ignore strangers without the
+              password. On your laptop you pick any non-empty password and put it in the config file.
+              In production the same password must be configured on the hosting platform and on every
+              probe.
+            </p>
+            <p>
+              Automated tests also need this password set, or they cannot simulate probe calls.
+            </p>
+          </div>
+        </section>
+
+        <section>
+          <h2>dev:local vs dev:app</h2>
+          <div id="dev-compare" class="viz-host"></div>
+          <div class="prose">
+            <p>
+              <strong>dev:local</strong> — easiest. Website and practice probe start together. Use
+              this while learning.<br />
+              <strong>dev:app</strong> — only the website. Use this if you are changing how things
+              look and do not need live measurements, or if you want to start the probe yourself in a
+              second terminal window.
+            </p>
+          </div>
+        </section>
+
+        <section>
+          <h2>Your laptop vs the live internet</h2>
+          <div id="env-compare" class="viz-host"></div>
+          <div class="prose">
+            <p>
+              Locally you have <strong>one</strong> probe pretending to be a region. On the real site,
+              <strong>five</strong> probes in different countries run in parallel, coordinated by a
+              boss service so results stay honest. You do not need the boss service on your laptop.
+            </p>
+          </div>
+        </section>
+
+        <section>
+          <h2>Setup checklist</h2>
+          <div id="setup-pipeline" class="viz-host"></div>
+        </section>
+      </main>
+    </div>
+
+    <script src="concepts-data.js"></script>
+    <script src="visuals.js"></script>
+    <script>
+      const V = window.LatencymapVisuals;
+      V.mount("dev-local-diagram", V.renderDevLocalDiagram());
+      V.mount("env-cards", V.renderEnvCards([
+        { name: "PROBE_SECRET", local: true, prod: true, desc: "Shared password between website and probes. Required everywhere." },
+        { name: "PROBE_COORDINATOR_ENDPOINT", local: false, prod: true, desc: "Address of the boss probe on the live site. Not needed locally." },
+        { name: "LOCAL_PROBE_ENDPOINT", local: true, prod: false, desc: "Optional override for where the practice probe lives. Usually automatic." },
+      ]));
+      V.mount("dev-compare", V.renderSwimlane({
+        lanes: [
+          { layer: "dev", label: "dev:local", items: [
+            { title: "Website + probe together", detail: "One command, both ports" },
+            { title: "Good for learning", detail: "Full flow without cloud setup" },
+          ]},
+          { layer: "ui", label: "dev:app", items: [
+            { title: "Website only", detail: "Port 3000 in browser" },
+            { title: "Probe optional", detail: "Start separately if you need measurements" },
+          ]},
+        ],
+      }));
+      V.mount("env-compare", V.renderSwimlane({
+        lanes: [
+          { layer: "probe", label: "Your laptop", items: [
+            { title: "1 practice probe", detail: "Runs on your machine" },
+            { title: "Not geographic", detail: "Timings are real, location is not" },
+          ]},
+          { layer: "probe", label: "Live site", items: [
+            { title: "5 regional probes", detail: "US, UK, Singapore, Sydney, Brazil" },
+            { title: "Coordinator", detail: "Asks all regions at once" },
+          ]},
+        ],
+      }));
+      V.mount("setup-pipeline", V.renderPipeline({
+        steps: [
+          { title: "Copy example config", detail: "Duplicate the example into a local secrets file", layer: "dev" },
+          { title: "Choose a password", detail: "Set PROBE_SECRET to anything non-empty", layer: "dev" },
+          { title: "Run dev:local", detail: "Wait until both programs are ready", layer: "dev" },
+          { title: "Test in browser", detail: "localhost:3000 → https://example.com", layer: "ui" },
+        ],
+      }));
+    </script>
+  </body>
+</html>

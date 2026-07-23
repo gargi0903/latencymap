@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Getting started — Latencymap</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="layout">
+      <aside class="sidebar">
+        <h1>Latencymap</h1>
+        <p class="tagline">Plain-language guide</p>
+        <nav>
+          <ul>
+            <li><a href="index.html">Overview</a></li>
+            <li><a href="getting-started.html" aria-current="page">Getting started</a></li>
+            <li><a href="concepts.html">How it works</a></li>
+            <li><a href="local-development.html">On your computer</a></li>
+            <li><a href="architecture.html">Behind the scenes</a></li>
+          </ul>
+        </nav>
+      </aside>
+
+      <main>
+        <h1 class="page-title">Getting started</h1>
+        <p class="lead">Run the project on your computer even if you have never written code.</p>
+
+        <section class="prose">
+          <h2>What you need installed</h2>
+          <p>
+            <strong>Node.js</strong> — a runtime that lets your computer run this project. Download
+            it from <a href="https://nodejs.org">nodejs.org</a> if you do not have it. It includes
+            <strong>npm</strong>, a tool for installing project dependencies and running shortcuts.
+          </p>
+          <p>
+            You do <em>not</em> need to learn JavaScript or TypeScript to follow this guide. You will
+            copy a few terminal commands and open a web page.
+          </p>
+        </section>
+
+        <section>
+          <h2>Setup steps</h2>
+          <div id="setup-pipeline" class="viz-host"></div>
+          <div class="prose">
+            <p>
+              Open a terminal in the project folder. Run each step in order. The last command starts
+              two things: the website (port 3000) and one practice probe (port 8787).
+            </p>
+            <p>
+              Before step 3, create a small config file by copying the example. Inside it, set
+              <strong>PROBE_SECRET</strong> to any password you invent (for example
+              <code>my-local-password</code>). The website and probe must use the same password so
+              they trust each other.
+            </p>
+          </div>
+        </section>
+
+        <section>
+          <h2>Try it in the browser</h2>
+          <div class="prose">
+            <p>
+              Go to <strong>http://localhost:3000</strong>. Type a public URL like
+              <strong>https://example.com</strong> and click Run Test. After a few seconds you should
+              see results on the globe and in the table.
+            </p>
+            <p class="note warn">
+              On your computer there is only <strong>one</strong> practice probe, not five real world
+              regions. The numbers are real timings, but they all come from your machine — useful for
+              learning the tool, not for true geographic comparison.
+            </p>
+          </div>
+        </section>
+
+        <section>
+          <h2>What to learn first (in order)</h2>
+          <div id="learning-pipeline" class="viz-host"></div>
+        </section>
+
+        <section>
+          <h2>What happens when you click Run Test</h2>
+          <div id="request-flow" class="viz-host"></div>
+          <div class="prose">
+            <p>
+              Your browser sends the URL to the central server running on your laptop. The server
+              validates the link, asks the local probe to fetch it, collects timing data, and sends
+              results back to the dashboard. A share link is built by packing the results into the
+              URL itself.
+            </p>
+          </div>
+        </section>
+
+        <section>
+          <h2>Terminal shortcuts</h2>
+          <div id="commands" class="viz-host"></div>
+          <div class="prose">
+            <p>
+              These are typed in the terminal. <code>npm install</code> is only needed once.
+              <code>npm run dev:local</code> is what you use day to day. The others are optional
+              checks used before sharing changes with a team.
+            </p>
+          </div>
+        </section>
+
+        <section>
+          <h2>Latency colors</h2>
+          <div id="latency-scale" class="viz-host"></div>
+        </section>
+      </main>
+    </div>
+
+    <script src="concepts-data.js"></script>
+    <script src="visuals.js"></script>
+    <script>
+      const V = window.LatencymapVisuals;
+      V.mount("setup-pipeline", V.renderPipeline({
+        steps: [
+          { title: "npm install", detail: "Download everything the project needs (once)", layer: "dev" },
+          { title: "Copy the example config", detail: "Set PROBE_SECRET to any password you choose", layer: "dev" },
+          { title: "npm run dev:local", detail: "Start website + practice probe together", layer: "dev" },
+          { title: "Open localhost:3000", detail: "Run a test against https://example.com", layer: "ui" },
+        ],
+      }));
+      V.mount("learning-pipeline", V.renderPipeline({
+        steps: [
+          { title: "Overview", detail: "What the product does and who it is for", layer: "product" },
+          { title: "How it works", detail: "Probes, safety, share links, vocabulary", layer: "product" },
+          { title: "On your computer", detail: "Passwords, ports, local vs live", layer: "dev" },
+          { title: "Behind the scenes", detail: "Production layout and coordinator", layer: "probe" },
+        ],
+      }));
+      V.mount("request-flow", V.renderFlowSvg({
+        title: "From click to results",
+        nodes: [
+          { id: "1", label: "Dashboard", sub: "You click Run", layer: "ui" },
+          { id: "2", label: "Central server", sub: "Is URL safe?", layer: "server" },
+          { id: "3", label: "Practice probe", sub: "Fetches the URL", layer: "probe" },
+          { id: "4", label: "Timing data", sub: "Milliseconds, status", layer: "data" },
+          { id: "5", label: "Globe & table", sub: "You see results", layer: "ui" },
+          { id: "6", label: "Share link", sub: "Optional copy", layer: "data" },
+        ],
+        edges: [
+          { from: "1", to: "2" },
+          { from: "2", to: "3" },
+          { from: "3", to: "2" },
+          { from: "2", to: "4" },
+          { from: "4", to: "5" },
+          { from: "5", to: "6" },
+        ],
+      }));
+      V.mount("commands", V.renderCommandChips([
+        { name: "npm run dev:local", desc: "Start website + practice probe (use this daily)" },
+        { name: "npm run dev:app", desc: "Start only the website" },
+        { name: "npm run probe:dev", desc: "Start only the practice probe" },
+        { name: "npm test", desc: "Run automated safety checks" },
+      ]));
+      V.mount("latency-scale", V.renderLatencyScale());
+    </script>
+  </body>
+</html>
