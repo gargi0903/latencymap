@@ -2,9 +2,9 @@ import dns from "node:dns/promises";
 import http from "node:http";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import net from "node:net";
-import { performance } from "node:perf_hooks";
 import { isBlockedIp } from "../../lib/ip-blocklist";
 import { matchesProbeSecret } from "../../lib/probe-auth";
+import { runProbeMeasurement } from "../../lib/probe-fetch";
 import {
   isBlockedHostname,
   parsePublicHttpUrl,
@@ -16,19 +16,9 @@ const PORT = Number(process.env.PORT ?? 8787);
 const HOST = process.env.HOST ?? "127.0.0.1";
 const REGION = process.env.PROBE_REGION ?? "local";
 const SECRET = process.env.PROBE_SECRET?.trim();
-const MAX_REDIRECTS = 3;
-const MAX_BYTES = 64 * 1024;
-const TIMEOUT_MS = 5000;
-
 if (!SECRET) {
   throw new Error("PROBE_SECRET must be set before starting the local probe.");
 }
-
-type FetchTimingResult = {
-  totalMs: number | null;
-  statusCode: number | null;
-  error: string | null;
-};
 
 const server = http.createServer(async (request, response) => {
   setCors(response);
@@ -68,7 +58,9 @@ const server = http.createServer(async (request, response) => {
       return;
     }
 
-    const result = await fetchWithTiming(body.url);
+    const result = await runProbeMeasurement(body.url, normalizeAndValidatePublicUrl, {
+      userAgent: "Latencymap-Probe/0.1",
+    });
     sendJson(response, 200, {
       region: REGION,
       placement_region: null,
@@ -96,87 +88,6 @@ server.on("error", (error: NodeJS.ErrnoException) => {
 server.listen(PORT, HOST, () => {
   console.log(`Latencymap probe listening on http://${HOST}:${PORT} for region ${REGION}`);
 });
-
-async function fetchWithTiming(targetUrl: string): Promise<FetchTimingResult> {
-  const started = performance.now();
-  let currentUrl = targetUrl;
-
-  for (let redirects = 0; redirects <= MAX_REDIRECTS; redirects += 1) {
-    const validation = await normalizeAndValidatePublicUrl(currentUrl);
-    if (!validation.ok) {
-      return { totalMs: null, statusCode: null, error: validation.error };
-    }
-
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
-
-    try {
-      const fetchResponse = await fetch(validation.url, {
-        method: "GET",
-        redirect: "manual",
-        signal: controller.signal,
-        headers: {
-          "user-agent": "Latencymap-Probe/0.1",
-          accept: "*/*",
-        },
-      });
-
-      if (fetchResponse.status >= 300 && fetchResponse.status < 400) {
-        const location = fetchResponse.headers.get("location");
-        if (!location) {
-          return complete(started, fetchResponse.status, "Redirect response did not include a location header.");
-        }
-
-        if (redirects === MAX_REDIRECTS) {
-          return complete(started, fetchResponse.status, "Too many redirects.");
-        }
-
-        currentUrl = new URL(location, validation.url).toString();
-        continue;
-      }
-
-      await drainLimitedBody(fetchResponse);
-      return complete(started, fetchResponse.status, null);
-    } catch (error) {
-      const message = error instanceof Error && error.name === "AbortError" ? "Request timed out." : "Request failed.";
-      return { totalMs: null, statusCode: null, error: message };
-    } finally {
-      clearTimeout(timeout);
-    }
-  }
-
-  return { totalMs: null, statusCode: null, error: "Too many redirects." };
-}
-
-function complete(started: number, statusCode: number, error: string | null): FetchTimingResult {
-  return {
-    totalMs: Math.round(performance.now() - started),
-    statusCode,
-    error,
-  };
-}
-
-async function drainLimitedBody(fetchResponse: Response) {
-  if (!fetchResponse.body) {
-    return;
-  }
-
-  const reader = fetchResponse.body.getReader();
-  let received = 0;
-
-  try {
-    while (received < MAX_BYTES) {
-      const { done, value } = await reader.read();
-      if (done) {
-        break;
-      }
-
-      received += value.byteLength;
-    }
-  } finally {
-    await reader.cancel().catch(() => undefined);
-  }
-}
 
 async function normalizeAndValidatePublicUrl(rawUrl: string): Promise<UrlValidationResult> {
   const parsed = parsePublicHttpUrl(rawUrl);

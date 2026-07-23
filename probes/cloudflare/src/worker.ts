@@ -1,11 +1,9 @@
 import { matchesProbeSecret } from "./auth";
+import { runProbeMeasurement } from "../../../lib/probe-fetch";
 import { validateHostnameOnly } from "../../../lib/probe-url-safety";
 
 const DEFAULT_REGION = "cloudflare";
 const MAX_BODY_BYTES = 16 * 1024;
-const MAX_RESPONSE_BYTES = 64 * 1024;
-const MAX_REDIRECTS = 3;
-const TIMEOUT_MS = 5000;
 
 type ProbeEnv = {
   PROBE_REGION?: string;
@@ -17,12 +15,6 @@ type CloudflareRequest = Request & {
   cf?: {
     colo?: string;
   };
-};
-
-type FetchTimingResult = {
-  totalMs: number | null;
-  statusCode: number | null;
-  error: string | null;
 };
 
 const worker = {
@@ -67,7 +59,9 @@ const worker = {
         return json({ error: "Expected JSON body with a url field." }, 400, corsHeaders);
       }
 
-      const result = await fetchWithTiming(body.url);
+      const result = await runProbeMeasurement(body.url, validateHostnameOnly, {
+        userAgent: "Latencymap-Cloudflare-Probe/0.1",
+      });
       return json(
         {
           region: env.PROBE_REGION || DEFAULT_REGION,
@@ -87,57 +81,6 @@ const worker = {
 };
 
 export default worker;
-
-async function fetchWithTiming(targetUrl: string): Promise<FetchTimingResult> {
-  const started = performance.now();
-  let currentUrl = targetUrl;
-
-  for (let redirects = 0; redirects <= MAX_REDIRECTS; redirects += 1) {
-    const validation = validateHostnameOnly(currentUrl);
-    if (!validation.ok) {
-      return { totalMs: null, statusCode: null, error: validation.error };
-    }
-
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
-
-    try {
-      const response = await fetch(validation.url, {
-        method: "GET",
-        redirect: "manual",
-        signal: controller.signal,
-        headers: {
-          "user-agent": "Latencymap-Cloudflare-Probe/0.1",
-          accept: "*/*",
-        },
-      });
-
-      if (isRedirect(response.status)) {
-        const location = response.headers.get("location");
-        if (!location) {
-          return complete(started, response.status, "Redirect response did not include a location header.");
-        }
-
-        if (redirects === MAX_REDIRECTS) {
-          return complete(started, response.status, "Too many redirects.");
-        }
-
-        currentUrl = new URL(location, validation.url).toString();
-        continue;
-      }
-
-      await drainLimitedBody(response);
-      return complete(started, response.status, null);
-    } catch (error) {
-      const message = error instanceof Error && error.name === "AbortError" ? "Request timed out." : "Request failed.";
-      return { totalMs: null, statusCode: null, error: message };
-    } finally {
-      clearTimeout(timeout);
-    }
-  }
-
-  return { totalMs: null, statusCode: null, error: "Too many redirects." };
-}
 
 async function readLimitedRequestText(request: Request) {
   const contentLength = request.headers.get("content-length");
@@ -179,40 +122,6 @@ async function readLimitedRequestText(request: Request) {
   }
 
   return new TextDecoder().decode(body);
-}
-
-async function drainLimitedBody(response: Response) {
-  if (!response.body) {
-    return;
-  }
-
-  const reader = response.body.getReader();
-  let received = 0;
-
-  try {
-    while (received < MAX_RESPONSE_BYTES) {
-      const { done, value } = await reader.read();
-      if (done) {
-        break;
-      }
-
-      received += value.byteLength;
-    }
-  } finally {
-    await reader.cancel().catch(() => undefined);
-  }
-}
-
-function complete(started: number, statusCode: number, error: string | null): FetchTimingResult {
-  return {
-    totalMs: Math.round(performance.now() - started),
-    statusCode,
-    error,
-  };
-}
-
-function isRedirect(status: number) {
-  return status >= 300 && status < 400;
 }
 
 function json(body: unknown, status: number, extraHeaders?: Record<string, string>) {
