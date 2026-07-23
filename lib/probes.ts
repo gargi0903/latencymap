@@ -1,4 +1,5 @@
 import { PROBE_CLIENT_TIMEOUT_MS } from "@/lib/constants";
+import { getLocalProbeEndpoint, getProbeRegions, usesCoordinatorEndpoint } from "@/lib/probe-regions";
 import type { ProbeConfig, ProbeResult } from "@/lib/types";
 
 export class ProbeConfigurationError extends Error {
@@ -8,11 +9,10 @@ export class ProbeConfigurationError extends Error {
   }
 }
 
-let cachedProbeConfig: ProbeConfig[] | null = null;
-let cachedProbeConfigRaw: string | undefined;
+export { getProbeRegions } from "@/lib/probe-regions";
 
 export async function runRegionalTest(url: string): Promise<ProbeResult[]> {
-  const probes = getProbeConfig().slice(0, 5);
+  const probes = getProbeRegions().slice(0, 5);
   const probeSecret = getProbeSecret();
   const coordinatorEndpoint = getCoordinatorEndpoint();
 
@@ -20,7 +20,21 @@ export async function runRegionalTest(url: string): Promise<ProbeResult[]> {
     return callCoordinator(coordinatorEndpoint, url, probes, probeSecret);
   }
 
-  return Promise.all(probes.map((probe) => callRemoteProbe(probe, url, probeSecret)));
+  if (process.env.NODE_ENV === "production") {
+    throw new ProbeConfigurationError(
+      "PROBE_COORDINATOR_ENDPOINT is required in production. Deploy the coordinator Worker and set the env var in Vercel.",
+    );
+  }
+
+  const localProbe = probes[0];
+  if (!localProbe?.endpoint) {
+    throw new ProbeConfigurationError(
+      "Local probe endpoint is not configured. Run npm run dev:local or npm run probe:dev.",
+    );
+  }
+
+  const result = await callRemoteProbe(localProbe, url, probeSecret);
+  return [result];
 }
 
 function getCoordinatorEndpoint(): string | null {
@@ -34,37 +48,6 @@ function getCoordinatorEndpoint(): string | null {
   }
 
   return endpoint;
-}
-
-export function getProbeConfig(): ProbeConfig[] {
-  const raw = process.env.PROBE_ENDPOINTS;
-  if (!raw) {
-    throw new ProbeConfigurationError("No probe endpoints configured. Set PROBE_ENDPOINTS to real deployed probe URLs.");
-  }
-
-  if (cachedProbeConfig && cachedProbeConfigRaw === raw) {
-    return cachedProbeConfig;
-  }
-
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    throw new ProbeConfigurationError("PROBE_ENDPOINTS must be a valid JSON array of real probe endpoints.");
-  }
-
-  if (!Array.isArray(parsed)) {
-    throw new ProbeConfigurationError("PROBE_ENDPOINTS must be a JSON array.");
-  }
-
-  const usable = parsed.filter(isUsableProbeConfig);
-  if (usable.length === 0) {
-    throw new ProbeConfigurationError("PROBE_ENDPOINTS did not contain any usable probe endpoints.");
-  }
-
-  cachedProbeConfigRaw = raw;
-  cachedProbeConfig = usable;
-  return usable;
 }
 
 export function getProbeSecret(): string {
@@ -206,8 +189,22 @@ async function callRemoteProbe(probe: ProbeConfig, url: string, probeSecret: str
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), PROBE_CLIENT_TIMEOUT_MS);
 
+  if (!probe.endpoint) {
+    return {
+      region: probe.id,
+      label: probe.label,
+      lat: probe.lat,
+      lng: probe.lng,
+      totalMs: null,
+      ttfbMs: null,
+      statusCode: null,
+      error: "Probe endpoint is not configured.",
+      testedAt,
+    };
+  }
+
   try {
-    const response = await fetch(probe.endpoint!, {
+    const response = await fetch(probe.endpoint, {
       method: "POST",
       signal: controller.signal,
       headers: {
@@ -292,10 +289,10 @@ export function formatProbeFetchError(error: unknown, probe: ProbeConfig): strin
 
   if (isConnectionRefusedError(error)) {
     if (process.env.NODE_ENV === "production") {
-      return `Probe unreachable at ${probe.endpoint}. Check that the endpoint is deployed and PROBE_ENDPOINTS is correct.`;
+      return `Probe unreachable at ${probe.endpoint}. Check that the local probe is running or configure PROBE_COORDINATOR_ENDPOINT.`;
     }
 
-    return `Probe unreachable at ${probe.endpoint}. Start the local probe with npm run probe:dev or use npm run dev:local.`;
+    return `Probe unreachable at ${probe.endpoint ?? getLocalProbeEndpoint()}. Start the local probe with npm run probe:dev or use npm run dev:local.`;
   }
 
   return "Probe failed.";
@@ -331,18 +328,7 @@ function isValidHttpUrl(value: string) {
   }
 }
 
-function isUsableProbeConfig(value: unknown): value is ProbeConfig {
-  if (!value || typeof value !== "object") {
-    return false;
-  }
-
-  const probe = value as Partial<ProbeConfig>;
-  return (
-    typeof probe.id === "string" &&
-    typeof probe.label === "string" &&
-    typeof probe.lat === "number" &&
-    typeof probe.lng === "number" &&
-    typeof probe.endpoint === "string" &&
-    isValidHttpUrl(probe.endpoint)
-  );
+// Kept for tests and diagnostics that need to know whether coordinator mode is active.
+export function isCoordinatorModeEnabled() {
+  return usesCoordinatorEndpoint();
 }

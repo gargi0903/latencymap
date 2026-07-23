@@ -1,3 +1,4 @@
+import { PROBE_REGIONS } from "../../../lib/probe-regions";
 import { matchesProbeSecret } from "./auth";
 
 const MAX_BODY_BYTES = 16 * 1024;
@@ -78,14 +79,24 @@ const worker = {
 
 export default worker;
 
+type RegionalBindingKey = keyof Pick<
+  CoordinatorEnv,
+  "PROBE_IAD" | "PROBE_LHR" | "PROBE_SIN" | "PROBE_SYD" | "PROBE_GRU"
+>;
+
+const REGIONAL_BINDING_KEYS: Record<string, RegionalBindingKey> = {
+  iad: "PROBE_IAD",
+  lhr: "PROBE_LHR",
+  sin: "PROBE_SIN",
+  syd: "PROBE_SYD",
+  gru: "PROBE_GRU",
+};
+
 function getRegionalBindings(env: CoordinatorEnv): RegionalProbeBinding[] {
-  return [
-    { id: "iad", fetcher: env.PROBE_IAD },
-    { id: "lhr", fetcher: env.PROBE_LHR },
-    { id: "sin", fetcher: env.PROBE_SIN },
-    { id: "syd", fetcher: env.PROBE_SYD },
-    { id: "gru", fetcher: env.PROBE_GRU },
-  ];
+  return PROBE_REGIONS.map((region) => ({
+    id: region.id,
+    fetcher: env[REGIONAL_BINDING_KEYS[region.id]],
+  }));
 }
 
 async function fanOutProbe(url: string, env: CoordinatorEnv) {
@@ -102,11 +113,7 @@ async function fanOutProbe(url: string, env: CoordinatorEnv) {
   const bindings = getRegionalBindings(env);
 
   return Promise.all(
-    bindings.map(async ({ id, fetcher }, index) => {
-      if (index > 0) {
-        await delay(index * 120);
-      }
-
+    bindings.map(async ({ id, fetcher }) => {
       try {
         const response = await fetcher.fetch(probeRequest);
         const body = (await response.json().catch(() => null)) as RegionalProbeResponse | { error?: string } | null;
@@ -155,12 +162,6 @@ async function fanOutProbe(url: string, env: CoordinatorEnv) {
       }
     }),
   );
-}
-
-function delay(ms: number) {
-  return new Promise<void>((resolve) => {
-    setTimeout(resolve, ms);
-  });
 }
 
 async function readLimitedRequestText(request: Request) {

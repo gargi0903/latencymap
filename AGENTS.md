@@ -152,7 +152,8 @@ https://api.example.com/health
 - Prefer shared types from `lib/types.ts` when crossing API, storage, and UI boundaries.
 - Keep route handlers small and push reusable validation/probe/storage behavior into `lib/`.
 - Never store fetched response bodies.
-- Do not show fake regional data when `PROBE_ENDPOINTS` is missing.
+- Do not show fake regional data when probe configuration is missing.
+- Production requires `PROBE_COORDINATOR_ENDPOINT` and `PROBE_SECRET`; region metadata lives in `lib/probe-regions.ts`.
 - Keep local development behavior honest: a local probe is useful for flow testing, not real regional latency.
 - Maintain stateless share links that encode full test runs in the URL.
 - Preserve existing user changes in the working tree. Do not revert unrelated files.

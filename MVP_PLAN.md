@@ -123,12 +123,11 @@ Probe output:
 Probe configuration:
 
 ```txt
-PROBE_ENDPOINTS=[
-  { "id": "iad", "label": "US East", "lat": 39.04, "lng": -77.49, "endpoint": "https://..." }
-]
+PROBE_COORDINATOR_ENDPOINT=https://latencymap-probe-coordinator.<subdomain>.workers.dev/probe
+PROBE_SECRET=<shared secret>
 ```
 
-`PROBE_ENDPOINTS` is a JSON array of probe metadata and `/probe` URLs.
+Region metadata (id, label, lat, lng) is committed in `lib/probe-regions.ts`.
 
 ## Probe Behavior
 
@@ -247,5 +246,5 @@ Do not show a fake heatmap with only 3-5 probes. Show honest probe markers.
 - Probe hosting: Cloudflare Workers with one environment per region (`iad`, `lhr`, `sin`, `syd`, `gru`).
 - Persistence: URL-encoded share links via `lib/share-payload.ts` (no database).
 - Rate limiting: in-memory buckets per serverless instance.
-- Probe env var: `PROBE_ENDPOINTS` JSON array (not `PROBES`).
+- Probe env vars: `PROBE_COORDINATOR_ENDPOINT` and `PROBE_SECRET`; region metadata in `lib/probe-regions.ts`.
 - UI results: Globe/Table switcher on smaller viewports; both views show the same honest probe evidence.
