@@ -1,5 +1,5 @@
 import { PROBE_CLIENT_TIMEOUT_MS } from "@/lib/constants";
-import { getLocalProbeEndpoint, getProbeRegions } from "@/lib/probe-regions";
+import { getLocalProbeEndpoint, getProbeRegions, isProductionProbeMode } from "@/lib/probe-regions";
 import type { ProbeConfig, ProbeResult } from "@/lib/types";
 
 export class ProbeConfigurationError extends Error {
@@ -9,45 +9,17 @@ export class ProbeConfigurationError extends Error {
   }
 }
 
-export { getProbeRegions } from "@/lib/probe-regions";
-
 export async function runRegionalTest(url: string): Promise<ProbeResult[]> {
-  const probes = getProbeRegions().slice(0, 5);
+  const probes = getProbeRegions();
   const probeSecret = getProbeSecret();
-  const coordinatorEndpoint = getCoordinatorEndpoint();
 
-  if (coordinatorEndpoint) {
-    return callCoordinator(coordinatorEndpoint, url, probes, probeSecret);
-  }
-
-  if (process.env.NODE_ENV === "production") {
+  if (isProductionProbeMode() && probes.some((probe) => !probe.endpoint?.trim())) {
     throw new ProbeConfigurationError(
-      "PROBE_COORDINATOR_ENDPOINT is required in production. Deploy the coordinator Worker and set the env var in Vercel.",
+      "PROBE_WORKERS_SUBDOMAIN is required in production. Deploy regional probe Workers and set the env var in Vercel.",
     );
   }
 
-  const localProbe = probes[0];
-  if (!localProbe?.endpoint) {
-    throw new ProbeConfigurationError(
-      "Local probe endpoint is not configured. Run npm run dev:local or npm run probe:dev.",
-    );
-  }
-
-  const result = await callRemoteProbe(localProbe, url, probeSecret);
-  return [result];
-}
-
-function getCoordinatorEndpoint(): string | null {
-  const endpoint = process.env.PROBE_COORDINATOR_ENDPOINT?.trim();
-  if (!endpoint) {
-    return null;
-  }
-
-  if (!isValidHttpUrl(endpoint)) {
-    throw new ProbeConfigurationError("PROBE_COORDINATOR_ENDPOINT must be a valid http or https URL.");
-  }
-
-  return endpoint;
+  return Promise.all(probes.map((probe) => callRemoteProbe(probe, url, probeSecret)));
 }
 
 export function getProbeSecret(): string {
@@ -59,131 +31,6 @@ export function getProbeSecret(): string {
   }
 
   return secret;
-}
-
-async function callCoordinator(
-  coordinatorEndpoint: string,
-  url: string,
-  probes: ProbeConfig[],
-  probeSecret: string,
-): Promise<ProbeResult[]> {
-  const testedAt = new Date().toISOString();
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), PROBE_CLIENT_TIMEOUT_MS);
-
-  try {
-    const response = await fetch(coordinatorEndpoint, {
-      method: "POST",
-      signal: controller.signal,
-      headers: {
-        "content-type": "application/json",
-        "x-probe-secret": probeSecret,
-      },
-      body: JSON.stringify({ url }),
-    });
-
-    if (!response.ok) {
-      const errorBody = (await response.json().catch(() => null)) as { error?: string | null } | null;
-      const message = errorBody?.error ?? `Coordinator returned HTTP ${response.status}.`;
-      return probes.map((probe) => coordinatorFailureResult(probe, testedAt, message, response.status));
-    }
-
-    const body = (await response.json().catch(() => null)) as {
-      results?: Array<{
-        region?: string;
-        total_ms?: number;
-        totalMs?: number;
-        ttfb_ms?: number;
-        ttfbMs?: number;
-        status_code?: number;
-        statusCode?: number;
-        cloudflare_colo?: string | null;
-        cloudflareColo?: string | null;
-        placement_region?: string | null;
-        placementRegion?: string | null;
-        execution_colo?: string | null;
-        executionColo?: string | null;
-        error?: string | null;
-      }>;
-    } | null;
-
-    if (!body?.results || !Array.isArray(body.results)) {
-      return probes.map((probe) =>
-        coordinatorFailureResult(probe, testedAt, "Coordinator returned an invalid response.", null),
-      );
-    }
-
-    const resultsByRegion = new Map(
-      body.results
-        .filter((result) => typeof result.region === "string")
-        .map((result) => [result.region as string, result]),
-    );
-
-    return probes.map((probe) => {
-      const result = resultsByRegion.get(probe.id);
-      if (!result) {
-        return coordinatorFailureResult(probe, testedAt, "Coordinator did not return this region.", null);
-      }
-
-      const totalMs = coerceNumber(result.total_ms ?? result.totalMs);
-
-      return {
-        region: probe.id,
-        label: probe.label,
-        lat: probe.lat,
-        lng: probe.lng,
-        totalMs,
-        ttfbMs: totalMs,
-        statusCode: coerceNumber(result.status_code ?? result.statusCode),
-        error: result.error ?? null,
-        testedAt,
-        cloudflareColo: coerceString(result.cloudflare_colo ?? result.cloudflareColo),
-        placementRegion: coerceString(result.placement_region ?? result.placementRegion),
-        executionColo: coerceString(result.execution_colo ?? result.executionColo),
-      };
-    });
-  } catch (error) {
-    const message =
-      error instanceof Error && error.name === "AbortError"
-        ? "Coordinator timed out."
-        : formatCoordinatorFetchError(error, coordinatorEndpoint);
-    return probes.map((probe) => coordinatorFailureResult(probe, testedAt, message, null));
-  } finally {
-    clearTimeout(timeout);
-  }
-}
-
-function coordinatorFailureResult(
-  probe: ProbeConfig,
-  testedAt: string,
-  error: string,
-  statusCode: number | null,
-): ProbeResult {
-  return {
-    region: probe.id,
-    label: probe.label,
-    lat: probe.lat,
-    lng: probe.lng,
-    totalMs: null,
-    ttfbMs: null,
-    statusCode,
-    error,
-    testedAt,
-    cloudflareColo: null,
-    placementRegion: null,
-  };
-}
-
-function formatCoordinatorFetchError(error: unknown, coordinatorEndpoint: string): string {
-  if (isConnectionRefusedError(error)) {
-    if (process.env.NODE_ENV === "production") {
-      return `Coordinator unreachable at ${coordinatorEndpoint}. Check deployment and PROBE_COORDINATOR_ENDPOINT.`;
-    }
-
-    return `Coordinator unreachable at ${coordinatorEndpoint}. Deploy the coordinator Worker or unset PROBE_COORDINATOR_ENDPOINT.`;
-  }
-
-  return "Coordinator failed.";
 }
 
 async function callRemoteProbe(probe: ProbeConfig, url: string, probeSecret: string): Promise<ProbeResult> {
@@ -244,8 +91,6 @@ async function callRemoteProbe(probe: ProbeConfig, url: string, probeSecret: str
       cloudflareColo?: string | null;
       placement_region?: string | null;
       placementRegion?: string | null;
-      execution_colo?: string | null;
-      executionColo?: string | null;
       error?: string | null;
     } | null;
 
@@ -263,7 +108,6 @@ async function callRemoteProbe(probe: ProbeConfig, url: string, probeSecret: str
       testedAt,
       cloudflareColo: coerceString(body?.cloudflare_colo ?? body?.cloudflareColo),
       placementRegion: coerceString(body?.placement_region ?? body?.placementRegion),
-      executionColo: coerceString(body?.execution_colo ?? body?.executionColo),
     };
   } catch (error) {
     const message = formatProbeFetchError(error, probe);
@@ -290,7 +134,7 @@ export function formatProbeFetchError(error: unknown, probe: ProbeConfig): strin
 
   if (isConnectionRefusedError(error)) {
     if (process.env.NODE_ENV === "production") {
-      return `Probe unreachable at ${probe.endpoint}. Check that the local probe is running or configure PROBE_COORDINATOR_ENDPOINT.`;
+      return `Probe unreachable at ${probe.endpoint}. Check regional probe deployment and PROBE_WORKERS_SUBDOMAIN.`;
     }
 
     return `Probe unreachable at ${probe.endpoint ?? getLocalProbeEndpoint()}. Start the local probe with npm run probe:dev or use npm run dev:local.`;
@@ -318,13 +162,4 @@ function coerceNumber(value: unknown): number | null {
 
 function coerceString(value: unknown): string | null {
   return typeof value === "string" && value.trim().length > 0 ? value : null;
-}
-
-function isValidHttpUrl(value: string) {
-  try {
-    const url = new URL(value);
-    return url.protocol === "http:" || url.protocol === "https:";
-  } catch {
-    return false;
-  }
 }

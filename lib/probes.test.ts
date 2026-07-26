@@ -1,10 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { formatProbeFetchError, getProbeRegions, getProbeSecret, ProbeConfigurationError, runRegionalTest } from "./probes";
+import { getProbeRegions } from "./probe-regions";
+import { formatProbeFetchError, getProbeSecret, ProbeConfigurationError, runRegionalTest } from "./probes";
 import type { ProbeConfig } from "./types";
 
 const originalNodeEnv = process.env.NODE_ENV;
 const originalProbeSecret = process.env.PROBE_SECRET;
-const originalCoordinatorEndpoint = process.env.PROBE_COORDINATOR_ENDPOINT;
+const originalWorkersSubdomain = process.env.PROBE_WORKERS_SUBDOMAIN;
 const originalLocalProbeEndpoint = process.env.LOCAL_PROBE_ENDPOINT;
 
 const localProbe: ProbeConfig = {
@@ -24,10 +25,10 @@ afterEach(() => {
     process.env.PROBE_SECRET = originalProbeSecret;
   }
 
-  if (originalCoordinatorEndpoint === undefined) {
-    delete process.env.PROBE_COORDINATOR_ENDPOINT;
+  if (originalWorkersSubdomain === undefined) {
+    delete process.env.PROBE_WORKERS_SUBDOMAIN;
   } else {
-    process.env.PROBE_COORDINATOR_ENDPOINT = originalCoordinatorEndpoint;
+    process.env.PROBE_WORKERS_SUBDOMAIN = originalWorkersSubdomain;
   }
 
   if (originalLocalProbeEndpoint === undefined) {
@@ -64,7 +65,7 @@ describe("formatProbeFetchError", () => {
     });
 
     expect(formatProbeFetchError(error, localProbe)).toBe(
-      "Probe unreachable at http://127.0.0.1:8787/probe. Check that the local probe is running or configure PROBE_COORDINATOR_ENDPOINT.",
+      "Probe unreachable at http://127.0.0.1:8787/probe. Check regional probe deployment and PROBE_WORKERS_SUBDOMAIN.",
     );
   });
 
@@ -90,20 +91,30 @@ describe("getProbeSecret", () => {
 });
 
 describe("getProbeRegions", () => {
-  it("returns the committed production regions when coordinator mode is enabled", () => {
-    process.env.PROBE_COORDINATOR_ENDPOINT = "https://coordinator.example/probe";
+  it("returns production regions with endpoints when workers subdomain is configured", () => {
+    process.env.PROBE_WORKERS_SUBDOMAIN = "example.workers.dev";
 
-    expect(getProbeRegions()).toEqual(
+    const regions = getProbeRegions();
+
+    expect(regions).toHaveLength(5);
+    expect(regions).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ id: "iad", label: "US East (Ashburn)" }),
-        expect.objectContaining({ id: "gru", label: "South America (Sao Paulo)" }),
+        expect.objectContaining({
+          id: "iad",
+          label: "US East (Ashburn)",
+          endpoint: "https://latencymap-probe-iad.example.workers.dev/probe",
+        }),
+        expect.objectContaining({
+          id: "gru",
+          label: "South America (Sao Paulo)",
+          endpoint: "https://latencymap-probe-gru.example.workers.dev/probe",
+        }),
       ]),
     );
-    expect(getProbeRegions()).toHaveLength(5);
   });
 
-  it("returns a single local region in development without coordinator mode", () => {
-    delete process.env.PROBE_COORDINATOR_ENDPOINT;
+  it("returns a single local region in development without workers subdomain", () => {
+    delete process.env.PROBE_WORKERS_SUBDOMAIN;
     process.env.NODE_ENV = "development";
     process.env.LOCAL_PROBE_ENDPOINT = "http://127.0.0.1:8787/probe";
 
@@ -119,24 +130,20 @@ describe("getProbeRegions", () => {
   });
 });
 
-describe("runRegionalTest coordinator mode", () => {
-  it("calls the coordinator once and maps regional results", async () => {
+describe("runRegionalTest production mode", () => {
+  it("fans out to all regional probes in parallel", async () => {
     process.env.PROBE_SECRET = "configured-secret";
-    process.env.PROBE_COORDINATOR_ENDPOINT = "https://coordinator.example/probe";
+    process.env.PROBE_WORKERS_SUBDOMAIN = "example.workers.dev";
 
-    const fetchMock = vi.fn(async () =>
+    const fetchMock = vi.fn(async (endpoint: string) =>
       new Response(
         JSON.stringify({
-          results: [
-            {
-              region: "iad",
-              placement_region: "aws:us-east-1",
-              cloudflare_colo: "IAD",
-              total_ms: 88,
-              status_code: 200,
-              error: null,
-            },
-          ],
+          region: endpoint.includes("iad") ? "iad" : "sin",
+          placement_region: endpoint.includes("iad") ? "aws:us-east-1" : "aws:ap-southeast-1",
+          cloudflare_colo: endpoint.includes("iad") ? "IAD" : "SIN",
+          total_ms: endpoint.includes("iad") ? 88 : 120,
+          status_code: 200,
+          error: null,
         }),
         { status: 200, headers: { "content-type": "application/json" } },
       ),
@@ -145,9 +152,9 @@ describe("runRegionalTest coordinator mode", () => {
 
     const results = await runRegionalTest("https://example.com");
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(5);
     expect(fetchMock).toHaveBeenCalledWith(
-      "https://coordinator.example/probe",
+      "https://latencymap-probe-iad.example.workers.dev/probe",
       expect.objectContaining({
         method: "POST",
         headers: expect.objectContaining({
@@ -155,6 +162,7 @@ describe("runRegionalTest coordinator mode", () => {
         }),
       }),
     );
+    expect(results).toHaveLength(5);
     expect(results).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -167,14 +175,13 @@ describe("runRegionalTest coordinator mode", () => {
         }),
       ]),
     );
-    expect(results).toHaveLength(5);
   });
 });
 
 describe("runRegionalTest local mode", () => {
   it("calls the local probe directly in development", async () => {
     process.env.NODE_ENV = "development";
-    delete process.env.PROBE_COORDINATOR_ENDPOINT;
+    delete process.env.PROBE_WORKERS_SUBDOMAIN;
     process.env.PROBE_SECRET = "configured-secret";
     process.env.LOCAL_PROBE_ENDPOINT = "http://127.0.0.1:8787/probe";
 
@@ -204,9 +211,9 @@ describe("runRegionalTest local mode", () => {
     ]);
   });
 
-  it("requires the coordinator in production", async () => {
+  it("requires workers subdomain in production", async () => {
     process.env.NODE_ENV = "production";
-    delete process.env.PROBE_COORDINATOR_ENDPOINT;
+    delete process.env.PROBE_WORKERS_SUBDOMAIN;
     process.env.PROBE_SECRET = "configured-secret";
 
     await expect(runRegionalTest("https://example.com")).rejects.toThrow(ProbeConfigurationError);

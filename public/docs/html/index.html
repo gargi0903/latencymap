@@ -10,7 +10,7 @@
     <div class="layout">
       <aside class="sidebar">
         <h1>Latencymap</h1>
-        <p class="tagline">Plain-language guide</p>
+        <p class="tagline">Portfolio project guide</p>
         <nav>
           <ul>
             <li><a href="index.html" aria-current="page">Overview</a></li>
@@ -24,13 +24,14 @@
 
       <main>
         <h1 class="page-title">What is Latencymap?</h1>
-        <p class="lead">A beginner-friendly explanation. No programming background required.</p>
+        <p class="lead">A portfolio project for job applications and investor demos — explained in plain language.</p>
 
         <section class="prose">
           <h2>The idea in one sentence</h2>
           <p>
-            Latencymap lets you type a public website address and see how long it takes to respond
-            from several places around the world — shown on a 3D globe and in a table.
+            Latencymap lets you type a public website or API address and see how long it takes to respond
+            from five real regions around the world — shown in a terminal-style results table with exact
+            numbers and a shareable link.
           </p>
           <p>
             <strong>Latency</strong> means delay: how many milliseconds pass between asking for a
@@ -61,9 +62,14 @@
           <h2>Who is it for?</h2>
           <div class="prose">
             <p>
-              Primarily <strong>developers</strong> checking their own public APIs. It also works for
-              anyone who wants to test a normal public website link. It is a demo tool, not a full
-              monitoring service — you run one-off tests, not 24/7 alerts.
+              Built as a <strong>portfolio project</strong> to demonstrate full-stack engineering. The
+              primary use case is <strong>developers</strong> checking their own public APIs. It also works
+              for founders testing a public website before launch. It is a focused demo — one-off tests,
+              not 24/7 monitoring.
+            </p>
+            <p>
+              See <code>docs/PORTFOLIO.md</code> in the repository for elevator pitch, live demo script,
+              and how to present this in interviews or investor meetings.
             </p>
           </div>
         </section>
@@ -98,7 +104,7 @@
           { id: "a", label: "You", sub: "Paste a URL", layer: "ui" },
           { id: "b", label: "Central server", sub: "Checks & coordinates", layer: "server" },
           { id: "c", label: "Regional probes", sub: "Visit the URL", layer: "probe" },
-          { id: "d", label: "Results", sub: "Globe + table", layer: "ui" },
+          { id: "d", label: "Results", sub: "Table + inspector", layer: "ui" },
           { id: "e", label: "Share link", sub: "Copy to others", layer: "data" },
         ],
         edges: [
@@ -112,7 +118,7 @@
       V.mount("overview-layers", V.renderSwimlane({
         lanes: [
           { layer: "ui", label: "What you see", items: [
-            { title: "Dashboard", detail: "URL box, Run button, globe, table" },
+            { title: "Dashboard", detail: "URL box, Run button, results table" },
             { title: "Share page", detail: "Same results via a link someone sent you" },
           ]},
           { layer: "server", label: "Central server", items: [

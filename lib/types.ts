@@ -10,7 +10,6 @@ export type ProbeResult = {
   testedAt: string;
   cloudflareColo?: string | null;
   placementRegion?: string | null;
-  executionColo?: string | null;
 };
 
 export type TestRun = {

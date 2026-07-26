@@ -1,9 +1,4 @@
 import { matchesProbeSecret } from "./auth";
-import {
-  buildColoDiagnostics,
-  pickExecutionColo,
-  resolveTraceColo,
-} from "./colo-diagnostics";
 import { createDohDnsResolver, withDnsCache } from "../../../lib/dns-resolve";
 import { readLimitedRequestText } from "../../../lib/probe-request-body";
 import { runProbeMeasurement } from "../../../lib/probe-fetch";
@@ -29,24 +24,14 @@ const validatePublicUrl = (rawUrl: string) => validatePublicUrlWithDns(rawUrl, r
 const worker = {
   async fetch(request: CloudflareRequest, env: ProbeEnv) {
     const requestUrl = new URL(request.url);
-    const ingressColo = request.cf?.colo || null;
+    const cloudflareColo = request.cf?.colo ?? null;
 
     if (request.method === "GET" && requestUrl.pathname === "/healthz") {
-      const trace = await resolveTraceColo();
-      const execution = pickExecutionColo(null, trace.colo);
-
       return json({
         ok: true,
         region: env.PROBE_REGION || DEFAULT_REGION,
         placement_region: env.PLACEMENT_REGION || null,
-        cloudflare_colo: ingressColo,
-        execution_colo: execution.colo,
-        diagnostics: buildColoDiagnostics({
-          ingressColo,
-          executionColo: execution.colo,
-          traceMs: trace.traceMs,
-          source: execution.source,
-        }),
+        cloudflare_colo: cloudflareColo,
       });
     }
 
@@ -77,8 +62,7 @@ const worker = {
       return json({
         region: env.PROBE_REGION || DEFAULT_REGION,
         placement_region: env.PLACEMENT_REGION || null,
-        cloudflare_colo: ingressColo,
-        execution_colo: result.executionColo ?? null,
+        cloudflare_colo: cloudflareColo,
         total_ms: result.totalMs,
         status_code: result.statusCode,
         error: result.error,

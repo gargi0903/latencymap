@@ -6,27 +6,27 @@ window.LATENCYMAP_CONCEPTS = [
     id: "product",
     layer: "product",
     title: "What Latencymap is",
-    summary: "A web tool that checks how fast a public website responds from different places in the world.",
+    summary: "A portfolio demo that checks how fast a public website or API responds from different places in the world.",
     detail:
-      "You paste a normal public link (like https://example.com). The tool visits that link from several remote locations, measures how long it takes, and shows you the results on a 3D globe and in a table. You can share the results with someone else using a link.",
+      "You paste a normal public link (like https://example.com). The tool visits that link from five remote locations, measures how long it takes, and shows you the results in a terminal-style table with a row inspector. You can share the results with someone else using a link.",
     connects: ["dashboard", "probes", "share-link"],
   },
   {
     id: "dashboard",
     layer: "ui",
     title: "The dashboard (what you see)",
-    summary: "The main screen with a URL box, a Run button, the globe, and the results table.",
+    summary: "The main screen with a URL box, a Run button, and the regional results table.",
     detail:
-      "This is the page that loads when you open the site. You type a URL, click Run Test, and wait a few seconds. Then you see colored dots on a globe (one per test location) and exact numbers in a table. You can switch between globe view and table view — both show the same real data.",
-    connects: ["api", "globe", "results-table"],
+      "This is the page that loads when you open the site. You type a URL, click Run Test, and wait a few seconds. Then you see color-coded latency for each region in a table. Click any row to open the inspector with status code, Cloudflare colo, placement region, and timestamp.",
+    connects: ["api", "row-inspector", "results-table"],
   },
   {
-    id: "globe",
+    id: "row-inspector",
     layer: "ui",
-    title: "The 3D globe",
-    summary: "An interactive map showing where each test ran and how fast it was.",
+    title: "The row inspector",
+    summary: "Detailed metadata for the selected probe result.",
     detail:
-      "Each dot is a real test location, not a decorative heatmap. Green means fast (under 150 ms), yellow is moderate, red is slow, and gray means the test failed. Clicking a dot shows more detail about that region.",
+      "When you click a row in the results table, the inspector shows latency, HTTP status, region label, Cloudflare colo, placement hint, and when the test ran. Failed probes are shown distinctly from slow ones.",
     connects: ["probes", "latency-colors"],
   },
   {
@@ -35,7 +35,7 @@ window.LATENCYMAP_CONCEPTS = [
     title: "The results table",
     summary: "A precise list of every measurement: region, latency, status, and time.",
     detail:
-      "The globe gives you a spatial picture; the table gives you exact numbers. Both views use the same underlying results. The table shows region name, milliseconds, HTTP status code (like 200 for OK), Cloudflare data-center code, and when the test ran.",
+      "The table gives you exact numbers for every probe. It shows region name, milliseconds, HTTP status code (like 200 for OK), and color-coded latency. Click a row to see Cloudflare data-center code, placement region, and timestamp in the inspector.",
     connects: ["probes", "latency-colors"],
   },
   {
@@ -85,16 +85,7 @@ window.LATENCYMAP_CONCEPTS = [
     summary: "Small programs in different regions that actually visit your URL and time the response.",
     detail:
       "A probe is like a robot in a data center. It receives a URL from the central server, opens it, measures how long the response takes, records the status code, and sends back only timing metadata — never the full page content. In production there are five regions (US East, London, Singapore, Sydney, São Paulo). On your laptop there is just one local probe for practice.",
-    connects: ["coordinator", "probe-secret", "probe-contract"],
-  },
-  {
-    id: "coordinator",
-    layer: "probe",
-    title: "The coordinator (production only)",
-    summary: "A boss probe that asks all regional probes at once and collects their answers.",
-    detail:
-      "In production the central server talks to one coordinator instead of calling five regions separately. The coordinator fans out the request to every regional probe in parallel and returns one combined answer. This gives more honest regional data.",
-    connects: ["probes"],
+    connects: ["probe-secret", "probe-contract", "production"],
   },
   {
     id: "probe-secret",
@@ -111,7 +102,7 @@ window.LATENCYMAP_CONCEPTS = [
     title: "What a probe returns",
     summary: "A small JSON report: region, milliseconds, status code, and data-center info.",
     detail:
-      "Each probe answers with: which region it represents, total time in milliseconds, HTTP status code (or null if it failed), error message if any, and Cloudflare colo codes showing where the request entered and executed. Probes also expose a health check endpoint so operators can verify they are running.",
+      "Each probe answers with: which region it represents, total time in milliseconds, HTTP status code (or null if it failed), error message if any, and the Cloudflare colo where the probe ran. Probes also expose a health check endpoint so operators can verify they are running.",
     connects: [],
   },
 
@@ -149,10 +140,10 @@ window.LATENCYMAP_CONCEPTS = [
     id: "production",
     layer: "dev",
     title: "Running in production",
-    summary: "Website on Vercel, probes on Cloudflare, coordinator ties regions together.",
+    summary: "Website on Vercel, probes on Cloudflare, direct parallel fan-out.",
     detail:
-      "The public site is hosted on Vercel. Probes run as Cloudflare Workers in five regions. Vercel needs PROBE_SECRET and PROBE_COORDINATOR_ENDPOINT configured. Users on the internet get real multi-region latency; developers on localhost get a simplified single-region test.",
-    connects: ["coordinator", "probes", "api"],
+      "The public site is hosted on Vercel. Probes run as Cloudflare Workers in five regions. Vercel needs PROBE_SECRET and PROBE_WORKERS_SUBDOMAIN configured, then calls all five regional probes in parallel. Users on the internet get real multi-region latency; developers on localhost get a simplified single-region test.",
+    connects: ["probes", "api"],
   },
   {
     id: "npm",
@@ -180,7 +171,7 @@ window.LATENCYMAP_CONCEPTS = [
     title: "Vercel",
     summary: "The hosting platform where the public website and API run.",
     detail:
-      "When you deploy, Vercel runs the Next.js app on their servers. Environment variables like PROBE_SECRET are configured in the Vercel dashboard.",
+      "When you deploy, Vercel runs the Next.js app on their servers. Environment variables like PROBE_SECRET and PROBE_WORKERS_SUBDOMAIN are configured in the Vercel dashboard.",
     connects: ["production", "api"],
   },
   {
@@ -190,7 +181,7 @@ window.LATENCYMAP_CONCEPTS = [
     summary: "Lightweight programs that run on Cloudflare's edge network worldwide.",
     detail:
       "Probes are implemented as Workers so they execute close to target regions. Cloudflare picks a data center near each configured region. Workers are stateless and cheap to run at small scale.",
-    connects: ["probes", "coordinator"],
+    connects: ["probes", "production"],
   },
   {
     id: "typescript",

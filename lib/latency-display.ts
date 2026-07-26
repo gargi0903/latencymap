@@ -1,14 +1,10 @@
-import {
-  PROBE_FETCH_MEASURE_SAMPLE_COUNT,
-  PROBE_FETCH_SAMPLE_SPREAD_RATIO,
-} from "@/lib/probe-fetch";
+import { PROBE_FETCH_MEASURE_SAMPLE_COUNT } from "@/lib/probe-fetch";
 import type { ProbeResult } from "@/lib/types";
 
-export const LATENCY_FAST_MS = 150;
-export const LATENCY_MODERATE_MS = 300;
-export const LATENCY_MARGIN_OF_ERROR_PERCENT = Math.round(PROBE_FETCH_SAMPLE_SPREAD_RATIO * 100);
+const LATENCY_FAST_MS = 150;
+const LATENCY_MODERATE_MS = 300;
 
-export const LATENCY_COLORS = {
+const LATENCY_COLORS = {
   fast: "#16833a",
   moderate: "#b26a00",
   slow: "#c3362b",
@@ -25,7 +21,7 @@ export function formatProbeStatus(result: Pick<ProbeResult, "error" | "statusCod
 }
 
 export function latencyMeasurementNote() {
-  return `median ttfb from ${PROBE_FETCH_MEASURE_SAMPLE_COUNT} warmed requests · margin of error ±${LATENCY_MARGIN_OF_ERROR_PERCENT}% on repeat tests`;
+  return `each region: ${PROBE_FETCH_MEASURE_SAMPLE_COUNT} checks, slowest ignored, rounded to 10 ms`;
 }
 
 export function latencyHexColor(totalMs: number | null, error: string | null) {

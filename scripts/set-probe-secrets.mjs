@@ -2,7 +2,7 @@
 
 import { spawnSync } from "node:child_process";
 
-const regions = ["iad", "lhr", "sin", "syd", "gru", "coordinator"];
+const regions = ["iad", "lhr", "sin", "syd", "gru"];
 const wrangler = process.platform === "win32" ? "wrangler.cmd" : "wrangler";
 const config = "probes/cloudflare/wrangler.jsonc";
 

@@ -1,8 +1,6 @@
 import type { DnsResolver } from "@/lib/dns-resolve";
 import { isBlockedIp, isIpv4Literal } from "@/lib/ip-blocklist";
 
-export { isBlockedIp } from "@/lib/ip-blocklist";
-
 const BLOCKED_HOSTNAMES = new Set(["localhost", "ip6-localhost", "ip6-loopback"]);
 
 export type UrlValidationResult = { ok: true; url: string } | { ok: false; error: string };

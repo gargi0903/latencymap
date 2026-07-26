@@ -4,6 +4,8 @@
 
 Latencymap is a portfolio/demo MVP for testing public API or website latency from multiple real probe regions and visualizing results in a terminal-style dashboard.
 
+**Portfolio pitch:** See `docs/PORTFOLIO.md` for elevator pitch, demo script, and interview/VC framing.
+
 Always read `MVP_PLAN.md` before making product, architecture, or implementation decisions. If this file and `MVP_PLAN.md` conflict, preserve the current explicit user direction in this file and update `MVP_PLAN.md` only when asked.
 
 ## Product Direction
@@ -12,7 +14,7 @@ Always read `MVP_PLAN.md` before making product, architecture, or implementation
 - The first screen must be the usable latency test tool.
 - Primary audience: backend/API developers checking public APIs.
 - Secondary supported use cases: startup founders checking websites and general users checking public HTTP/S URLs.
-- Keep MVP scope limited to one-time tests, saved results, history by normalized URL, and share links.
+- Keep MVP scope limited to one-time tests, saved results via share links, and shareable result pages.
 - Do not add accounts, billing, scheduled monitoring, alerts, badges, arbitrary HTTP methods, or custom request headers unless explicitly requested.
 
 ## Stack Direction
@@ -24,15 +26,13 @@ Always read `MVP_PLAN.md` before making product, architecture, or implementation
 - Use Cloudflare Workers for regional probes with a provider-agnostic HTTP interface.
 - Use Wrangler JSON config and named Worker environments for probe regions.
 - Use a terminal-style regional results table with a selected-row inspector.
-- Use `lucide-react` icons.
 - Prefer simple, explicit code over premature abstractions.
 
 ## UI System
 
-- `shadcn/ui` and Tailwind CSS are the default UI system for this project.
-- Use prebuilt `shadcn/ui` components for common UI primitives because they are extensible, modular, and easy to customize.
-- Use `components.json` as the source of truth for shadcn setup: New York style, RSC enabled, TSX, Tailwind CSS variables, `slate` base color, lucide icons, and `@/components/ui` aliases.
-- Add or reuse shadcn components for primitive UI needs such as buttons, inputs, tables, dialogs, tooltips, tabs, dropdowns, forms, alerts, and toasts.
+- The current UI uses custom terminal-style components in `components/` and CSS in `app/styles.css`.
+- Tailwind CSS is available for utility classes where helpful (`app/layout.tsx`).
+- `components.json` is reserved for future `shadcn/ui` adoption. Add shadcn primitives only when a real UI need appears; do not scaffold unused component libraries.
 - Keep project-specific custom components for domain surfaces such as probe results, latency summaries, and share-page composition.
 - Do not turn this into a generic component-library showcase. The UI should stay dense, clean, technical, and readable.
 - Avoid marketing hero layouts. Keep the dashboard/tool experience as the first viewport.
@@ -152,7 +152,7 @@ https://api.example.com/health
 - Keep route handlers small and push reusable validation/probe/storage behavior into `lib/`.
 - Never store fetched response bodies.
 - Do not show fake regional data when probe configuration is missing.
-- Production requires `PROBE_COORDINATOR_ENDPOINT` and `PROBE_SECRET`; region metadata lives in `lib/probe-regions.ts`.
+- Production requires `PROBE_WORKERS_SUBDOMAIN` and `PROBE_SECRET`; Vercel derives regional probe URLs from the subdomain and region metadata in `lib/probe-regions.ts`.
 - Keep local development behavior honest: a local probe is useful for flow testing, not real regional latency.
 - Maintain stateless share links that encode full test runs in the URL.
 - Preserve existing user changes in the working tree. Do not revert unrelated files.

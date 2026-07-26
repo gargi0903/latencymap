@@ -3,10 +3,10 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { CmdLabel } from "@/components/cmd-label";
 import { ProbeResultsPanel } from "@/components/probe-results-panel";
-import { PROBE_COUNTRIES, PROBE_COUNTRY_LIST } from "@/lib/probe-regions";
+import { PROBE_COUNTRY_LIST } from "@/lib/probe-regions";
 import { useLatencyTest } from "@/lib/use-latency-test";
 
-const INTERACTIVE_SELECTOR = "button, a, textarea, select, canvas, [role='button']";
+const INTERACTIVE_SELECTOR = "button, a, textarea, select, [role='button']";
 const BOOT_LINE_MS = 50;
 const BOOT_SKIP_KEY = "latencymap.boot-seen";
 
@@ -20,7 +20,7 @@ const BOOT_STEPS: BootStep[] = [
   {
     id: "brand",
     className: "terminal__boot-line--brand",
-    render: () => <CmdLabelWrapper />,
+    render: () => <CmdLabel />,
   },
   {
     id: "starting",
@@ -35,7 +35,7 @@ const BOOT_STEPS: BootStep[] = [
   {
     id: "where",
     className: "terminal__boot-line--countries",
-    render: () => PROBE_COUNTRIES.join(" · "),
+    render: () => PROBE_COUNTRY_LIST,
   },
   {
     id: "how",
@@ -53,10 +53,6 @@ const STARTING_STEP_INDEX = BOOT_STEPS.findIndex((step) => step.id === "starting
 
 function isInteractiveTarget(target: EventTarget | null) {
   return target instanceof Element && Boolean(target.closest(INTERACTIVE_SELECTOR));
-}
-
-function CmdLabelWrapper() {
-  return <CmdLabel />;
 }
 
 function Wordmark() {

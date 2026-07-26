@@ -2,11 +2,13 @@
 
 ## Product Goal
 
-Build a portfolio-quality demo that proves the core idea:
+Build a **portfolio-quality demo** for job applications and VC presentations that proves the core idea:
 
 > Enter a public URL, test it from multiple real probe regions, show latency results, and generate a shareable result page.
 
-Optimize for low cost, simple architecture, and a credible demo. This is not a full monitoring SaaS yet.
+Optimize for low cost, simple architecture, and a credible live demo. This is not a full monitoring SaaS yet.
+
+Pitch scripts, demo flow, and reviewer talking points live in `docs/PORTFOLIO.md`.
 
 ## Primary Audience
 
@@ -123,9 +125,11 @@ Probe output:
 Probe configuration:
 
 ```txt
-PROBE_COORDINATOR_ENDPOINT=https://latencymap-probe-coordinator.<subdomain>.workers.dev/probe
+PROBE_WORKERS_SUBDOMAIN=<your-workers-subdomain>   # e.g. acme.workers.dev
 PROBE_SECRET=<shared secret>
 ```
+
+Vercel derives each regional probe URL from the subdomain and committed region ids (for example `https://latencymap-probe-iad.<subdomain>/probe`).
 
 Region metadata (id, label, lat, lng) is committed in `lib/probe-regions.ts`.
 
@@ -242,5 +246,5 @@ gray   = failed
 - Probe hosting: Cloudflare Workers with one environment per region (`iad`, `lhr`, `sin`, `syd`, `gru`).
 - Persistence: URL-encoded share links via `lib/share-payload.ts` (no database).
 - Rate limiting: in-memory buckets per serverless instance.
-- Probe env vars: `PROBE_COORDINATOR_ENDPOINT` and `PROBE_SECRET`; region metadata in `lib/probe-regions.ts`.
+- Probe env vars: `PROBE_WORKERS_SUBDOMAIN` and `PROBE_SECRET`; Vercel fans out to five regional Workers in parallel; region metadata in `lib/probe-regions.ts`.
 - UI results: terminal dashboard with a shared `ProbeResultsPanel` for dashboard and share pages.

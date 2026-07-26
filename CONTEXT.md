@@ -2,38 +2,52 @@
 
 ## What this is
 
-Latencymap is a portfolio/demo MVP for one-time public URL latency tests. Users enter a public HTTP/S URL, the central API validates it, calls regional probes in parallel, stores the run, and returns exact measurements with an honest 3D globe view.
+Latencymap is a **portfolio project** built for job applications and investor presentations. It is a working demo of one-time public URL latency tests: users enter a public HTTP/S URL, the central API validates it, calls five regional probes in parallel, and returns exact measurements in a terminal-style results table with a selected-row inspector.
+
+Use [`docs/PORTFOLIO.md`](docs/PORTFOLIO.md) for pitch scripts, demo flow, and how to frame the project in interviews vs VC conversations.
 
 ## Core vocabulary
 
-- **Evidence surface**: Summary metrics, globe/table results, share link, and same-URL history shown after a test completes.
-- **Equal evidence**: Globe and table are both authoritative views of the same probe data. The UI switches between them rather than showing fake regional coverage.
-- **First-run screen**: Dashboard shell, URL form, concise safety copy, and a bounded-request conditions rail before any test runs.
+- **Evidence surface**: Regional results table, selected-row inspector, and share link shown after a test completes.
+- **Equal evidence**: Every row in the table is backed by a real probe response. The UI never shows fake regional coverage.
+- **First-run screen**: Terminal boot sequence, URL form, and concise safety copy before any test runs.
+- **Row inspector**: Detail panel for the selected probe result — latency, HTTP status, region, Cloudflare colo, placement hint, and timestamp.
 - **Clean technical workspace**: Dense, readable developer-tool UI with cobalt command accents and mineral operational surfaces.
 
 ## Architecture
 
 ```txt
-Next.js app (Vercel)
-  /, /r/[id], /api/tests, /api/tests/[id]
-        |
-        v
-Neon Postgres or local JSON in .data/
-        |
-        v
-Cloudflare Worker probes (production) or Node probe (local dev)
+Browser
+  |
+  v
+Next.js app (Vercel) — /, /r/[token], /api/tests, /api/tests/[token]
+  |
+  +--> 5 regional Cloudflare Worker probes (parallel)
+  |         |
+  |         v
+  |    target URL
+  |
+  +--> share links: base64-encoded results in /r/[token] (no database)
 ```
 
 ## Key constraints
 
 - Only `http://` and `https://` URLs with SSRF protections on every fetch path.
 - No accounts, billing, scheduled monitoring, or custom headers in the MVP.
-- Production probe configuration via `PROBE_COORDINATOR_ENDPOINT` and `PROBE_SECRET`; region metadata is committed in `lib/probe-regions.ts`.
+- Production probe configuration via `PROBE_WORKERS_SUBDOMAIN` and `PROBE_SECRET`; Vercel fans out directly to five regional Workers; region metadata is committed in `lib/probe-regions.ts`.
 - Anonymous rate limit: 10 test runs/hour/IP, max 5 probes per run.
 - Latency colors: green `<150 ms`, yellow `150-300 ms`, red `>300 ms`, gray failed.
 
+## Presenting this project
+
+- **Live demo:** paste a public URL → Run Test → walk through table, inspector, share link (~60–90 s).
+- **Engineering depth:** `lib/url-safety.ts`, `lib/probe-fetch.ts`, `lib/share-payload.ts`, `probes/cloudflare/src/worker.ts`.
+- **Business angle:** wedge into API latency visibility; natural expansion to monitoring, teams, and more regions (not built yet).
+
 ## Related docs
 
+- Portfolio pitch: `docs/PORTFOLIO.md`
+- Plain-language guide: `public/docs/html/index.html` (served at `/docs/html/` in production)
 - Product scope: `PRODUCT.md`, `MVP_PLAN.md`
 - Agent instructions: `AGENTS.md`
 - Layout decision: `docs/adr/0001-home-dashboard-layout.md`

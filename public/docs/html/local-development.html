@@ -106,7 +106,7 @@
       V.mount("dev-local-diagram", V.renderDevLocalDiagram());
       V.mount("env-cards", V.renderEnvCards([
         { name: "PROBE_SECRET", local: true, prod: true, desc: "Shared password between website and probes. Required everywhere." },
-        { name: "PROBE_COORDINATOR_ENDPOINT", local: false, prod: true, desc: "Address of the boss probe on the live site. Not needed locally." },
+        { name: "PROBE_WORKERS_SUBDOMAIN", local: false, prod: true, desc: "Your Cloudflare Workers subdomain. Vercel derives regional probe URLs from this." },
         { name: "LOCAL_PROBE_ENDPOINT", local: true, prod: false, desc: "Optional override for where the practice probe lives. Usually automatic." },
       ]));
       V.mount("dev-compare", V.renderSwimlane({
@@ -129,7 +129,7 @@
           ]},
           { layer: "probe", label: "Live site", items: [
             { title: "5 regional probes", detail: "US, UK, Singapore, Sydney, Brazil" },
-            { title: "Coordinator", detail: "Asks all regions at once" },
+            { title: "Parallel fan-out", detail: "Vercel calls all five regions at once" },
           ]},
         ],
       }));

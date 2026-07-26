@@ -40,12 +40,8 @@ function ProbeInspector({ result }: { result: ProbeResult }) {
         <dd>{result.label}</dd>
       </div>
       <div className="terminal__inspector-row">
-        <dt>ingress colo</dt>
+        <dt>colo</dt>
         <dd>{formatProbeMetadataValue(result.cloudflareColo)}</dd>
-      </div>
-      <div className="terminal__inspector-row">
-        <dt>execution colo</dt>
-        <dd>{formatProbeMetadataValue(result.executionColo)}</dd>
       </div>
       <div className="terminal__inspector-row">
         <dt>placement</dt>
