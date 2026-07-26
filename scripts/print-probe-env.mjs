@@ -11,7 +11,7 @@ Example:
 Set these in Vercel production:
 `);
   process.stdout.write(`
-PROBE_COORDINATOR_ENDPOINT=https://latencymap-probe-coordinator.<your-workers-subdomain>.workers.dev/probe
+PROBE_WORKERS_SUBDOMAIN=<your-workers-subdomain>
 PROBE_SECRET=<same secret deployed to every Cloudflare Worker environment>
 `);
   process.exit(1);
@@ -19,6 +19,6 @@ PROBE_SECRET=<same secret deployed to every Cloudflare Worker environment>
 
 process.stdout.write(`Set these in Vercel production:
 
-PROBE_COORDINATOR_ENDPOINT=https://latencymap-probe-coordinator.${subdomain}/probe
+PROBE_WORKERS_SUBDOMAIN=${subdomain}
 PROBE_SECRET=<same secret deployed to every Cloudflare Worker environment>
 `);

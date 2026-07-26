@@ -12,7 +12,6 @@ colors:
   cobalt-dark: "#173baf"
   cobalt-soft: "#e7edff"
   chartreuse-signal: "#c9f238"
-  globe: "#0a1821"
   good: "#16833a"
   warn: "#b26a00"
   slow: "#c3362b"
@@ -56,29 +55,28 @@ Use IBM Plex Sans (with system fallbacks) for controls, labels, and headings bec
 
 The first viewport is the usable test tool:
 
-1. A slim product bar gives the name and one-time-test context.
-2. A concise operational heading establishes the task.
-3. A white horizontal command band contains the public URL field and the one cobalt action.
+1. A terminal boot sequence introduces the product and probe regions.
+2. A URL prompt and input field accept a public HTTP/S URL.
+3. A cobalt Run action submits the test.
 4. A quiet safety note follows directly beneath the command.
-5. A field-sheet conditions rail documents the actual request boundary: GET, 5 seconds, and 3 redirects.
 
-After a result, the same system carries the URL context, summary rail, globe/table switcher, exact table, share utility, and history. Mobile stacks controls while preserving the command-first order and the authoritative table view.
+After a result, the same system shows the regional results table, selected-row inspector, margin-of-error note, and share link. Mobile stacks controls while preserving the command-first order and the authoritative table view.
 
 ## Components
 
-- **Headers:** mineral canvas, one hairline rule, no dark app shell.
-- **Command band:** white surface, 2px corners, clear baseline, one cobalt submit action.
-- **Panels and tables:** white surfaces with rules for structure, not shadows or nested cards.
-- **View switcher:** thin outlined control; selected state uses cobalt-tinted surface and text.
-- **Globe:** the single dark measurement viewport; cobalt atmosphere, honest colored probe markers, and direct inspection data.
-- **Utilities:** quiet outlined actions, monospace metadata, and no decorative icon tiles.
+- **Terminal shell:** mineral canvas, monospace log lines, cobalt brand label.
+- **Command band:** URL field and one cobalt submit action.
+- **Results table:** fixed probe-region order, color-coded latency, failed rows visually distinct.
+- **Row inspector:** latency, status, region, colo, placement, tested-at for the selected row.
+- **Utilities:** quiet share-link copy action and monospace metadata.
 
 ## Interaction Rules
 
-The test action is the only dominant action. Preserve a submitted URL through validation and probe failures. Make loading and errors inline and accessible. Link globe markers and table rows by selection. Use the same focus ring, action color, rule weight, and button geometry on home, results, and share routes.
+The test action is the only dominant action. Preserve a submitted URL through validation and probe failures. Make loading and errors inline and accessible. Link table row selection to the inspector. Use the same focus ring, action color, rule weight, and button geometry on home, results, and share routes.
 
 ## Anti-goals
 
 - No marketing hero, dashboard metric tiles, fake coverage, heatmap, or feature grid.
 - No orange legacy action palette, gradients, glass, soft shadows, pills, or ornamental chrome.
 - No accounts, monitoring, alerts, billing, custom headers, or arbitrary methods.
+- No 3D globe in the current MVP (deferred).

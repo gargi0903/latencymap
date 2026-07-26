@@ -1,20 +1,19 @@
-import { getCloudflareResponseColo } from "@/lib/cf-response";
 import type { UrlValidationResult } from "@/lib/probe-url-safety";
 import { parsePublicHttpUrl, stripIpv6Brackets } from "@/lib/probe-url-safety";
 
 export const PROBE_FETCH_MAX_REDIRECTS = 3;
 export const PROBE_FETCH_TIMEOUT_MS = 12_000;
-export const PROBE_FETCH_WARMUP_COUNT = 1;
+export const PROBE_FETCH_WARMUP_COUNT = 3;
 export const PROBE_FETCH_MEASURE_SAMPLE_COUNT = 3;
 export const PROBE_FETCH_MIN_SUCCESSFUL_SAMPLES = 3;
 export const PROBE_FETCH_PASS_TIMEOUT_MS = 4_000;
-export const PROBE_FETCH_SAMPLE_SPREAD_RATIO = 0.5;
+/** Round reported latency to reduce jitter from sub-10ms noise. */
+export const LATENCY_ROUNDING_MS = 10;
 
 export type ProbeFetchResult = {
   totalMs: number | null;
   statusCode: number | null;
   error: string | null;
-  executionColo?: string | null;
 };
 
 type ValidateUrl = (url: string) => UrlValidationResult | Promise<UrlValidationResult>;
@@ -30,7 +29,6 @@ type ProbePassResult =
       resolvedUrl: string;
       totalMs: number | null;
       statusCode: number;
-      executionColo?: string | null;
     }
   | {
       ok: false;
@@ -127,7 +125,6 @@ export async function runProbeMeasurement(
     totalMs: aggregateLatencySamples(samples),
     statusCode: lastSuccess!.statusCode,
     error: null,
-    executionColo: lastSuccess!.executionColo ?? null,
   };
 }
 
@@ -162,6 +159,7 @@ async function runProbePass(
       const response = await fetchImpl(validation.url, {
         method: "GET",
         redirect: "manual",
+        cache: "no-store",
         signal: controller.signal,
         headers: probeFetchHeaders(options.userAgent),
       });
@@ -169,13 +167,16 @@ async function runProbePass(
       if (isRedirect(response.status)) {
         const location = response.headers.get("location");
         if (!location) {
+          await releaseProbeResponse(response);
           return passError(options.measure, measuredStarted, response.status, "Redirect response did not include a location header.");
         }
 
         if (redirects === PROBE_FETCH_MAX_REDIRECTS) {
+          await releaseProbeResponse(response);
           return passError(options.measure, measuredStarted, response.status, "Too many redirects.");
         }
 
+        await releaseProbeResponse(response);
         currentUrl = new URL(location, validation.url).toString();
         continue;
       }
@@ -183,12 +184,13 @@ async function runProbePass(
       const totalMs =
         options.measure && measuredStarted !== null ? Math.round(performance.now() - measuredStarted) : null;
 
+      await releaseProbeResponse(response);
+
       return {
         ok: true,
         resolvedUrl: validation.url,
         totalMs,
         statusCode: response.status,
-        executionColo: options.measure ? getCloudflareResponseColo(response) : undefined,
       };
     } catch (error) {
       const message =
@@ -215,37 +217,23 @@ function probeFetchHeaders(userAgent: string): HeadersInit {
   };
 }
 
-function median(values: number[]): number {
-  const sorted = [...values].sort((left, right) => left - right);
-  const middle = Math.floor(sorted.length / 2);
-
-  if (sorted.length % 2 === 0) {
-    return Math.round((sorted[middle - 1]! + sorted[middle]!) / 2);
-  }
-
-  return sorted[middle]!;
+export function roundLatencyMs(value: number, stepMs = LATENCY_ROUNDING_MS): number {
+  return Math.round(value / stepMs) * stepMs;
 }
 
-function filterSpreadOutliers(samples: number[]): number[] {
-  if (samples.length < PROBE_FETCH_MIN_SUCCESSFUL_SAMPLES) {
-    return samples;
-  }
-
-  const center = median(samples);
-  const lowerBound = center * (1 - PROBE_FETCH_SAMPLE_SPREAD_RATIO);
-  const upperBound = center * (1 + PROBE_FETCH_SAMPLE_SPREAD_RATIO);
-  const filtered = samples.filter((sample) => sample >= lowerBound && sample <= upperBound);
-
-  return filtered.length >= PROBE_FETCH_MIN_SUCCESSFUL_SAMPLES ? filtered : samples;
-}
-
-/** Drop cold-start spikes, then take the median. */
+/**
+ * Average the two fastest of three checks, then round to the nearest 10 ms.
+ * Drops one slow spike so repeat numbers stay steadier without hiding failures.
+ */
 export function aggregateLatencySamples(samples: number[]): number {
   if (samples.length === 0) {
     throw new Error("aggregateLatencySamples requires at least one sample.");
   }
 
-  return median(filterSpreadOutliers(samples));
+  const sorted = [...samples].sort((left, right) => left - right);
+  const used = sorted.length >= 3 ? sorted.slice(0, 2) : sorted;
+  const average = used.reduce((sum, sample) => sum + sample, 0) / used.length;
+  return roundLatencyMs(average);
 }
 
 function failureResult(error: string, statusCode: number | null = null): ProbeFetchResult {
@@ -272,6 +260,15 @@ function passError(
 
 function isRedirect(status: number) {
   return status >= 300 && status < 400;
+}
+
+/** Release the response body so keep-alive connections can be reused across samples. */
+async function releaseProbeResponse(response: Response) {
+  try {
+    await response.body?.cancel();
+  } catch {
+    // Ignore body cancellation failures; the sample timing is already captured.
+  }
 }
 
 function createMeasurementUrlValidator(validateUrl: ValidateUrl): ValidateUrl {

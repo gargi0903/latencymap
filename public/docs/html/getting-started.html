@@ -62,7 +62,7 @@
             <p>
               Go to <strong>http://localhost:3000</strong>. Type a public URL like
               <strong>https://example.com</strong> and click Run Test. After a few seconds you should
-              see results on the globe and in the table.
+              see results in the regional table and row inspector.
             </p>
             <p class="note warn">
               On your computer there is only <strong>one</strong> practice probe, not five real world
@@ -126,7 +126,7 @@
           { title: "Overview", detail: "What the product does and who it is for", layer: "product" },
           { title: "How it works", detail: "Probes, safety, share links, vocabulary", layer: "product" },
           { title: "On your computer", detail: "Passwords, ports, local vs live", layer: "dev" },
-          { title: "Behind the scenes", detail: "Production layout and coordinator", layer: "probe" },
+          { title: "Behind the scenes", detail: "Production layout and parallel probes", layer: "probe" },
         ],
       }));
       V.mount("request-flow", V.renderFlowSvg({
@@ -136,7 +136,7 @@
           { id: "2", label: "Central server", sub: "Is URL safe?", layer: "server" },
           { id: "3", label: "Practice probe", sub: "Fetches the URL", layer: "probe" },
           { id: "4", label: "Timing data", sub: "Milliseconds, status", layer: "data" },
-          { id: "5", label: "Globe & table", sub: "You see results", layer: "ui" },
+          { id: "5", label: "Results table", sub: "You see results", layer: "ui" },
           { id: "6", label: "Share link", sub: "Optional copy", layer: "data" },
         ],
         edges: [

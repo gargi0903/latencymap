@@ -14,13 +14,19 @@ Secondary users are startup founders checking public websites and general users 
 
 ## Product Purpose
 
-Latencymap is a portfolio/demo MVP for one-time public endpoint latency tests. A user enters a URL, the app validates and normalizes it, runs bounded regional probe requests, and shows the result as exact measurements in a terminal-style dashboard.
+Latencymap is a **portfolio project** for job applications and investor demos. It proves one-time public endpoint latency testing end-to-end: a user enters a URL, the app validates and normalizes it, runs bounded regional probe requests, and shows exact measurements in a terminal-style dashboard.
 
-Success means a user can complete the full loop from the first screen: enter a public URL, run the test, inspect status codes, latency values, timestamps, Cloudflare colo metadata, and open or share a permanent result page.
+Success means a reviewer can complete the full loop in one session: enter a public URL, run the test, inspect status codes, latency values, timestamps, Cloudflare colo metadata, and open or share a permanent result page.
+
+See `docs/PORTFOLIO.md` for elevator pitch, demo script, and interview vs VC framing.
 
 ## Positioning
 
-Latencymap is a developer-tool dashboard, not a marketing landing page and not a monitoring SaaS. Its distinct promise is credible one-time latency evidence from real probes: exact table values, actual probe metadata, and honest globe markers instead of simulated heatmaps, customer claims, or synthetic regional coverage.
+Latencymap is a developer-tool dashboard, not a marketing landing page and not a monitoring SaaS. Its distinct promise is credible one-time latency evidence from real probes: exact table values, actual probe metadata, and honest regional rows instead of simulated heatmaps, customer claims, or synthetic regional coverage.
+
+**For hiring:** demonstrates full-stack TypeScript, edge probes, SSRF-safe URL fetching, and stateless share-link design.
+
+**For investors:** wedges into API latency visibility with near-zero database COGS; natural expansion to monitoring, teams, and alerting (not in MVP scope).
 
 ## Operating Context
 
@@ -34,7 +40,7 @@ The first viewport is the usable latency test tool. The main workflow is:
 
 The frontend and central API route handlers run in a Next.js app intended for Vercel. Persistence uses URL-encoded share links. Probes and supporting edge services run on Cloudflare Workers with a provider-agnostic HTTP interface.
 
-Local development can use local JSON storage and a local probe for flow testing. Local probe results must be treated as development evidence only, not real regional latency.
+Local development uses a local Node probe for flow testing. Local probe results must be treated as development evidence only, not real regional latency.
 
 ## Capabilities and Constraints
 
@@ -92,13 +98,13 @@ Use Tailwind CSS for styling. Keep project-specific components for domain surfac
 - App entry and dashboard surface: `app/page.tsx`, `components/latency-dashboard.tsx`, `components/results-view.tsx`, `components/probe-results-panel.tsx`, and `app/styles.css`.
 - API and shared behavior: `app/api/tests/route.ts`, `app/api/tests/[id]/route.ts`, `lib/types.ts`, `lib/probes.ts`, `lib/rate-limit.ts`, `lib/url-safety.ts`, and `lib/latency-display.ts`.
 - Cloudflare probe direction: `probes/cloudflare/wrangler.jsonc`, `probes/cloudflare/src/worker.ts`, and `npm run probe:cf:*` scripts.
-- Local development probe path: `probes/node/package.json` and `npm run probe:dev`.
+- Local development probe path: `probes/node/server.ts` and `npm run probe:dev`.
 
 No real customer testimonials, production benchmarks, customer logos, accounts, billing, alerting, SLA claims, or monitoring claims are currently on hand. Future UI must not fabricate them.
 
 ## Product Principles
 
-1. Make the first screen useful: the URL input, run action, current status, results, and history matter more than explanation.
+1. Make the first screen useful: the URL input, run action, current status, results, and share link matter more than explanation.
 2. Preserve measurement honesty: show exact values, timestamps, status codes, Cloudflare colo metadata, and failure states.
 3. Keep MVP scope tight: one-time tests and share links come before monitoring-product features.
 4. Protect infrastructure by default: every path that fetches a user URL must preserve validation, redirect, timeout, byte-cap, and rate-limit rules.

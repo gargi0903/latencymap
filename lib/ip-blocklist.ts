@@ -52,7 +52,7 @@ export function isBlockedIpv4(ip: string): boolean {
   return PARSED_IPV4_CIDRS.some((cidr) => (address & cidr.mask) === cidr.network);
 }
 
-export function isBlockedIpv6(ip: string): boolean {
+function isBlockedIpv6(ip: string): boolean {
   const address = parseIpv6(ip);
   if (address === null) {
     return true;

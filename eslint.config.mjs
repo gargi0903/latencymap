@@ -16,6 +16,8 @@ const eslintConfig = [
       ".impeccable/**",
       ".next/**",
       ".next-dev/**",
+      ".wrangler/**",
+      "probes/**/.wrangler/**",
       "node_modules/**",
       "scripts/**",
       "next-env.d.ts",

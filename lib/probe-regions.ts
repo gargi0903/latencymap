@@ -1,6 +1,6 @@
 import type { ProbeConfig } from "@/lib/types";
 
-export type ProbeRegionDefinition = {
+type ProbeRegionDefinition = {
   id: string;
   label: string;
   country: string;
@@ -8,7 +8,7 @@ export type ProbeRegionDefinition = {
   lng: number;
 };
 
-export const PROBE_REGIONS = [
+const PROBE_REGIONS = [
   {
     id: "iad",
     label: "US East (Ashburn)",
@@ -48,7 +48,7 @@ export const PROBE_REGIONS = [
 
 export const PROBE_REGION_IDS = PROBE_REGIONS.map((region) => region.id);
 
-export const LOCAL_PROBE_REGION = {
+const LOCAL_PROBE_REGION = {
   id: "local",
   label: "Local development",
   country: "Local",
@@ -56,7 +56,7 @@ export const LOCAL_PROBE_REGION = {
   lng: 0,
 } as const;
 
-export const PROBE_COUNTRIES = PROBE_REGIONS.map((region) => region.country);
+const PROBE_COUNTRIES = PROBE_REGIONS.map((region) => region.country);
 
 export const PROBE_COUNTRY_LIST = PROBE_COUNTRIES.join(" · ");
 
@@ -73,7 +73,7 @@ export function probeCountryName(regionId: string) {
   return regionId;
 }
 
-export function toProbeConfig(region: ProbeRegionDefinition): ProbeConfig {
+function toProbeConfig(region: ProbeRegionDefinition): ProbeConfig {
   return {
     id: region.id,
     label: region.label,
@@ -82,8 +82,20 @@ export function toProbeConfig(region: ProbeRegionDefinition): ProbeConfig {
   };
 }
 
-export function getProductionProbeRegions(): ProbeConfig[] {
-  return PROBE_REGIONS.map(toProbeConfig);
+function getProductionProbeEndpoint(regionId: string): string {
+  const subdomain = process.env.PROBE_WORKERS_SUBDOMAIN?.trim();
+  if (!subdomain) {
+    return "";
+  }
+
+  return `https://latencymap-probe-${regionId}.${subdomain}/probe`;
+}
+
+function getProductionProbeRegions(): ProbeConfig[] {
+  return PROBE_REGIONS.map((region) => ({
+    ...toProbeConfig(region),
+    endpoint: getProductionProbeEndpoint(region.id),
+  }));
 }
 
 export function getLocalProbeEndpoint() {
@@ -97,7 +109,7 @@ export function getLocalProbeEndpoint() {
   return `http://${host}:${port}/probe`;
 }
 
-export function getLocalProbeRegion(endpoint = getLocalProbeEndpoint()): ProbeConfig {
+function getLocalProbeRegion(endpoint = getLocalProbeEndpoint()): ProbeConfig {
   return {
     id: LOCAL_PROBE_REGION.id,
     label: LOCAL_PROBE_REGION.label,
@@ -107,12 +119,8 @@ export function getLocalProbeRegion(endpoint = getLocalProbeEndpoint()): ProbeCo
   };
 }
 
-export function usesCoordinatorEndpoint() {
-  return Boolean(process.env.PROBE_COORDINATOR_ENDPOINT?.trim());
-}
-
 export function isProductionProbeMode() {
-  return process.env.NODE_ENV === "production" || usesCoordinatorEndpoint();
+  return process.env.NODE_ENV === "production" || Boolean(process.env.PROBE_WORKERS_SUBDOMAIN?.trim());
 }
 
 export function getProbeRegions(): ProbeConfig[] {

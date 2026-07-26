@@ -43,7 +43,7 @@
             <p>
               The home page is the dashboard. Running a test is an action sent to the server (not a
               separate page). The share page is a special URL that contains the encoded results — open
-              it and you see the same globe and table again.
+              it and you see the same results table and inspector again.
             </p>
           </div>
         </section>
@@ -76,15 +76,14 @@
         </section>
 
         <section>
-          <h2>Production: the coordinator</h2>
-          <div id="coordinator-flow" class="viz-host"></div>
+          <h2>Production: parallel fan-out</h2>
+          <div id="fanout-flow" class="viz-host"></div>
           <div class="prose">
             <p>
-              If the central server called each regional probe directly from Vercel, network routing
-              could make every probe look like it ran in the same data center. The
-              <strong>coordinator</strong> fixes that: Vercel makes one call, the coordinator fans out
-              to all five regions inside Cloudflare, then merges the answers. This only exists on the
-              live site — not on your laptop.
+              On the live site, Vercel calls all five regional Cloudflare Workers in parallel. Each
+              probe measures the target URL from its configured region and returns timing metadata.
+              Vercel merges the answers and encodes them into a share link — no coordinator and no
+              database.
             </p>
           </div>
         </section>
@@ -115,7 +114,7 @@
             </ul>
             <p>
               Each result shows which region ran the test and which Cloudflare data center handled the
-              traffic. The globe uses honest markers — never fake coverage for missing regions.
+              traffic. The UI uses honest probe data — never fake coverage for missing regions.
             </p>
           </div>
         </section>
@@ -157,7 +156,7 @@
           { title: "Probes finish", detail: "Each region reports milliseconds and status", layer: "probe" },
           { title: "Bundle results", detail: "URL, time, and all regional measurements combined", layer: "data" },
           { title: "Encode into link", detail: "Compact text safe for URLs — no database write", layer: "data" },
-          { title: "Anyone opens /r/…", detail: "Browser decodes and shows globe + table again", layer: "ui" },
+          { title: "Anyone opens /r/…", detail: "Browser decodes and shows results table again", layer: "ui" },
         ],
       }));
       V.mount("probe-swimlane", V.renderSwimlane({
@@ -178,21 +177,19 @@
           ]},
         ],
       }));
-      V.mount("coordinator-flow", V.renderFlowSvg({
+      V.mount("fanout-flow", V.renderFlowSvg({
         title: "Live site only",
         nodes: [
           { id: "c1", label: "Vercel server", layer: "server" },
-          { id: "c2", label: "Coordinator", sub: "Boss probe", layer: "probe" },
           { id: "c3", label: "US probe", layer: "probe" },
           { id: "c4", label: "EU probe", layer: "probe" },
           { id: "c5", label: "Asia probes", layer: "probe" },
           { id: "c6", label: "Merged results", layer: "data" },
         ],
         edges: [
-          { from: "c1", to: "c2" },
-          { from: "c2", to: "c3" },
-          { from: "c2", to: "c4" },
-          { from: "c2", to: "c5" },
+          { from: "c1", to: "c3" },
+          { from: "c1", to: "c4" },
+          { from: "c1", to: "c5" },
           { from: "c3", to: "c6" },
           { from: "c4", to: "c6" },
           { from: "c5", to: "c6" },

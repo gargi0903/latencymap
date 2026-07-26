@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted (updated 2026-07-22)
+Accepted (updated 2026-07-25)
 
 ## Context
 
@@ -12,21 +12,21 @@ During design grilling, these decisions were made:
 
 - The UI itself should make the first impression.
 - The URL input and Run button must remain prominent.
-- The dashboard should feel like a clean technical workspace with a strong map area.
-- The globe and exact results table should both present the same honest probe evidence after a test.
+- The dashboard should feel like a clean technical workspace.
+- After a test, exact regional results must be shown in a terminal-style table with a selected-row inspector.
 - Before the first test, the page should stay focused on the URL task with minimal supporting context.
 
 ## Decision
 
 Use one production home dashboard layout.
 
-Before a test runs, show the designed dashboard header, URL form, concise safety copy, and a compact conditions rail (method, timeout, redirects). Do not show an empty globe, fake table, dashboard preview, onboarding panel, or marketing content.
+Before a test runs, show the terminal boot sequence, URL form, and concise safety copy. Do not show an empty results table, fake data, onboarding panel, or marketing content.
 
-After a test runs, reveal the results surface with summary metrics, a Globe/Table view switcher, share link, and same-URL history. The selected view shows either the 3D globe with inspector details or the exact probe table. Both views use the same underlying probe data.
+After a test runs, reveal the regional results table, selected-row inspector, margin-of-error note, and share link action. A 3D globe view is deferred; the table and inspector are the authoritative evidence surface.
 
 ## Consequences
 
 - Remove the five-variant comparison shell from the primary home surface.
 - Keep visual polish in the shell, spacing, typography, and evidence hierarchy rather than adding extra pre-run content.
-- Preserve the MVP rule that exact probe numbers remain available in the table view and compact inspector details on the globe view.
+- Preserve the MVP rule that exact probe numbers remain available in the table and selected-row inspector.
 - Future first-run changes should be judged against the "URL task first" decision.

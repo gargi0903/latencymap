@@ -6,6 +6,7 @@ import {
   PROBE_FETCH_TIMEOUT_MS,
   PROBE_FETCH_WARMUP_COUNT,
   aggregateLatencySamples,
+  roundLatencyMs,
   runProbeMeasurement,
 } from "./probe-fetch";
 
@@ -46,7 +47,7 @@ function mockMeasuredResponses(fetchImpl: ReturnType<typeof vi.fn>, delaysMs: nu
 }
 
 describe("runProbeMeasurement", () => {
-  it("warms up, samples TTFB three times, and returns the stabilized median", async () => {
+  it("warms up, samples three times, and returns the stabilized average", async () => {
     const fetchImpl = vi.fn();
     const restoreNow = mockMeasuredResponses(fetchImpl, [10, 30, 20]);
 
@@ -60,6 +61,7 @@ describe("runProbeMeasurement", () => {
     expect(fetchImpl.mock.calls[0]?.[1]).toMatchObject({
       method: "GET",
       redirect: "manual",
+      cache: "no-store",
       headers: {
         "user-agent": "test-probe",
         "cache-control": "no-cache",
@@ -73,7 +75,7 @@ describe("runProbeMeasurement", () => {
     });
   });
 
-  it("does not include URL validation time in measured TTFB", async () => {
+  it("does not include URL validation time in measured response time", async () => {
     let now = 0;
     const nowSpy = vi.spyOn(performance, "now").mockImplementation(() => now);
     validateUrl.mockImplementation(async (url) => {
@@ -96,7 +98,7 @@ describe("runProbeMeasurement", () => {
     expect(result).toMatchObject({
       statusCode: 200,
       error: null,
-      totalMs: 12,
+      totalMs: 10,
     });
   });
 
@@ -180,32 +182,6 @@ describe("runProbeMeasurement", () => {
     expect(maxPasses * 10).toBeLessThan(PROBE_FETCH_TIMEOUT_MS);
   });
 
-  it("captures execution colo metadata from measured subrequests when available", async () => {
-    const fetchImpl = vi.fn();
-    fetchImpl.mockResolvedValueOnce(new Response("resolve", { status: 200 }));
-    for (let index = 0; index < PROBE_FETCH_WARMUP_COUNT; index += 1) {
-      fetchImpl.mockResolvedValueOnce(new Response("warmup", { status: 200 }));
-    }
-    fetchImpl.mockImplementation(() =>
-      Promise.resolve(
-        Object.assign(new Response("measured", { status: 200 }), {
-          cf: { colo: "SIN" },
-        }),
-      ),
-    );
-
-    const result = await runProbeMeasurement("https://example.com", validateUrl, {
-      userAgent: "test-probe",
-      fetchImpl,
-    });
-
-    expect(result).toMatchObject({
-      statusCode: 200,
-      error: null,
-      executionColo: "SIN",
-    });
-  });
-
   it("fails when too few measured samples succeed", async () => {
     const fetchImpl = vi.fn();
     fetchImpl.mockResolvedValueOnce(new Response("resolve", { status: 200 }));
@@ -270,10 +246,20 @@ describe("runProbeMeasurement", () => {
     ).toBe(1);
     expect(callCount).toBe(2 + PROBE_FETCH_WARMUP_COUNT + PROBE_FETCH_MEASURE_SAMPLE_COUNT);
   });
+});
 
-  it("drops cold-start spikes before taking the median", () => {
+describe("aggregateLatencySamples", () => {
+  it("averages the two fastest checks and rounds to 10 ms", () => {
     expect(aggregateLatencySamples([10, 30, 20])).toBe(20);
-    expect(aggregateLatencySamples([100, 105, 98, 102, 200])).toBe(101);
-    expect(aggregateLatencySamples([100, 120, 110])).toBe(110);
+    expect(aggregateLatencySamples([100, 105, 200])).toBe(100);
+    expect(aggregateLatencySamples([104, 108, 112])).toBe(110);
+  });
+});
+
+describe("roundLatencyMs", () => {
+  it("rounds to the nearest 10 ms", () => {
+    expect(roundLatencyMs(104)).toBe(100);
+    expect(roundLatencyMs(105)).toBe(110);
+    expect(roundLatencyMs(15)).toBe(20);
   });
 });

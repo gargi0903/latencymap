@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 import { latencyMeasurementNote } from "@/lib/latency-display";
 
 describe("latencyMeasurementNote", () => {
-  it("documents the repeat-test margin of error", () => {
+  it("uses plain language for how latency is calculated", () => {
     expect(latencyMeasurementNote()).toBe(
-      "median ttfb from 3 warmed requests · margin of error ±50% on repeat tests",
+      "each region: 3 checks, slowest ignored, rounded to 10 ms",
     );
   });
 });
