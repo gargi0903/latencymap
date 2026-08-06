@@ -1,17 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
 import { sharePathForRun } from "@/lib/share-payload";
 import { ProbeConfigurationError, runRegionalTest } from "@/lib/probes";
+import { createTestRequestSchema } from "@/lib/test-request";
 import { buildTestRun } from "@/lib/test-run";
 import { normalizeAndValidatePublicUrl } from "@/lib/url-safety";
 import { checkRateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
-
-const requestSchema = z.object({
-  url: z.string().min(1).max(2048),
-});
 
 export async function POST(request: NextRequest) {
   const ip =
@@ -27,7 +23,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const parsed = requestSchema.safeParse(await request.json().catch(() => null));
+  const parsed = createTestRequestSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
     return NextResponse.json({ error: "Expected JSON body with a url field." }, { status: 400 });
   }
