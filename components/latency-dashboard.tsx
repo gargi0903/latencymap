@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { CmdLabel } from "@/components/cmd-label";
 import { ProbeResultsPanel } from "@/components/probe-results-panel";
 import { PROBE_COUNTRY_LIST } from "@/lib/probe-regions";
@@ -11,6 +11,7 @@ import { useLatencyTest } from "@/lib/use-latency-test";
 const INTERACTIVE_SELECTOR = "button, a, textarea, select, [role='button']";
 const BOOT_LINE_MS = 50;
 const BOOT_SKIP_KEY = "latencymap.boot-seen";
+const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
 
 type BootStep = {
   id: string;
@@ -78,7 +79,7 @@ function prefersReducedMotion() {
     return false;
   }
 
-  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  return window.matchMedia(REDUCED_MOTION_QUERY).matches;
 }
 
 function markBootSeen() {
@@ -89,6 +90,24 @@ function markBootSeen() {
   }
 }
 
+function subscribeBootSkipPreference(onStoreChange: () => void) {
+  if (typeof window === "undefined") {
+    return () => {};
+  }
+
+  const mediaQuery = window.matchMedia(REDUCED_MOTION_QUERY);
+  mediaQuery.addEventListener("change", onStoreChange);
+  return () => mediaQuery.removeEventListener("change", onStoreChange);
+}
+
+function getBootSkipPreferenceSnapshot() {
+  return hasSeenBoot() || prefersReducedMotion();
+}
+
+function getServerBootSkipPreferenceSnapshot() {
+  return false;
+}
+
 export function LatencyDashboard() {
   const inputRef = useRef<HTMLInputElement>(null);
   const runTestRef = useRef<(targetUrl?: string) => Promise<void>>(async () => {});
@@ -97,10 +116,16 @@ export function LatencyDashboard() {
   const { url, setUrl, run, sharePath, error, isLoading, onSubmit, runTest } = useLatencyTest();
   const activeSharePath = sharePath ?? (run ? sharePathForRun(run) : null);
   const { copyState, copyShareLink } = useCopyShareLink(activeSharePath);
-  const [showBoot, setShowBoot] = useState(true);
-  const [visibleBootLines, setVisibleBootLines] = useState(0);
-  const [bootResolved, setBootResolved] = useState(false);
+  const autoSkipBoot = useSyncExternalStore(
+    subscribeBootSkipPreference,
+    getBootSkipPreferenceSnapshot,
+    getServerBootSkipPreferenceSnapshot,
+  );
+  const [bootDismissed, setBootDismissed] = useState(false);
+  const [animatedBootLines, setAnimatedBootLines] = useState(0);
 
+  const showBoot = !autoSkipBoot && !bootDismissed;
+  const visibleBootLines = autoSkipBoot ? BOOT_STEPS.length : animatedBootLines;
   const bootReady = !showBoot;
   const hasResults = Boolean(run && !isLoading);
 
@@ -112,22 +137,14 @@ export function LatencyDashboard() {
 
   function skipBoot() {
     markBootSeen();
-    setShowBoot(false);
-    setVisibleBootLines(BOOT_STEPS.length);
+    setBootDismissed(true);
+    setAnimatedBootLines(BOOT_STEPS.length);
   }
 
   useEffect(() => {
-    if (hasSeenBoot() || prefersReducedMotion()) {
+    if (autoSkipBoot) {
       markBootSeen();
-      setShowBoot(false);
-      setVisibleBootLines(BOOT_STEPS.length);
-    }
-
-    setBootResolved(true);
-  }, []);
-
-  useEffect(() => {
-    if (!bootResolved) {
+      inputRef.current?.focus({ preventScroll: true });
       return;
     }
 
@@ -137,17 +154,17 @@ export function LatencyDashboard() {
       return;
     }
 
-    if (visibleBootLines >= BOOT_STEPS.length) {
-      setShowBoot(false);
+    if (animatedBootLines >= BOOT_STEPS.length) {
+      setBootDismissed(true);
       return;
     }
 
     const timer = window.setTimeout(() => {
-      setVisibleBootLines((count) => count + 1);
+      setAnimatedBootLines((count) => count + 1);
     }, BOOT_LINE_MS);
 
     return () => window.clearTimeout(timer);
-  }, [bootResolved, showBoot, visibleBootLines]);
+  }, [autoSkipBoot, showBoot, animatedBootLines]);
 
   useEffect(() => {
     function focusInput() {
