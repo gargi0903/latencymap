@@ -9,30 +9,25 @@ import { validatePublicUrlWithDns } from "../../lib/probe-url-safety";
 const PORT = Number(process.env.PORT ?? 8787);
 const HOST = process.env.HOST ?? "127.0.0.1";
 const REGION = process.env.PROBE_REGION ?? "local";
-const SECRET = process.env.PROBE_SECRET?.trim();
-if (!SECRET) {
+const configuredSecret = process.env.PROBE_SECRET?.trim();
+if (!configuredSecret) {
   throw new Error("PROBE_SECRET must be set before starting the local probe.");
 }
+const SECRET = configuredSecret;
 
 const resolvePublicHostname = withDnsCache(createNodeDnsResolver());
 const validatePublicUrl = (rawUrl: string) => validatePublicUrlWithDns(rawUrl, resolvePublicHostname);
 
-const server = http.createServer(async (request, response) => {
-  if (request.method === "GET" && request.url === "/healthz") {
-    sendJson(response, 200, {
-      ok: true,
-      region: REGION,
-      placement_region: null,
-      cloudflare_colo: null,
-    });
-    return;
-  }
+async function handleHealthz(response: ServerResponse) {
+  sendJson(response, 200, {
+    ok: true,
+    region: REGION,
+    placement_region: null,
+    cloudflare_colo: null,
+  });
+}
 
-  if (request.method !== "POST" || request.url !== "/probe") {
-    sendJson(response, 404, { error: "Not found." });
-    return;
-  }
-
+async function handleProbe(request: IncomingMessage, response: ServerResponse) {
   const providedSecret = request.headers["x-probe-secret"];
   const secret = Array.isArray(providedSecret) ? providedSecret[0] : providedSecret ?? null;
   if (!(await matchesProbeSecret(secret, SECRET))) {
@@ -61,6 +56,20 @@ const server = http.createServer(async (request, response) => {
   } catch {
     sendJson(response, 400, { error: "Invalid request." });
   }
+}
+
+const server = http.createServer(async (request, response) => {
+  if (request.method === "GET" && request.url === "/healthz") {
+    await handleHealthz(response);
+    return;
+  }
+
+  if (request.method === "POST" && request.url === "/probe") {
+    await handleProbe(request, response);
+    return;
+  }
+
+  sendJson(response, 404, { error: "Not found." });
 });
 
 server.on("error", (error: NodeJS.ErrnoException) => {

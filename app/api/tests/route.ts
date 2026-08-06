@@ -9,13 +9,20 @@ import { checkRateLimit } from "@/lib/rate-limit";
 export const runtime = "nodejs";
 export const maxDuration = 30;
 
-export async function POST(request: NextRequest) {
-  const ip =
+function clientIp(request: NextRequest) {
+  return (
     request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
     request.headers.get("x-real-ip") ||
-    "unknown";
+    "unknown"
+  );
+}
 
-  const allowed = await checkRateLimit(ip);
+async function parseCreateTestBody(request: NextRequest) {
+  return createTestRequestSchema.safeParse(await request.json().catch(() => null));
+}
+
+export async function POST(request: NextRequest) {
+  const allowed = await checkRateLimit(clientIp(request));
   if (!allowed.ok) {
     return NextResponse.json(
       { error: `Rate limit exceeded. Try again in ${allowed.retryAfterSeconds}s.` },
@@ -23,7 +30,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const parsed = createTestRequestSchema.safeParse(await request.json().catch(() => null));
+  const parsed = await parseCreateTestBody(request);
   if (!parsed.success) {
     return NextResponse.json({ error: "Expected JSON body with a url field." }, { status: 400 });
   }

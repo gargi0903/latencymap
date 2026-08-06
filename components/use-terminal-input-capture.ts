@@ -1,12 +1,7 @@
 "use client";
 
 import { useEffect, type Dispatch, type RefObject, type SetStateAction } from "react";
-
-const INTERACTIVE_SELECTOR = "button, a, textarea, select, [role='button']";
-
-function isInteractiveTarget(target: EventTarget | null) {
-  return target instanceof Element && Boolean(target.closest(INTERACTIVE_SELECTOR));
-}
+import { handleTerminalKeyDown, isInteractiveTarget } from "@/lib/terminal-key-handler";
 
 type TerminalInputCaptureOptions = {
   inputRef: RefObject<HTMLInputElement | null>;
@@ -20,51 +15,6 @@ type TerminalInputCaptureOptions = {
 
 function focusTerminalInput(input: HTMLInputElement | null) {
   input?.focus({ preventScroll: true });
-}
-
-function handleTerminalKeyDown(
-  event: KeyboardEvent,
-  options: {
-    input: HTMLInputElement;
-    isLoading: boolean;
-    runTest: (targetUrl?: string) => Promise<void>;
-    setUrl: Dispatch<SetStateAction<string>>;
-    focusInput: () => void;
-  },
-) {
-  if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) {
-    return;
-  }
-
-  if (isInteractiveTarget(event.target) && event.target !== options.input) {
-    return;
-  }
-
-  if (document.activeElement === options.input) {
-    return;
-  }
-
-  if (event.key === "Enter") {
-    event.preventDefault();
-    options.focusInput();
-    if (!options.isLoading) {
-      void options.runTest();
-    }
-    return;
-  }
-
-  if (event.key === "Backspace") {
-    event.preventDefault();
-    options.focusInput();
-    options.setUrl((current) => current.slice(0, -1));
-    return;
-  }
-
-  if (event.key.length === 1) {
-    event.preventDefault();
-    options.focusInput();
-    options.setUrl((current) => current + event.key);
-  }
 }
 
 export function useTerminalInputCapture({

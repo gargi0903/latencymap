@@ -9,6 +9,29 @@ type CreateTestResponse = {
   error?: string;
 };
 
+export async function fetchLatencyTest(trimmed: string): Promise<
+  | { ok: true; run: TestRun; sharePath: string }
+  | { ok: false; error: string }
+> {
+  try {
+    const response = await fetch("/api/tests", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ url: trimmed }),
+    });
+
+    if (!response.ok) {
+      const body = (await response.json().catch(() => null)) as CreateTestResponse | null;
+      return { ok: false, error: body?.error ?? "Unable to run latency test." };
+    }
+
+    const body = (await response.json()) as CreateTestResponse;
+    return { ok: true, run: body.run, sharePath: body.sharePath };
+  } catch {
+    return { ok: false, error: "Unable to reach the Latencymap API." };
+  }
+}
+
 export function useLatencyTest() {
   const [url, setUrl] = useState("");
   const [run, setRun] = useState<TestRun | null>(null);
@@ -27,23 +50,14 @@ export function useLatencyTest() {
     setIsLoading(true);
 
     try {
-      const response = await fetch("/api/tests", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ url: trimmed }),
-      });
-
-      if (!response.ok) {
-        const body = (await response.json().catch(() => null)) as CreateTestResponse | null;
-        setError(body?.error ?? "Unable to run latency test.");
+      const result = await fetchLatencyTest(trimmed);
+      if (!result.ok) {
+        setError(result.error);
         return;
       }
 
-      const body = (await response.json()) as CreateTestResponse;
-      setRun(body.run);
-      setSharePath(body.sharePath);
-    } catch {
-      setError("Unable to reach the Latencymap API.");
+      setRun(result.run);
+      setSharePath(result.sharePath);
     } finally {
       setIsLoading(false);
     }

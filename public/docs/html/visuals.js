@@ -139,13 +139,21 @@
     </div>`;
   }
 
+  function layerFilterLabel(layer) {
+    return layer === "all" ? "Everything" : LAYER_LABELS[layer] || layer;
+  }
+
+  function layerFilterCount(layer) {
+    return layer === "all" ? CONCEPTS.length : CONCEPTS.filter((concept) => concept.layer === layer).length;
+  }
+
   function renderConceptFilters() {
     const layers = ["all", ...new Set(CONCEPTS.map((c) => c.layer))];
     return `<div class="layer-filters" role="tablist">
       ${layers
         .map((layer) => {
-          const label = layer === "all" ? "Everything" : LAYER_LABELS[layer] || layer;
-          const count = layer === "all" ? CONCEPTS.length : CONCEPTS.filter((c) => c.layer === layer).length;
+          const label = layerFilterLabel(layer);
+          const count = layerFilterCount(layer);
           return `<button type="button" class="layer-filter${layer === "all" ? " active" : ""}" data-layer="${layer}" role="tab">${escapeHtml(label)} <em>${count}</em></button>`;
         })
         .join("")}
@@ -204,6 +212,10 @@
     </div>`;
   }
 
+  function envBadge(label, enabled) {
+    return `<span class="env-badge ${enabled ? "yes" : "no"}">${label}: ${enabled ? "yes" : "no"}</span>`;
+  }
+
   function renderEnvCards(envs) {
     return `<div class="env-cards">
       ${envs
@@ -211,8 +223,8 @@
           (env) => `<div class="env-card">
             <code>${escapeHtml(env.name)}</code>
             <div class="env-badges">
-              <span class="env-badge ${env.local ? "yes" : "no"}">Local: ${env.local ? "yes" : "no"}</span>
-              <span class="env-badge ${env.prod ? "yes" : "no"}">Prod: ${env.prod ? "yes" : "no"}</span>
+              ${envBadge("Local", env.local)}
+              ${envBadge("Prod", env.prod)}
             </div>
             <p>${escapeHtml(env.desc)}</p>
           </div>`,
