@@ -104,9 +104,11 @@ export function LatencyDashboard() {
   const bootReady = !showBoot;
   const hasResults = Boolean(run && !isLoading);
 
-  runTestRef.current = runTest;
-  isLoadingRef.current = isLoading;
-  bootReadyRef.current = bootReady;
+  useEffect(() => {
+    runTestRef.current = runTest;
+    isLoadingRef.current = isLoading;
+    bootReadyRef.current = bootReady;
+  });
 
   function skipBoot() {
     markBootSeen();
