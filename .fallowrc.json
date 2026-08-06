@@ -6,8 +6,7 @@
     "public/docs/html/styles.css"
   ],
   "health": {
-    "coverage": "coverage/coverage-final.json",
-    "ignore": ["**/*.test.ts", "public/docs/**"]
+    "coverage": "coverage/coverage-final.json"
   },
   "ignorePatterns": ["coverage/**"]
 }

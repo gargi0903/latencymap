@@ -16,7 +16,7 @@ function makeEvent(partial: Partial<KeyboardEvent> & { key: string }): KeyboardE
   } as unknown as KeyboardEvent;
 }
 
-describe("handleTerminalKeyDown", () => {
+describe("handleTerminalKeyDown ignores", () => {
   it("ignores modified keys and focused input", () => {
     const input = document.createElement("input");
     const focusInput = vi.fn();
@@ -42,7 +42,9 @@ describe("handleTerminalKeyDown", () => {
     });
     expect(focusInput).not.toHaveBeenCalled();
   });
+});
 
+describe("handleTerminalKeyDown edits", () => {
   it("runs a test on Enter when idle", () => {
     const input = document.createElement("input");
     const focusInput = vi.fn();
