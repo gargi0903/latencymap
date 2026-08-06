@@ -280,9 +280,7 @@ export function LatencyDashboard() {
           {bootReady ? (
             <form className="terminal__line terminal__line--prompt" onSubmit={onSubmit}>
               <label htmlFor="url" className="terminal__prefix">
-                <span className="terminal__prompt" aria-hidden="true">
-                  $
-                </span>
+                <span className="terminal__prompt">$</span>
               </label>
               <input
                 ref={inputRef}

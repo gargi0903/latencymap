@@ -11,6 +11,11 @@ const LATENCY_COLORS = {
   failed: "#737b8c",
 } as const;
 
+const PROBE_TIMESTAMP_FORMATTER = new Intl.DateTimeFormat(undefined, {
+  dateStyle: "medium",
+  timeStyle: "medium",
+});
+
 export function isProbeFailed(result: Pick<ProbeResult, "error" | "totalMs">) {
   return Boolean(result.error || result.totalMs === null);
 }
@@ -37,10 +42,7 @@ export function latencyHexColor(totalMs: number | null, error: string | null) {
 
 export function formatProbeTimestamp(value: string) {
   try {
-    return new Intl.DateTimeFormat(undefined, {
-      dateStyle: "medium",
-      timeStyle: "medium",
-    }).format(new Date(value));
+    return PROBE_TIMESTAMP_FORMATTER.format(new Date(value));
   } catch {
     return value;
   }
