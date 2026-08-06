@@ -7,6 +7,7 @@
   "include": [
     "lib/dns-resolve.ts",
     "lib/dns-resolve-node.ts",
+    "lib/http-url.ts",
     "lib/ip-blocklist.ts",
     "lib/probe-auth.ts",
     "lib/probe-fetch.ts",

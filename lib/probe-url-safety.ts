@@ -1,4 +1,5 @@
 import type { DnsResolver } from "@/lib/dns-resolve";
+import { normalizeHttpUrl, validateHttpUrlParts } from "@/lib/http-url";
 import { isBlockedIp, isIpv4Literal } from "@/lib/ip-blocklist";
 
 const BLOCKED_HOSTNAMES = new Set(["localhost", "ip6-localhost", "ip6-loopback"]);
@@ -24,22 +25,6 @@ function isLikelyIpv6Address(value: string) {
   return value.includes(":");
 }
 
-function normalizeHttpUrl(url: URL) {
-  url.hash = "";
-  url.protocol = url.protocol.toLowerCase();
-  url.hostname = url.hostname.toLowerCase();
-
-  if ((url.protocol === "https:" && url.port === "443") || (url.protocol === "http:" && url.port === "80")) {
-    url.port = "";
-  }
-
-  if (url.pathname === "/") {
-    url.pathname = "";
-  }
-
-  return url;
-}
-
 export function parsePublicHttpUrl(rawUrl: string): ParsedPublicUrlResult {
   let url: URL;
   try {
@@ -48,16 +33,9 @@ export function parsePublicHttpUrl(rawUrl: string): ParsedPublicUrlResult {
     return { ok: false, error: "Enter a valid absolute URL." };
   }
 
-  if (url.protocol !== "http:" && url.protocol !== "https:") {
-    return { ok: false, error: "Only HTTP and HTTPS URLs are allowed." };
-  }
-
-  if (!url.hostname) {
-    return { ok: false, error: "URL must include a hostname." };
-  }
-
-  if (url.username || url.password) {
-    return { ok: false, error: "URLs with embedded credentials are not allowed." };
+  const parts = validateHttpUrlParts(url);
+  if (!parts.ok) {
+    return parts;
   }
 
   normalizeHttpUrl(url);
