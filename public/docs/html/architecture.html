@@ -138,72 +138,74 @@
     <script src="concepts-data.js"></script>
     <script src="visuals.js"></script>
     <script>
-      const V = window.LatencymapVisuals;
-      V.mount("routes-flow", V.renderFlowSvg({
-        title: "What you can open or trigger",
-        nodes: [
-          { id: "r1", label: "Home dashboard", sub: "Enter URL, see results", layer: "ui" },
-          { id: "r2", label: "Run test", sub: "Server action", layer: "server" },
-          { id: "r3", label: "Share page", sub: "Open saved results", layer: "ui" },
-        ],
-        edges: [
-          { from: "r1", to: "r2" },
-          { from: "r2", to: "r3" },
-        ],
-      }));
-      V.mount("share-pipeline", V.renderPipeline({
-        steps: [
-          { title: "Probes finish", detail: "Each region reports milliseconds and status", layer: "probe" },
-          { title: "Bundle results", detail: "URL, time, and all regional measurements combined", layer: "data" },
-          { title: "Encode into link", detail: "Compact text safe for URLs — no database write", layer: "data" },
-          { title: "Anyone opens /r/…", detail: "Browser decodes and shows results table again", layer: "ui" },
-        ],
-      }));
-      V.mount("probe-swimlane", V.renderSwimlane({
-        lanes: [
-          { layer: "probe", label: "Receive", items: [
-            { title: "URL to test", detail: "Public http or https only" },
-            { title: "Password check", detail: "Must match PROBE_SECRET" },
-          ]},
-          { layer: "server", label: "Fetch safely", items: [
-            { title: "5 second timeout", detail: "Probe gives up if site is too slow" },
-            { title: "Redirect limits", detail: "Up to 3 hops, each re-validated" },
-            { title: "Size cap", detail: "Only reads enough to measure, not full pages" },
-          ]},
-          { layer: "probe", label: "Return", items: [
-            { title: "Milliseconds", detail: "Total time for the request" },
-            { title: "Status code", detail: "200 OK, 404, etc., or failure" },
-            { title: "Region & colo", detail: "Where the probe actually ran" },
-          ]},
-        ],
-      }));
-      V.mount("fanout-flow", V.renderFlowSvg({
-        title: "Live site only",
-        nodes: [
-          { id: "c1", label: "Vercel server", layer: "server" },
-          { id: "c3", label: "US probe", layer: "probe" },
-          { id: "c4", label: "EU probe", layer: "probe" },
-          { id: "c5", label: "Asia probes", layer: "probe" },
-          { id: "c6", label: "Merged results", layer: "data" },
-        ],
-        edges: [
-          { from: "c1", to: "c3" },
-          { from: "c1", to: "c4" },
-          { from: "c1", to: "c5" },
-          { from: "c3", to: "c6" },
-          { from: "c4", to: "c6" },
-          { from: "c5", to: "c6" },
-        ],
-      }));
-      V.mount("safety-pipeline", V.renderPipeline({
-        steps: [
-          { title: "Public links only", detail: "http and https — no file:// or odd schemes", layer: "server" },
-          { title: "Block internal addresses", detail: "No localhost, office networks, or cloud admin IPs", layer: "server" },
-          { title: "Check DNS", detail: "See where the domain really points before fetching", layer: "server" },
-          { title: "Guard redirects", detail: "Each hop validated; maximum 3 redirects", layer: "server" },
-          { title: "Rate limit", detail: "About 10 test runs per hour per person", layer: "server" },
-        ],
-      }));
+      if (typeof window !== "undefined") {
+        const V = window.LatencymapVisuals;
+        V.mount("routes-flow", V.renderFlowSvg({
+          title: "What you can open or trigger",
+          nodes: [
+            { id: "r1", label: "Home dashboard", sub: "Enter URL, see results", layer: "ui" },
+            { id: "r2", label: "Run test", sub: "Server action", layer: "server" },
+            { id: "r3", label: "Share page", sub: "Open saved results", layer: "ui" },
+          ],
+          edges: [
+            { from: "r1", to: "r2" },
+            { from: "r2", to: "r3" },
+          ],
+        }));
+        V.mount("share-pipeline", V.renderPipeline({
+          steps: [
+            { title: "Probes finish", detail: "Each region reports milliseconds and status", layer: "probe" },
+            { title: "Bundle results", detail: "URL, time, and all regional measurements combined", layer: "data" },
+            { title: "Encode into link", detail: "Compact text safe for URLs — no database write", layer: "data" },
+            { title: "Anyone opens /r/…", detail: "Browser decodes and shows results table again", layer: "ui" },
+          ],
+        }));
+        V.mount("probe-swimlane", V.renderSwimlane({
+          lanes: [
+            { layer: "probe", label: "Receive", items: [
+              { title: "URL to test", detail: "Public http or https only" },
+              { title: "Password check", detail: "Must match PROBE_SECRET" },
+            ]},
+            { layer: "server", label: "Fetch safely", items: [
+              { title: "5 second timeout", detail: "Probe gives up if site is too slow" },
+              { title: "Redirect limits", detail: "Up to 3 hops, each re-validated" },
+              { title: "Size cap", detail: "Only reads enough to measure, not full pages" },
+            ]},
+            { layer: "probe", label: "Return", items: [
+              { title: "Milliseconds", detail: "Total time for the request" },
+              { title: "Status code", detail: "200 OK, 404, etc., or failure" },
+              { title: "Region & colo", detail: "Where the probe actually ran" },
+            ]},
+          ],
+        }));
+        V.mount("fanout-flow", V.renderFlowSvg({
+          title: "Live site only",
+          nodes: [
+            { id: "c1", label: "Vercel server", layer: "server" },
+            { id: "c3", label: "US probe", layer: "probe" },
+            { id: "c4", label: "EU probe", layer: "probe" },
+            { id: "c5", label: "Asia probes", layer: "probe" },
+            { id: "c6", label: "Merged results", layer: "data" },
+          ],
+          edges: [
+            { from: "c1", to: "c3" },
+            { from: "c1", to: "c4" },
+            { from: "c1", to: "c5" },
+            { from: "c3", to: "c6" },
+            { from: "c4", to: "c6" },
+            { from: "c5", to: "c6" },
+          ],
+        }));
+        V.mount("safety-pipeline", V.renderPipeline({
+          steps: [
+            { title: "Public links only", detail: "http and https — no file:// or odd schemes", layer: "server" },
+            { title: "Block internal addresses", detail: "No localhost, office networks, or cloud admin IPs", layer: "server" },
+            { title: "Check DNS", detail: "See where the domain really points before fetching", layer: "server" },
+            { title: "Guard redirects", detail: "Each hop validated; maximum 3 redirects", layer: "server" },
+            { title: "Rate limit", detail: "About 10 test runs per hour per person", layer: "server" },
+          ],
+        }));
+      }
     </script>
   </body>
 </html>

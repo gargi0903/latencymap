@@ -45,10 +45,12 @@
     <script src="concepts-data.js"></script>
     <script src="visuals.js"></script>
     <script>
-      const V = window.LatencymapVisuals;
-      V.mount("layer-filters", V.renderConceptFilters());
-      document.querySelector("[data-concept-grid-host]").innerHTML = V.renderConceptGrid("all");
-      V.initConceptFilters();
+      if (typeof window !== "undefined") {
+        const V = window.LatencymapVisuals;
+        V.mount("layer-filters", V.renderConceptFilters());
+        document.querySelector("[data-concept-grid-host]").innerHTML = V.renderConceptGrid("all");
+        V.initConceptFilters();
+      }
     </script>
   </body>
 </html>
