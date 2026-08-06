@@ -71,39 +71,39 @@ export function ProbeResultsPanel({ results, regionCountLabel, footer }: Props) 
 
       <div className="terminal__results-body">
         <h2 className="terminal__section-title">results</h2>
-        <div className="terminal__table" role="list" aria-label="Latency by country">
+        <ul className="terminal__table" aria-label="Latency by country">
           {orderedResults.map((result, index) => {
             const selected = currentRegion === result.region;
             const failed = isProbeFailed(result);
 
             return (
-              <button
-                key={result.region}
-                type="button"
-                className={[
-                  "terminal__table-row",
-                  selected ? "terminal__table-row--selected" : null,
-                  failed ? "terminal__table-row--failed" : null,
-                ]
-                  .filter(Boolean)
-                  .join(" ")}
-                role="listitem"
-                style={{ animationDelay: `${index * 45}ms` }}
-                onClick={() => setSelectedRegion(result.region)}
-              >
-                <span className="terminal__region">{probeCountryName(result.region)}</span>
-                <span
-                  className={["terminal__ms", failed ? "terminal__ms--failed" : null]
+              <li key={result.region} className="terminal__table-item">
+                <button
+                  type="button"
+                  className={[
+                    "terminal__table-row",
+                    selected ? "terminal__table-row--selected" : null,
+                    failed ? "terminal__table-row--failed" : null,
+                  ]
                     .filter(Boolean)
                     .join(" ")}
-                  style={failed ? undefined : { color: latencyHexColor(result.totalMs, result.error) }}
+                  style={{ animationDelay: `${index * 45}ms` }}
+                  onClick={() => setSelectedRegion(result.region)}
                 >
-                  {failed ? formatProbeStatus(result) : formatLatency(result)}
-                </span>
-              </button>
+                  <span className="terminal__region">{probeCountryName(result.region)}</span>
+                  <span
+                    className={["terminal__ms", failed ? "terminal__ms--failed" : null]
+                      .filter(Boolean)
+                      .join(" ")}
+                    style={failed ? undefined : { color: latencyHexColor(result.totalMs, result.error) }}
+                  >
+                    {failed ? formatProbeStatus(result) : formatLatency(result)}
+                  </span>
+                </button>
+              </li>
             );
           })}
-        </div>
+        </ul>
 
         {selectedResult ? <ProbeInspector result={selectedResult} /> : null}
 
