@@ -1,0 +1,14 @@
+{
+  "name": "Latencymap",
+  "install": "npm ci",
+  "terminals": [
+    {
+      "name": "dev:local",
+      "command": "PROBE_SECRET=\"${PROBE_SECRET:-local-dev-probe-secret}\" npm run dev:local",
+      "description": "Next.js app on http://localhost:3000 plus a co-located local Node probe (region 'local'). Local probe is for flow testing only, not real regional latency. PROBE_SECRET defaults to a local-only value when unset."
+    }
+  ],
+  "ports": [
+    { "name": "app", "port": 3000 }
+  ]
+}
