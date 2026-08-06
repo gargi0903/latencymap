@@ -112,49 +112,51 @@
     <script src="concepts-data.js"></script>
     <script src="visuals.js"></script>
     <script>
-      const V = window.LatencymapVisuals;
-      V.mount("setup-pipeline", V.renderPipeline({
-        steps: [
-          { title: "npm install", detail: "Download everything the project needs (once)", layer: "dev" },
-          { title: "Copy the example config", detail: "Set PROBE_SECRET to any password you choose", layer: "dev" },
-          { title: "npm run dev:local", detail: "Start website + practice probe together", layer: "dev" },
-          { title: "Open localhost:3000", detail: "Run a test against https://example.com", layer: "ui" },
-        ],
-      }));
-      V.mount("learning-pipeline", V.renderPipeline({
-        steps: [
-          { title: "Overview", detail: "What the product does and who it is for", layer: "product" },
-          { title: "How it works", detail: "Probes, safety, share links, vocabulary", layer: "product" },
-          { title: "On your computer", detail: "Passwords, ports, local vs live", layer: "dev" },
-          { title: "Behind the scenes", detail: "Production layout and parallel probes", layer: "probe" },
-        ],
-      }));
-      V.mount("request-flow", V.renderFlowSvg({
-        title: "From click to results",
-        nodes: [
-          { id: "1", label: "Dashboard", sub: "You click Run", layer: "ui" },
-          { id: "2", label: "Central server", sub: "Is URL safe?", layer: "server" },
-          { id: "3", label: "Practice probe", sub: "Fetches the URL", layer: "probe" },
-          { id: "4", label: "Timing data", sub: "Milliseconds, status", layer: "data" },
-          { id: "5", label: "Results table", sub: "You see results", layer: "ui" },
-          { id: "6", label: "Share link", sub: "Optional copy", layer: "data" },
-        ],
-        edges: [
-          { from: "1", to: "2" },
-          { from: "2", to: "3" },
-          { from: "3", to: "2" },
-          { from: "2", to: "4" },
-          { from: "4", to: "5" },
-          { from: "5", to: "6" },
-        ],
-      }));
-      V.mount("commands", V.renderCommandChips([
-        { name: "npm run dev:local", desc: "Start website + practice probe (use this daily)" },
-        { name: "npm run dev:app", desc: "Start only the website" },
-        { name: "npm run probe:dev", desc: "Start only the practice probe" },
-        { name: "npm test", desc: "Run automated safety checks" },
-      ]));
-      V.mount("latency-scale", V.renderLatencyScale());
+      if (typeof window !== "undefined") {
+        const V = window.LatencymapVisuals;
+        V.mount("setup-pipeline", V.renderPipeline({
+          steps: [
+            { title: "npm install", detail: "Download everything the project needs (once)", layer: "dev" },
+            { title: "Copy the example config", detail: "Set PROBE_SECRET to any password you choose", layer: "dev" },
+            { title: "npm run dev:local", detail: "Start website + practice probe together", layer: "dev" },
+            { title: "Open localhost:3000", detail: "Run a test against https://example.com", layer: "ui" },
+          ],
+        }));
+        V.mount("learning-pipeline", V.renderPipeline({
+          steps: [
+            { title: "Overview", detail: "What the product does and who it is for", layer: "product" },
+            { title: "How it works", detail: "Probes, safety, share links, vocabulary", layer: "product" },
+            { title: "On your computer", detail: "Passwords, ports, local vs live", layer: "dev" },
+            { title: "Behind the scenes", detail: "Production layout and parallel probes", layer: "probe" },
+          ],
+        }));
+        V.mount("request-flow", V.renderFlowSvg({
+          title: "From click to results",
+          nodes: [
+            { id: "1", label: "Dashboard", sub: "You click Run", layer: "ui" },
+            { id: "2", label: "Central server", sub: "Is URL safe?", layer: "server" },
+            { id: "3", label: "Practice probe", sub: "Fetches the URL", layer: "probe" },
+            { id: "4", label: "Timing data", sub: "Milliseconds, status", layer: "data" },
+            { id: "5", label: "Results table", sub: "You see results", layer: "ui" },
+            { id: "6", label: "Share link", sub: "Optional copy", layer: "data" },
+          ],
+          edges: [
+            { from: "1", to: "2" },
+            { from: "2", to: "3" },
+            { from: "3", to: "2" },
+            { from: "2", to: "4" },
+            { from: "4", to: "5" },
+            { from: "5", to: "6" },
+          ],
+        }));
+        V.mount("commands", V.renderCommandChips([
+          { name: "npm run dev:local", desc: "Start website + practice probe (use this daily)" },
+          { name: "npm run dev:app", desc: "Start only the website" },
+          { name: "npm run probe:dev", desc: "Start only the practice probe" },
+          { name: "npm test", desc: "Run automated safety checks" },
+        ]));
+        V.mount("latency-scale", V.renderLatencyScale());
+      }
     </script>
   </body>
 </html>

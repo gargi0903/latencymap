@@ -34,6 +34,10 @@
             numbers and a shareable link.
           </p>
           <p>
+            <strong>Live demo:</strong>
+            <a href="https://latencymap-six.vercel.app">latencymap-six.vercel.app</a>
+          </p>
+          <p>
             <strong>Latency</strong> means delay: how many milliseconds pass between asking for a
             page and getting the first byte back. Lower is better.
           </p>
@@ -97,40 +101,42 @@
     <script src="concepts-data.js"></script>
     <script src="visuals.js"></script>
     <script>
-      const V = window.LatencymapVisuals;
-      V.mount("overview-flow", V.renderFlowSvg({
-        title: "Step by step",
-        nodes: [
-          { id: "a", label: "You", sub: "Paste a URL", layer: "ui" },
-          { id: "b", label: "Central server", sub: "Checks & coordinates", layer: "server" },
-          { id: "c", label: "Regional probes", sub: "Visit the URL", layer: "probe" },
-          { id: "d", label: "Results", sub: "Table + inspector", layer: "ui" },
-          { id: "e", label: "Share link", sub: "Copy to others", layer: "data" },
-        ],
-        edges: [
-          { from: "a", to: "b" },
-          { from: "b", to: "c" },
-          { from: "c", to: "b" },
-          { from: "b", to: "d" },
-          { from: "d", to: "e" },
-        ],
-      }));
-      V.mount("overview-layers", V.renderSwimlane({
-        lanes: [
-          { layer: "ui", label: "What you see", items: [
-            { title: "Dashboard", detail: "URL box, Run button, results table" },
-            { title: "Share page", detail: "Same results via a link someone sent you" },
-          ]},
-          { layer: "server", label: "Central server", items: [
-            { title: "Safety checks", detail: "Blocks dangerous or private URLs" },
-            { title: "Rate limits", detail: "Stops abuse — about 10 tests/hour" },
-          ]},
-          { layer: "probe", label: "Probes", items: [
-            { title: "5 regions live", detail: "US, UK, Singapore, Sydney, Brazil" },
-            { title: "1 region local", detail: "Practice mode on your laptop" },
-          ]},
-        ],
-      }));
+      if (typeof window !== "undefined") {
+        const V = window.LatencymapVisuals;
+        V.mount("overview-flow", V.renderFlowSvg({
+          title: "Step by step",
+          nodes: [
+            { id: "a", label: "You", sub: "Paste a URL", layer: "ui" },
+            { id: "b", label: "Central server", sub: "Checks & coordinates", layer: "server" },
+            { id: "c", label: "Regional probes", sub: "Visit the URL", layer: "probe" },
+            { id: "d", label: "Results", sub: "Table + inspector", layer: "ui" },
+            { id: "e", label: "Share link", sub: "Copy to others", layer: "data" },
+          ],
+          edges: [
+            { from: "a", to: "b" },
+            { from: "b", to: "c" },
+            { from: "c", to: "b" },
+            { from: "b", to: "d" },
+            { from: "d", to: "e" },
+          ],
+        }));
+        V.mount("overview-layers", V.renderSwimlane({
+          lanes: [
+            { layer: "ui", label: "What you see", items: [
+              { title: "Dashboard", detail: "URL box, Run button, results table" },
+              { title: "Share page", detail: "Same results via a link someone sent you" },
+            ]},
+            { layer: "server", label: "Central server", items: [
+              { title: "Safety checks", detail: "Blocks dangerous or private URLs" },
+              { title: "Rate limits", detail: "Stops abuse — about 10 tests/hour" },
+            ]},
+            { layer: "probe", label: "Probes", items: [
+              { title: "5 regions live", detail: "US, UK, Singapore, Sydney, Brazil" },
+              { title: "1 region local", detail: "Practice mode on your laptop" },
+            ]},
+          ],
+        }));
+      }
     </script>
   </body>
 </html>

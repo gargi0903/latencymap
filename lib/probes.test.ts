@@ -178,7 +178,7 @@ describe("runRegionalTest production mode", () => {
   });
 });
 
-describe("runRegionalTest local mode", () => {
+describe("runRegionalTest local probe calls", () => {
   it("calls the local probe directly in development", async () => {
     process.env.NODE_ENV = "development";
     delete process.env.PROBE_WORKERS_SUBDOMAIN;
@@ -210,12 +210,40 @@ describe("runRegionalTest local mode", () => {
       }),
     ]);
   });
+});
 
+describe("runRegionalTest local mode failures", () => {
   it("requires workers subdomain in production", async () => {
     process.env.NODE_ENV = "production";
     delete process.env.PROBE_WORKERS_SUBDOMAIN;
     process.env.PROBE_SECRET = "configured-secret";
 
     await expect(runRegionalTest("https://example.com")).rejects.toThrow(ProbeConfigurationError);
+  });
+
+  it("maps probe HTTP errors into failed probe results", async () => {
+    process.env.NODE_ENV = "development";
+    delete process.env.PROBE_WORKERS_SUBDOMAIN;
+    process.env.PROBE_SECRET = "configured-secret";
+    process.env.LOCAL_PROBE_ENDPOINT = "http://127.0.0.1:8787/probe";
+
+    const fetchMock = vi.fn(async () =>
+      new Response(JSON.stringify({ error: "Unauthorized." }), {
+        status: 401,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const results = await runRegionalTest("https://example.com");
+
+    expect(results).toEqual([
+      expect.objectContaining({
+        region: "local",
+        totalMs: null,
+        statusCode: 401,
+        error: "Unauthorized.",
+      }),
+    ]);
   });
 });

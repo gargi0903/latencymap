@@ -1,5 +1,6 @@
 import dns from "node:dns/promises";
 import net from "node:net";
+import { normalizeHttpUrl, validateHttpUrlParts } from "./http-url";
 import { isBlockedIp } from "./ip-blocklist";
 
 export { isBlockedIp } from "./ip-blocklist";
@@ -30,18 +31,7 @@ export async function normalizeAndValidatePublicUrl(rawUrl: string): Promise<Val
     return parsed;
   }
 
-  const url = parsed.url;
-  url.hash = "";
-  url.protocol = url.protocol.toLowerCase();
-  url.hostname = url.hostname.toLowerCase();
-
-  if ((url.protocol === "https:" && url.port === "443") || (url.protocol === "http:" && url.port === "80")) {
-    url.port = "";
-  }
-
-  if (url.pathname === "/") {
-    url.pathname = "";
-  }
+  const url = normalizeHttpUrl(parsed.url);
 
   const hostname = url.hostname;
   if (
@@ -84,16 +74,9 @@ function parseHttpUrl(rawUrl: string): ParsedUrlResult {
     return { ok: false, error: "Enter a valid URL." };
   }
 
-  if (url.protocol !== "http:" && url.protocol !== "https:") {
-    return { ok: false, error: "Only HTTP and HTTPS URLs are allowed." };
-  }
-
-  if (!url.hostname) {
-    return { ok: false, error: "URL must include a hostname." };
-  }
-
-  if (url.username || url.password) {
-    return { ok: false, error: "URLs with embedded credentials are not allowed." };
+  const parts = validateHttpUrlParts(url);
+  if (!parts.ok) {
+    return parts;
   }
 
   return { ok: true, url };

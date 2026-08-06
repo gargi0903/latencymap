@@ -46,7 +46,7 @@ function mockMeasuredResponses(fetchImpl: ReturnType<typeof vi.fn>, delaysMs: nu
   };
 }
 
-describe("runProbeMeasurement", () => {
+describe("runProbeMeasurement happy path", () => {
   it("warms up, samples three times, and returns the stabilized average", async () => {
     const fetchImpl = vi.fn();
     const restoreNow = mockMeasuredResponses(fetchImpl, [10, 30, 20]);
@@ -101,7 +101,9 @@ describe("runProbeMeasurement", () => {
       totalMs: 10,
     });
   });
+});
 
+describe("runProbeMeasurement validation and warmup", () => {
   it("returns validation errors before any fetch runs", async () => {
     validateUrl.mockResolvedValue({ ok: false, error: "Localhost URLs are not allowed." });
 
@@ -154,7 +156,9 @@ describe("runProbeMeasurement", () => {
       error: null,
     });
   });
+});
 
+describe("runProbeMeasurement budgets and sample failures", () => {
   it("keeps the full measurement run inside the total probe budget", async () => {
     const fetchImpl = vi.fn(async (_url, init) => {
       const signal = init?.signal;
@@ -204,7 +208,9 @@ describe("runProbeMeasurement", () => {
     });
     expect(PROBE_FETCH_MIN_SUCCESSFUL_SAMPLES).toBeGreaterThan(1);
   });
+});
 
+describe("runProbeMeasurement DNS and redirects", () => {
   it("resolves DNS once per hostname during a measurement run", async () => {
     const fetchImpl = vi.fn(async () => new Response("ok", { status: 200 }));
 

@@ -1,5 +1,7 @@
 # Latencymap — Portfolio & Pitch Guide
 
+**Live demo:** [latencymap-six.vercel.app](https://latencymap-six.vercel.app)
+
 Use this document when presenting Latencymap in **job interviews**, **portfolio reviews**, or **investor conversations**. It matches what the product actually ships today.
 
 ## One-liner
@@ -45,7 +47,9 @@ A **terminal-style dashboard** where you:
 | Area | What you built | Why it matters |
 | --- | --- | --- |
 | **Distributed probes** | 5 Cloudflare Workers with targeted placement hints | Real regional measurement, not simulated data |
-| **Stateless persistence** | Base64url-encoded share payloads in `lib/share-payload.ts` | No DB cost, portable links, simple ops |
+| **Direct fan-out** | Vercel calls five regional Workers in parallel | No coordinator, no database, simple ops |
+| **Stateless persistence** | Base64url-encoded share payloads in `lib/share-payload.ts` | No DB cost, portable links |
+| **Stable latency** | Warmups + 3 samples per region in `lib/probe-fetch.ts` | Reduces jitter; drops one slow spike |
 | **SSRF protection** | URL validation + DNS checks on API and every probe | Safe to expose a URL-fetch tool on the public internet |
 | **Provider-agnostic contract** | `POST /probe` with shared secret auth | Probes could move off Cloudflare without rewriting the app |
 | **Honest UI** | Terminal table + inspector; no fake regional coverage | Trust is the product |
@@ -102,8 +106,8 @@ Frame these as **natural next steps**, not current features:
 
 ## Links to include on resume / deck
 
-- **Live app:** your Vercel production URL
-- **GitHub:** `github.com/gargi0903/latencymap`
+- **Live app:** https://latencymap-six.vercel.app
+- **GitHub:** https://github.com/gargi0903/latencymap
 - **Docs:** `/docs/html/index.html` when deployed (served from `public/docs/html/`)
 - **Architecture:** `README.md` and `public/docs/html/architecture.html`
 

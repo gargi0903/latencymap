@@ -34,7 +34,7 @@ The first viewport is the usable latency test tool. The main workflow is:
 
 1. Enter a public `http://` or `https://` URL.
 2. Run a one-time latency test.
-3. Let the central Next.js API validate and normalize the URL, rate-limit anonymous users, call configured probes in parallel, persist the run, and return saved results.
+3. Let the central Next.js API validate and normalize the URL, rate-limit anonymous users, call configured probes in parallel, encode the run into a share link, and return results to the UI.
 4. Review the regional results table and selected-row inspector.
 5. Optionally open a share link.
 
@@ -96,7 +96,8 @@ Use Tailwind CSS for styling. Keep project-specific components for domain surfac
 - Product and architecture plan: `MVP_PLAN.md`.
 - Active project instructions and scope constraints: `AGENTS.md` in the conversation context.
 - App entry and dashboard surface: `app/page.tsx`, `components/latency-dashboard.tsx`, `components/results-view.tsx`, `components/probe-results-panel.tsx`, and `app/styles.css`.
-- API and shared behavior: `app/api/tests/route.ts`, `app/api/tests/[id]/route.ts`, `lib/types.ts`, `lib/probes.ts`, `lib/rate-limit.ts`, `lib/url-safety.ts`, and `lib/latency-display.ts`.
+- API and shared behavior: `app/api/tests/route.ts`, `app/api/tests/[id]/route.ts`, `lib/types.ts`, `lib/probes.ts`, `lib/probe-response.ts`, `lib/rate-limit.ts`, `lib/url-safety.ts`, `lib/probe-fetch.ts`, `lib/share-payload.ts`, and `lib/latency-display.ts`.
+- Client hooks: `lib/use-latency-test.ts`, `lib/use-copy-share-link.ts`.
 - Cloudflare probe direction: `probes/cloudflare/wrangler.jsonc`, `probes/cloudflare/src/worker.ts`, and `npm run probe:cf:*` scripts.
 - Local development probe path: `probes/node/server.ts` and `npm run probe:dev`.
 

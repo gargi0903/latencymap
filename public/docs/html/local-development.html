@@ -85,9 +85,9 @@
           <div id="env-compare" class="viz-host"></div>
           <div class="prose">
             <p>
-              Locally you have <strong>one</strong> probe pretending to be a region. On the real site,
-              <strong>five</strong> probes in different countries run in parallel, coordinated by a
-              boss service so results stay honest. You do not need the boss service on your laptop.
+              Locally you have <strong>one</strong> probe pretending to be a region. On the live site,
+              <strong>five</strong> probes in different countries run in parallel. Vercel calls all
+              five at once and merges the results — no separate coordinator service.
             </p>
           </div>
         </section>
@@ -102,45 +102,47 @@
     <script src="concepts-data.js"></script>
     <script src="visuals.js"></script>
     <script>
-      const V = window.LatencymapVisuals;
-      V.mount("dev-local-diagram", V.renderDevLocalDiagram());
-      V.mount("env-cards", V.renderEnvCards([
-        { name: "PROBE_SECRET", local: true, prod: true, desc: "Shared password between website and probes. Required everywhere." },
-        { name: "PROBE_WORKERS_SUBDOMAIN", local: false, prod: true, desc: "Your Cloudflare Workers subdomain. Vercel derives regional probe URLs from this." },
-        { name: "LOCAL_PROBE_ENDPOINT", local: true, prod: false, desc: "Optional override for where the practice probe lives. Usually automatic." },
-      ]));
-      V.mount("dev-compare", V.renderSwimlane({
-        lanes: [
-          { layer: "dev", label: "dev:local", items: [
-            { title: "Website + probe together", detail: "One command, both ports" },
-            { title: "Good for learning", detail: "Full flow without cloud setup" },
-          ]},
-          { layer: "ui", label: "dev:app", items: [
-            { title: "Website only", detail: "Port 3000 in browser" },
-            { title: "Probe optional", detail: "Start separately if you need measurements" },
-          ]},
-        ],
-      }));
-      V.mount("env-compare", V.renderSwimlane({
-        lanes: [
-          { layer: "probe", label: "Your laptop", items: [
-            { title: "1 practice probe", detail: "Runs on your machine" },
-            { title: "Not geographic", detail: "Timings are real, location is not" },
-          ]},
-          { layer: "probe", label: "Live site", items: [
-            { title: "5 regional probes", detail: "US, UK, Singapore, Sydney, Brazil" },
-            { title: "Parallel fan-out", detail: "Vercel calls all five regions at once" },
-          ]},
-        ],
-      }));
-      V.mount("setup-pipeline", V.renderPipeline({
-        steps: [
-          { title: "Copy example config", detail: "Duplicate the example into a local secrets file", layer: "dev" },
-          { title: "Choose a password", detail: "Set PROBE_SECRET to anything non-empty", layer: "dev" },
-          { title: "Run dev:local", detail: "Wait until both programs are ready", layer: "dev" },
-          { title: "Test in browser", detail: "localhost:3000 → https://example.com", layer: "ui" },
-        ],
-      }));
+      if (typeof window !== "undefined") {
+        const V = window.LatencymapVisuals;
+        V.mount("dev-local-diagram", V.renderDevLocalDiagram());
+        V.mount("env-cards", V.renderEnvCards([
+          { name: "PROBE_SECRET", local: true, prod: true, desc: "Shared password between website and probes. Required everywhere." },
+          { name: "PROBE_WORKERS_SUBDOMAIN", local: false, prod: true, desc: "Your Cloudflare Workers subdomain. Vercel derives regional probe URLs from this." },
+          { name: "LOCAL_PROBE_ENDPOINT", local: true, prod: false, desc: "Optional override for where the practice probe lives. Usually automatic." },
+        ]));
+        V.mount("dev-compare", V.renderSwimlane({
+          lanes: [
+            { layer: "dev", label: "dev:local", items: [
+              { title: "Website + probe together", detail: "One command, both ports" },
+              { title: "Good for learning", detail: "Full flow without cloud setup" },
+            ]},
+            { layer: "ui", label: "dev:app", items: [
+              { title: "Website only", detail: "Port 3000 in browser" },
+              { title: "Probe optional", detail: "Start separately if you need measurements" },
+            ]},
+          ],
+        }));
+        V.mount("env-compare", V.renderSwimlane({
+          lanes: [
+            { layer: "probe", label: "Your laptop", items: [
+              { title: "1 practice probe", detail: "Runs on your machine" },
+              { title: "Not geographic", detail: "Timings are real, location is not" },
+            ]},
+            { layer: "probe", label: "Live site", items: [
+              { title: "5 regional probes", detail: "US, UK, Singapore, Sydney, Brazil" },
+              { title: "Parallel fan-out", detail: "Vercel calls all five regions at once" },
+            ]},
+          ],
+        }));
+        V.mount("setup-pipeline", V.renderPipeline({
+          steps: [
+            { title: "Copy example config", detail: "Duplicate the example into a local secrets file", layer: "dev" },
+            { title: "Choose a password", detail: "Set PROBE_SECRET to anything non-empty", layer: "dev" },
+            { title: "Run dev:local", detail: "Wait until both programs are ready", layer: "dev" },
+            { title: "Test in browser", detail: "localhost:3000 → https://example.com", layer: "ui" },
+          ],
+        }));
+      }
     </script>
   </body>
 </html>

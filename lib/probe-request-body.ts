@@ -1,8 +1,8 @@
-const DEFAULT_MAX_BODY_BYTES = 16 * 1024;
+const PROBE_MAX_REQUEST_BODY_BYTES = 16 * 1024;
 
 export async function readLimitedRequestText(
   request: Request,
-  maxBodyBytes = DEFAULT_MAX_BODY_BYTES,
+  maxBodyBytes = PROBE_MAX_REQUEST_BODY_BYTES,
 ): Promise<string> {
   const contentLength = request.headers.get("content-length");
   if (contentLength && Number(contentLength) > maxBodyBytes) {

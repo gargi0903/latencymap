@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
 import { CmdLabel } from "@/components/cmd-label";
 import { ProbeResultsPanel } from "@/components/probe-results-panel";
 import { sharePathForRun } from "@/lib/share-payload";
+import { useCopyShareLink } from "@/lib/use-copy-share-link";
 import type { TestRun } from "@/lib/types";
 
 type Props = {
@@ -12,18 +12,8 @@ type Props = {
 };
 
 export function ResultsView({ initialRun }: Props) {
-  const [copyState, setCopyState] = useState<"idle" | "copied">("idle");
   const sharePath = sharePathForRun(initialRun);
-
-  async function copyShareLink() {
-    try {
-      await navigator.clipboard.writeText(`${window.location.origin}${sharePath}`);
-      setCopyState("copied");
-      window.setTimeout(() => setCopyState("idle"), 1800);
-    } catch {
-      setCopyState("idle");
-    }
-  }
+  const { copyState, copyShareLink } = useCopyShareLink(sharePath);
 
   return (
     <section
