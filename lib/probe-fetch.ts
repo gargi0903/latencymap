@@ -76,9 +76,9 @@ export async function runProbeMeasurement(
 
   const measureUrl = resolved.resolvedUrl;
 
-  for (let warmup = 0; warmup < PROBE_FETCH_WARMUP_COUNT; warmup += 1) {
+  await runWarmupPasses(PROBE_FETCH_WARMUP_COUNT, async () => {
     if (remainingMs() < 500) {
-      break;
+      return false;
     }
 
     await runProbePass(measureUrl, validateCachedUrl, {
@@ -87,15 +87,16 @@ export async function runProbeMeasurement(
       timeoutMs: passTimeoutMs(),
       measure: false,
     }).catch(() => undefined);
-  }
+    return true;
+  });
 
   const samples: number[] = [];
-  let lastSuccess: Extract<ProbePassResult, { ok: true }> | null = null;
+  let lastStatusCode: number | null = null;
   let lastError: string | null = null;
 
-  for (let sample = 0; sample < PROBE_FETCH_MEASURE_SAMPLE_COUNT; sample += 1) {
+  await runMeasurePasses(PROBE_FETCH_MEASURE_SAMPLE_COUNT, async () => {
     if (remainingMs() < passTimeoutMs()) {
-      break;
+      return false;
     }
 
     const result = await runProbePass(measureUrl, validateCachedUrl, {
@@ -107,26 +108,60 @@ export async function runProbeMeasurement(
 
     if (!result.ok || result.totalMs === null) {
       lastError = result.ok ? "Request failed." : result.error;
-      continue;
+      return true;
     }
 
     samples.push(result.totalMs);
-    lastSuccess = result;
-  }
+    lastStatusCode = result.statusCode;
+    return true;
+  });
 
   if (samples.length < PROBE_FETCH_MIN_SUCCESSFUL_SAMPLES) {
     return {
       totalMs: null,
-      statusCode: lastSuccess?.statusCode ?? null,
+      statusCode: lastStatusCode,
       error: lastError ?? "Request timed out.",
     };
   }
 
   return {
     totalMs: aggregateLatencySamples(samples),
-    statusCode: lastSuccess!.statusCode,
+    statusCode: lastStatusCode,
     error: null,
   };
+}
+
+/** Sequential pass runner — warmups/samples must not overlap or timings change. */
+async function runWarmupPasses(
+  remaining: number,
+  runPass: () => Promise<boolean>,
+): Promise<void> {
+  if (remaining <= 0) {
+    return;
+  }
+
+  const shouldContinue = await runPass();
+  if (!shouldContinue) {
+    return;
+  }
+
+  await runWarmupPasses(remaining - 1, runPass);
+}
+
+async function runMeasurePasses(
+  remaining: number,
+  runPass: () => Promise<boolean>,
+): Promise<void> {
+  if (remaining <= 0) {
+    return;
+  }
+
+  const shouldContinue = await runPass();
+  if (!shouldContinue) {
+    return;
+  }
+
+  await runMeasurePasses(remaining - 1, runPass);
 }
 
 async function runProbePass(

@@ -240,9 +240,12 @@
     </div>`;
   }
 
-  function mount(targetId, html) {
+  function mount(targetId, markup) {
     const el = document.getElementById(targetId);
-    if (el) el.innerHTML = html;
+    if (!el) return;
+    const template = document.createElement("template");
+    template.innerHTML = markup;
+    el.replaceChildren(template.content.cloneNode(true));
   }
 
   window.LatencymapVisuals = {
