@@ -246,6 +246,20 @@ export function LatencyDashboard() {
     };
   }, [setUrl]);
 
+  const bootLines: ReactNode[] = [];
+  if (showBoot) {
+    for (const step of BOOT_STEPS.slice(0, visibleBootLines)) {
+      if (step.id === "starting" && visibleBootLines > STARTING_STEP_INDEX + 1) {
+        continue;
+      }
+      bootLines.push(
+        <p key={step.id} className={["terminal__boot-line", step.className].filter(Boolean).join(" ")}>
+          {step.render()}
+        </p>,
+      );
+    }
+  }
+
   return (
     <main className="terminal">
       <section
@@ -259,16 +273,7 @@ export function LatencyDashboard() {
 
           {showBoot ? (
             <div className="terminal__boot" aria-live="polite">
-              {BOOT_STEPS.slice(0, visibleBootLines)
-                .filter(
-                  (step) =>
-                    step.id !== "starting" || visibleBootLines <= STARTING_STEP_INDEX + 1,
-                )
-                .map((step) => (
-                  <p key={step.id} className={["terminal__boot-line", step.className].filter(Boolean).join(" ")}>
-                    {step.render()}
-                  </p>
-                ))}
+              {bootLines}
             </div>
           ) : null}
 
