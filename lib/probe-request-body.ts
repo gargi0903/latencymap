@@ -1,4 +1,4 @@
-export const PROBE_MAX_REQUEST_BODY_BYTES = 16 * 1024;
+const PROBE_MAX_REQUEST_BODY_BYTES = 16 * 1024;
 
 export async function readLimitedRequestText(
   request: Request,

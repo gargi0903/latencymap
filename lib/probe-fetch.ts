@@ -3,13 +3,13 @@ import type { UrlValidationResult } from "@/lib/probe-url-safety";
 import { parsePublicHttpUrl, stripIpv6Brackets } from "@/lib/probe-url-safety";
 
 export { PROBE_FETCH_TIMEOUT_MS };
-export const PROBE_FETCH_MAX_REDIRECTS = 3;
+const PROBE_FETCH_MAX_REDIRECTS = 3;
 export const PROBE_FETCH_WARMUP_COUNT = 3;
 export const PROBE_FETCH_MEASURE_SAMPLE_COUNT = 3;
 export const PROBE_FETCH_MIN_SUCCESSFUL_SAMPLES = 3;
 export const PROBE_FETCH_PASS_TIMEOUT_MS = 4_000;
 /** Round reported latency to reduce jitter from sub-10ms noise. */
-export const LATENCY_ROUNDING_MS = 10;
+const LATENCY_ROUNDING_MS = 10;
 
 export type ProbeFetchResult = {
   totalMs: number | null;

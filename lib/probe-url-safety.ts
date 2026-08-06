@@ -11,7 +11,7 @@ export function stripIpv6Brackets(hostname: string) {
   return hostname.startsWith("[") && hostname.endsWith("]") ? hostname.slice(1, -1) : hostname;
 }
 
-export function isBlockedHostname(hostname: string) {
+function isBlockedHostname(hostname: string) {
   return (
     BLOCKED_HOSTNAMES.has(hostname) ||
     hostname.endsWith(".localhost") ||
@@ -20,11 +20,11 @@ export function isBlockedHostname(hostname: string) {
   );
 }
 
-export function isLikelyIpv6Address(value: string) {
+function isLikelyIpv6Address(value: string) {
   return value.includes(":");
 }
 
-export function normalizeHttpUrl(url: URL) {
+function normalizeHttpUrl(url: URL) {
   url.hash = "";
   url.protocol = url.protocol.toLowerCase();
   url.hostname = url.hostname.toLowerCase();
