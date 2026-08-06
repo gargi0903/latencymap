@@ -1,4 +1,5 @@
 import { PROBE_CLIENT_TIMEOUT_MS } from "@/lib/constants";
+import { buildProbeResult, mapProbeWireResponse } from "@/lib/probe-response";
 import { getLocalProbeEndpoint, getProbeRegions, isProductionProbeMode } from "@/lib/probe-regions";
 import type { ProbeConfig, ProbeResult } from "@/lib/types";
 
@@ -39,17 +40,9 @@ async function callRemoteProbe(probe: ProbeConfig, url: string, probeSecret: str
   const timeout = setTimeout(() => controller.abort(), PROBE_CLIENT_TIMEOUT_MS);
 
   if (!probe.endpoint) {
-    return {
-      region: probe.id,
-      label: probe.label,
-      lat: probe.lat,
-      lng: probe.lng,
-      totalMs: null,
-      ttfbMs: null,
-      statusCode: null,
+    return buildProbeResult(probe, testedAt, {
       error: "Probe endpoint is not configured.",
-      testedAt,
-    };
+    });
   }
 
   try {
@@ -65,63 +58,18 @@ async function callRemoteProbe(probe: ProbeConfig, url: string, probeSecret: str
 
     if (!response.ok) {
       const errorBody = (await response.json().catch(() => null)) as { error?: string | null } | null;
-      return {
-        region: probe.id,
-        label: probe.label,
-        lat: probe.lat,
-        lng: probe.lng,
-        totalMs: null,
-        ttfbMs: null,
+      return buildProbeResult(probe, testedAt, {
         statusCode: response.status,
         error: errorBody?.error ?? `Probe returned HTTP ${response.status}.`,
-        testedAt,
-        cloudflareColo: null,
-        placementRegion: null,
-      };
+      });
     }
 
-    const body = (await response.json().catch(() => null)) as {
-      total_ms?: number;
-      totalMs?: number;
-      ttfb_ms?: number;
-      ttfbMs?: number;
-      status_code?: number;
-      statusCode?: number;
-      cloudflare_colo?: string | null;
-      cloudflareColo?: string | null;
-      placement_region?: string | null;
-      placementRegion?: string | null;
-      error?: string | null;
-    } | null;
-
-    const totalMs = coerceNumber(body?.total_ms ?? body?.totalMs);
-
-    return {
-      region: probe.id,
-      label: probe.label,
-      lat: probe.lat,
-      lng: probe.lng,
-      totalMs,
-      ttfbMs: totalMs,
-      statusCode: coerceNumber(body?.status_code ?? body?.statusCode),
-      error: body?.error ?? null,
-      testedAt,
-      cloudflareColo: coerceString(body?.cloudflare_colo ?? body?.cloudflareColo),
-      placementRegion: coerceString(body?.placement_region ?? body?.placementRegion),
-    };
+    const body = await response.json().catch(() => null);
+    return mapProbeWireResponse(probe, testedAt, body);
   } catch (error) {
-    const message = formatProbeFetchError(error, probe);
-    return {
-      region: probe.id,
-      label: probe.label,
-      lat: probe.lat,
-      lng: probe.lng,
-      totalMs: null,
-      ttfbMs: null,
-      statusCode: null,
-      error: message,
-      testedAt,
-    };
+    return buildProbeResult(probe, testedAt, {
+      error: formatProbeFetchError(error, probe),
+    });
   } finally {
     clearTimeout(timeout);
   }
@@ -154,12 +102,4 @@ function isConnectionRefusedError(error: unknown): boolean {
 
 function getErrorCode(value: unknown): unknown {
   return value && typeof value === "object" && "code" in value ? value.code : null;
-}
-
-function coerceNumber(value: unknown): number | null {
-  return typeof value === "number" && Number.isFinite(value) ? Math.round(value) : null;
-}
-
-function coerceString(value: unknown): string | null {
-  return typeof value === "string" && value.trim().length > 0 ? value : null;
 }

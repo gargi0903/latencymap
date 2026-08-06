@@ -1,8 +1,9 @@
+import { PROBE_FETCH_TIMEOUT_MS } from "@/lib/constants";
 import type { UrlValidationResult } from "@/lib/probe-url-safety";
 import { parsePublicHttpUrl, stripIpv6Brackets } from "@/lib/probe-url-safety";
 
+export { PROBE_FETCH_TIMEOUT_MS };
 export const PROBE_FETCH_MAX_REDIRECTS = 3;
-export const PROBE_FETCH_TIMEOUT_MS = 12_000;
 export const PROBE_FETCH_WARMUP_COUNT = 3;
 export const PROBE_FETCH_MEASURE_SAMPLE_COUNT = 3;
 export const PROBE_FETCH_MIN_SUCCESSFUL_SAMPLES = 3;

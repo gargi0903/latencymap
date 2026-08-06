@@ -4,6 +4,8 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { CmdLabel } from "@/components/cmd-label";
 import { ProbeResultsPanel } from "@/components/probe-results-panel";
 import { PROBE_COUNTRY_LIST } from "@/lib/probe-regions";
+import { sharePathForRun } from "@/lib/share-payload";
+import { useCopyShareLink } from "@/lib/use-copy-share-link";
 import { useLatencyTest } from "@/lib/use-latency-test";
 
 const INTERACTIVE_SELECTOR = "button, a, textarea, select, [role='button']";
@@ -93,14 +95,14 @@ export function LatencyDashboard() {
   const isLoadingRef = useRef(false);
   const bootReadyRef = useRef(false);
   const { url, setUrl, run, sharePath, error, isLoading, onSubmit, runTest } = useLatencyTest();
-  const [copyState, setCopyState] = useState<"idle" | "copied">("idle");
+  const activeSharePath = sharePath ?? (run ? sharePathForRun(run) : null);
+  const { copyState, copyShareLink } = useCopyShareLink(activeSharePath);
   const [showBoot, setShowBoot] = useState(true);
   const [visibleBootLines, setVisibleBootLines] = useState(0);
   const [bootResolved, setBootResolved] = useState(false);
 
   const bootReady = !showBoot;
   const hasResults = Boolean(run && !isLoading);
-  const activeSharePath = sharePath ?? (run ? `/r/${run.id}` : null);
 
   runTestRef.current = runTest;
   isLoadingRef.current = isLoading;
@@ -224,18 +226,6 @@ export function LatencyDashboard() {
       document.removeEventListener("keydown", onKeyDown, true);
     };
   }, [setUrl]);
-
-  async function copyShareLink() {
-    if (!activeSharePath) return;
-
-    try {
-      await navigator.clipboard.writeText(`${window.location.origin}${activeSharePath}`);
-      setCopyState("copied");
-      window.setTimeout(() => setCopyState("idle"), 1800);
-    } catch {
-      setCopyState("idle");
-    }
-  }
 
   return (
     <main className="terminal">

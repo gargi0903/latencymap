@@ -6,6 +6,8 @@ Single-context document for AI assistants, interview prep, and onboarding. Descr
 
 **LatencyMap** is a portfolio MVP: a developer-tool dashboard that tests any public `http://` or `https://` URL from five real global regions in parallel, shows exact latency in a terminal-style UI, and produces a shareable result link — **with no database**.
 
+**Live demo:** [latencymap-six.vercel.app](https://latencymap-six.vercel.app)
+
 **Primary audience:** backend/API developers checking public endpoints.  
 **Secondary:** founders and general users testing public websites.
 
@@ -26,7 +28,7 @@ Paste a URL → Vercel Next.js API validates and rate-limits → five Cloudflare
 - SSRF protection on central API and every probe fetch path
 - Anonymous rate limiting (in-memory per serverless instance)
 - Local Node probe for development flow testing only
-- Vitest unit tests for core `lib/` behavior
+- Vitest unit tests for core `lib/` behavior (75+ tests)
 
 ### Not built (do not claim)
 
@@ -385,9 +387,11 @@ Local mode uses **one** probe region (`local`) — useful for flow testing, not 
 | `lib/url-safety.ts` | Central API URL normalize + SSRF (Node DNS) |
 | `lib/probe-url-safety.ts` | Probe-side URL validate + DNS |
 | `lib/probes.ts` | Fan-out to probes, map responses |
+| `lib/probe-response.ts` | Build/map probe wire JSON → `ProbeResult` |
 | `lib/probe-fetch.ts` | Shared measurement algorithm |
 | `lib/share-payload.ts` | Encode/decode share tokens |
 | `lib/rate-limit.ts` | In-memory IP rate limiting |
+| `lib/use-copy-share-link.ts` | Shared share-link copy behavior |
 | `lib/probe-regions.ts` | Region metadata + endpoint derivation |
 | `lib/latency-display.ts` | Colors, formatting, measurement note |
 | `lib/types.ts` | Shared TypeScript types |
@@ -405,6 +409,7 @@ Local mode uses **one** probe region (`local`) — useful for flow testing, not 
 | No database | Zero ops cost; share links are portable and stateless |
 | URL-encoded persistence | Simple; tradeoff is long URLs and no server-side history |
 | Cloudflare Workers for probes | Cheap multi-region edge compute + colo metadata |
+| Direct Vercel fan-out | No coordinator or database; Vercel calls five Workers in parallel |
 | Provider-agnostic `POST /probe` contract | Probes could move off Cloudflare without rewriting the app |
 | GET-only probes | Enough for latency evidence; smaller abuse surface |
 | Multi-sample aggregation | Reduces jitter; drops one slow spike per region |

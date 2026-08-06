@@ -25,7 +25,7 @@ Positioning should stay API-first, even though websites are allowed.
 Included:
 - one-time manual latency tests
 - any public `http://` or `https://` URL
-- real probes in 3-5 regions
+- real probes in **5** regions (iad, lhr, sin, syd, gru)
 - shareable public result page (URL-encoded payload, no database)
 - developer-tool terminal dashboard UI
 - regional results table with selected-row inspector
@@ -74,15 +74,14 @@ Probe service:
 ## Architecture
 
 ```txt
-Next.js app on Vercel
-  /
-  /r/[token]
-  /api/tests
-  /api/tests/[token]
-        |
-        v
-Regional probe endpoints
+Browser
+  → Next.js on Vercel (validate URL, rate limit, fan-out)
+  → 5 × Cloudflare Worker probes (parallel)
+  → target public URL
+  → merge results → encode share link → dashboard
 ```
+
+Production requires `PROBE_WORKERS_SUBDOMAIN` and `PROBE_SECRET`. Vercel derives regional probe URLs from the subdomain and `lib/probe-regions.ts`.
 
 ## API Shape
 
@@ -148,10 +147,11 @@ Rules:
 
 MVP timing data:
 - `region`
-- `total_ms`
+- `total_ms` (aggregated from 3 timed samples; slowest dropped; rounded to 10 ms)
 - `status_code`
 - `error`
 - `tested_at`
+- `cloudflare_colo`, `placement_region`
 
 Skip for MVP:
 - DNS timing
@@ -244,7 +244,8 @@ gray   = failed
 ## Resolved Implementation Notes
 
 - Probe hosting: Cloudflare Workers with one environment per region (`iad`, `lhr`, `sin`, `syd`, `gru`).
+- Orchestration: Vercel fans out directly to five regional Workers in parallel (no coordinator).
 - Persistence: URL-encoded share links via `lib/share-payload.ts` (no database).
 - Rate limiting: in-memory buckets per serverless instance.
-- Probe env vars: `PROBE_WORKERS_SUBDOMAIN` and `PROBE_SECRET`; Vercel fans out to five regional Workers in parallel; region metadata in `lib/probe-regions.ts`.
-- UI results: terminal dashboard with a shared `ProbeResultsPanel` for dashboard and share pages.
+- Probe env vars: `PROBE_WORKERS_SUBDOMAIN` and `PROBE_SECRET` on Vercel and every Worker environment.
+- UI results: terminal dashboard with shared `ProbeResultsPanel` and `useCopyShareLink` on dashboard and share pages.

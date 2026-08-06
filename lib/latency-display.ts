@@ -11,6 +11,10 @@ const LATENCY_COLORS = {
   failed: "#737b8c",
 } as const;
 
+export function isProbeFailed(result: Pick<ProbeResult, "error" | "totalMs">) {
+  return Boolean(result.error || result.totalMs === null);
+}
+
 export function formatLatency(result: Pick<ProbeResult, "totalMs">) {
   return result.totalMs === null ? "Failed" : `${result.totalMs} ms`;
 }

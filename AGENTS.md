@@ -48,17 +48,14 @@ Always read `MVP_PLAN.md` before making product, architecture, or implementation
 ## Architecture
 
 ```txt
-Next.js app on Vercel
-  /
-  /r/[token]
-  /api/tests
-  /api/tests/[token]
-        |
-        v
-Regional probe endpoints
+Browser
+  → Next.js on Vercel (validate URL, rate limit, fan-out)
+  → 5 × Cloudflare Worker probes (parallel)
+  → target public URL
+  → merge results → encode share link → dashboard
 ```
 
-- Central API routes validate and normalize URLs, rate limit anonymous users, call probes in parallel, persist runs, and return saved results.
+- Central API routes validate and normalize URLs, rate limit anonymous users, call probes in parallel, encode runs into share links, and return results to the UI.
 - Probe endpoints fetch the target URL with strict limits and return timing/status metadata only.
 - Keep the probe HTTP contract provider-agnostic even when the implementation is Cloudflare Workers.
 - Do not switch probes to Fly.io, Render, Railway, or another compute provider unless explicitly requested.

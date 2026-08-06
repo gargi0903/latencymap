@@ -6,6 +6,7 @@ import {
   formatProbeMetadataValue,
   formatProbeStatus,
   formatProbeTimestamp,
+  isProbeFailed,
   latencyHexColor,
   latencyMeasurementNote,
 } from "@/lib/latency-display";
@@ -20,7 +21,7 @@ type Props = {
 };
 
 function ProbeInspector({ result }: { result: ProbeResult }) {
-  const failed = Boolean(result.error || result.totalMs === null);
+  const failed = isProbeFailed(result);
   const latencyColor = latencyHexColor(result.totalMs, result.error);
 
   return (
@@ -73,7 +74,7 @@ export function ProbeResultsPanel({ results, regionCountLabel, footer }: Props) 
         <div className="terminal__table" role="list" aria-label="Latency by country">
           {orderedResults.map((result, index) => {
             const selected = currentRegion === result.region;
-            const failed = Boolean(result.error || result.totalMs === null);
+            const failed = isProbeFailed(result);
 
             return (
               <button
