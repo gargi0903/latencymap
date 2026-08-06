@@ -164,15 +164,77 @@ async function runMeasurePasses(
   await runMeasurePasses(remaining - 1, runPass);
 }
 
+function probeFetchErrorMessage(error: unknown): string {
+  if (error instanceof Error && error.name === "AbortError") {
+    return "Request timed out.";
+  }
+
+  if (error instanceof Error && error.message) {
+    return `Request failed: ${error.message}`;
+  }
+
+  return "Request failed.";
+}
+
+type ProbePassOptions = {
+  fetchImpl: typeof fetch;
+  userAgent: string;
+  timeoutMs: number;
+  measure: boolean;
+};
+
+async function followRedirectOrFinish(
+  response: Response,
+  validationUrl: string,
+  redirects: number,
+  options: ProbePassOptions,
+  measuredStarted: number | null,
+): Promise<{ kind: "redirect"; url: string } | { kind: "result"; result: ProbePassResult }> {
+  if (!isRedirect(response.status)) {
+    const totalMs =
+      options.measure && measuredStarted !== null ? Math.round(performance.now() - measuredStarted) : null;
+    await releaseProbeResponse(response);
+    return {
+      kind: "result",
+      result: {
+        ok: true,
+        resolvedUrl: validationUrl,
+        totalMs,
+        statusCode: response.status,
+      },
+    };
+  }
+
+  const location = response.headers.get("location");
+  if (!location) {
+    await releaseProbeResponse(response);
+    return {
+      kind: "result",
+      result: passError(
+        options.measure,
+        measuredStarted,
+        response.status,
+        "Redirect response did not include a location header.",
+      ),
+    };
+  }
+
+  if (redirects === PROBE_FETCH_MAX_REDIRECTS) {
+    await releaseProbeResponse(response);
+    return {
+      kind: "result",
+      result: passError(options.measure, measuredStarted, response.status, "Too many redirects."),
+    };
+  }
+
+  await releaseProbeResponse(response);
+  return { kind: "redirect", url: new URL(location, validationUrl).toString() };
+}
+
 async function runProbePass(
   targetUrl: string,
   validateUrl: ValidateUrl,
-  options: {
-    fetchImpl: typeof fetch;
-    userAgent: string;
-    timeoutMs: number;
-    measure: boolean;
-  },
+  options: ProbePassOptions,
 ): Promise<ProbePassResult> {
   let currentUrl = targetUrl;
   let measuredStarted: number | null = null;
@@ -200,42 +262,21 @@ async function runProbePass(
         headers: probeFetchHeaders(options.userAgent),
       });
 
-      if (isRedirect(response.status)) {
-        const location = response.headers.get("location");
-        if (!location) {
-          await releaseProbeResponse(response);
-          return passError(options.measure, measuredStarted, response.status, "Redirect response did not include a location header.");
-        }
-
-        if (redirects === PROBE_FETCH_MAX_REDIRECTS) {
-          await releaseProbeResponse(response);
-          return passError(options.measure, measuredStarted, response.status, "Too many redirects.");
-        }
-
-        await releaseProbeResponse(response);
-        currentUrl = new URL(location, validation.url).toString();
+      const outcome = await followRedirectOrFinish(
+        response,
+        validation.url,
+        redirects,
+        options,
+        measuredStarted,
+      );
+      if (outcome.kind === "redirect") {
+        currentUrl = outcome.url;
         continue;
       }
 
-      const totalMs =
-        options.measure && measuredStarted !== null ? Math.round(performance.now() - measuredStarted) : null;
-
-      await releaseProbeResponse(response);
-
-      return {
-        ok: true,
-        resolvedUrl: validation.url,
-        totalMs,
-        statusCode: response.status,
-      };
+      return outcome.result;
     } catch (error) {
-      const message =
-        error instanceof Error && error.name === "AbortError"
-          ? "Request timed out."
-          : error instanceof Error && error.message
-            ? `Request failed: ${error.message}`
-            : "Request failed.";
-      return { ok: false, error: message, statusCode: null, totalMs: null };
+      return { ok: false, error: probeFetchErrorMessage(error), statusCode: null, totalMs: null };
     } finally {
       clearTimeout(timeout);
     }
