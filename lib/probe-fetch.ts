@@ -42,31 +42,32 @@ function bindFetch(fetchImpl?: typeof fetch) {
   return fetchImpl ?? ((input: RequestInfo | URL, init?: RequestInit) => fetch(input, init));
 }
 
-export async function runProbeMeasurement(
+type PassTiming = {
+  fetchImpl: typeof fetch;
+  userAgent: string;
+  remainingMs: () => number;
+  passTimeoutMs: () => number;
+};
+
+async function resolveMeasureUrl(
   targetUrl: string,
   validateUrl: ValidateUrl,
-  options: ProbeFetchOptions,
-): Promise<ProbeFetchResult> {
-  const fetchImpl = bindFetch(options.fetchImpl);
-  const deadlineAt = performance.now() + PROBE_FETCH_TIMEOUT_MS;
-  const remainingMs = () => Math.max(0, deadlineAt - performance.now());
-  const passTimeoutMs = () =>
-    Math.max(250, Math.min(PROBE_FETCH_PASS_TIMEOUT_MS, remainingMs() - 250));
-
+  timing: PassTiming,
+): Promise<ProbeFetchResult | { ok: true; measureUrl: string; validateCachedUrl: ValidateUrl }> {
   const initialValidation = await validateUrl(targetUrl);
   if (!initialValidation.ok) {
     return failureResult(initialValidation.error);
   }
 
-  if (remainingMs() < 500) {
+  if (timing.remainingMs() < 500) {
     return failureResult("Request timed out.");
   }
 
   const validateCachedUrl = createMeasurementUrlValidator(validateUrl);
   const resolved = await runProbePass(targetUrl, validateCachedUrl, {
-    fetchImpl,
-    userAgent: options.userAgent,
-    timeoutMs: passTimeoutMs(),
+    fetchImpl: timing.fetchImpl,
+    userAgent: timing.userAgent,
+    timeoutMs: timing.passTimeoutMs(),
     measure: false,
   });
 
@@ -74,17 +75,23 @@ export async function runProbeMeasurement(
     return failureResult(resolved.error, resolved.statusCode);
   }
 
-  const measureUrl = resolved.resolvedUrl;
+  return { ok: true, measureUrl: resolved.resolvedUrl, validateCachedUrl };
+}
 
+async function collectLatencySamples(
+  measureUrl: string,
+  validateCachedUrl: ValidateUrl,
+  timing: PassTiming,
+): Promise<{ samples: number[]; lastStatusCode: number | null; lastError: string | null }> {
   await runWarmupPasses(PROBE_FETCH_WARMUP_COUNT, async () => {
-    if (remainingMs() < 500) {
+    if (timing.remainingMs() < 500) {
       return false;
     }
 
     await runProbePass(measureUrl, validateCachedUrl, {
-      fetchImpl,
-      userAgent: options.userAgent,
-      timeoutMs: passTimeoutMs(),
+      fetchImpl: timing.fetchImpl,
+      userAgent: timing.userAgent,
+      timeoutMs: timing.passTimeoutMs(),
       measure: false,
     }).catch(() => undefined);
     return true;
@@ -95,14 +102,14 @@ export async function runProbeMeasurement(
   let lastError: string | null = null;
 
   await runMeasurePasses(PROBE_FETCH_MEASURE_SAMPLE_COUNT, async () => {
-    if (remainingMs() < passTimeoutMs()) {
+    if (timing.remainingMs() < timing.passTimeoutMs()) {
       return false;
     }
 
     const result = await runProbePass(measureUrl, validateCachedUrl, {
-      fetchImpl,
-      userAgent: options.userAgent,
-      timeoutMs: passTimeoutMs(),
+      fetchImpl: timing.fetchImpl,
+      userAgent: timing.userAgent,
+      timeoutMs: timing.passTimeoutMs(),
       measure: true,
     });
 
@@ -115,6 +122,32 @@ export async function runProbeMeasurement(
     lastStatusCode = result.statusCode;
     return true;
   });
+
+  return { samples, lastStatusCode, lastError };
+}
+
+export async function runProbeMeasurement(
+  targetUrl: string,
+  validateUrl: ValidateUrl,
+  options: ProbeFetchOptions,
+): Promise<ProbeFetchResult> {
+  const fetchImpl = bindFetch(options.fetchImpl);
+  const deadlineAt = performance.now() + PROBE_FETCH_TIMEOUT_MS;
+  const remainingMs = () => Math.max(0, deadlineAt - performance.now());
+  const passTimeoutMs = () =>
+    Math.max(250, Math.min(PROBE_FETCH_PASS_TIMEOUT_MS, remainingMs() - 250));
+  const timing = { fetchImpl, userAgent: options.userAgent, remainingMs, passTimeoutMs };
+
+  const resolved = await resolveMeasureUrl(targetUrl, validateUrl, timing);
+  if (!("measureUrl" in resolved)) {
+    return resolved;
+  }
+
+  const { samples, lastStatusCode, lastError } = await collectLatencySamples(
+    resolved.measureUrl,
+    resolved.validateCachedUrl,
+    timing,
+  );
 
   if (samples.length < PROBE_FETCH_MIN_SUCCESSFUL_SAMPLES) {
     return {

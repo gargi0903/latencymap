@@ -17,6 +17,62 @@ function focusTerminalInput(input: HTMLInputElement | null) {
   input?.focus({ preventScroll: true });
 }
 
+function bindTerminalListeners(options: Omit<TerminalInputCaptureOptions, "focusWhenReady">) {
+  const { inputRef, bootReadyRef, isLoadingRef, runTestRef, skipBoot, setUrl } = options;
+
+  function focusInput() {
+    if (!bootReadyRef.current) {
+      skipBoot();
+      return;
+    }
+
+    focusTerminalInput(inputRef.current);
+  }
+
+  function onPointerDown(event: PointerEvent) {
+    if (!bootReadyRef.current) {
+      event.preventDefault();
+      skipBoot();
+      return;
+    }
+
+    if (isInteractiveTarget(event.target)) {
+      return;
+    }
+
+    focusInput();
+  }
+
+  function onKeyDown(event: KeyboardEvent) {
+    if (!bootReadyRef.current) {
+      event.preventDefault();
+      skipBoot();
+      return;
+    }
+
+    const input = inputRef.current;
+    if (!input) {
+      return;
+    }
+
+    handleTerminalKeyDown(event, {
+      input,
+      isLoading: Boolean(isLoadingRef.current),
+      runTest: runTestRef.current,
+      setUrl,
+      focusInput,
+    });
+  }
+
+  document.addEventListener("pointerdown", onPointerDown, true);
+  document.addEventListener("keydown", onKeyDown, true);
+
+  return () => {
+    document.removeEventListener("pointerdown", onPointerDown, true);
+    document.removeEventListener("keydown", onKeyDown, true);
+  };
+}
+
 export function useTerminalInputCapture({
   inputRef,
   bootReadyRef,
@@ -32,57 +88,16 @@ export function useTerminalInputCapture({
     }
   }, [focusWhenReady, inputRef]);
 
-  useEffect(() => {
-    function focusInput() {
-      if (!bootReadyRef.current) {
-        skipBoot();
-        return;
-      }
-
-      focusTerminalInput(inputRef.current);
-    }
-
-    function onPointerDown(event: PointerEvent) {
-      if (!bootReadyRef.current) {
-        event.preventDefault();
-        skipBoot();
-        return;
-      }
-
-      if (isInteractiveTarget(event.target)) {
-        return;
-      }
-
-      focusInput();
-    }
-
-    function onKeyDown(event: KeyboardEvent) {
-      if (!bootReadyRef.current) {
-        event.preventDefault();
-        skipBoot();
-        return;
-      }
-
-      const input = inputRef.current;
-      if (!input) {
-        return;
-      }
-
-      handleTerminalKeyDown(event, {
-        input,
-        isLoading: Boolean(isLoadingRef.current),
-        runTest: runTestRef.current,
+  useEffect(
+    () =>
+      bindTerminalListeners({
+        inputRef,
+        bootReadyRef,
+        isLoadingRef,
+        runTestRef,
+        skipBoot,
         setUrl,
-        focusInput,
-      });
-    }
-
-    document.addEventListener("pointerdown", onPointerDown, true);
-    document.addEventListener("keydown", onKeyDown, true);
-
-    return () => {
-      document.removeEventListener("pointerdown", onPointerDown, true);
-      document.removeEventListener("keydown", onKeyDown, true);
-    };
-  }, [bootReadyRef, inputRef, isLoadingRef, runTestRef, setUrl, skipBoot]);
+      }),
+    [bootReadyRef, inputRef, isLoadingRef, runTestRef, setUrl, skipBoot],
+  );
 }

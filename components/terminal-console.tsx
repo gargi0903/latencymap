@@ -1,6 +1,6 @@
 "use client";
 
-import type { FormEvent, ReactNode, RefObject } from "react";
+import type { ReactNode } from "react";
 import { CmdLabel } from "@/components/cmd-label";
 import type { TerminalConsoleProps } from "@/components/terminal-console-props";
 import { PROBE_COUNTRY_LIST } from "@/lib/probe-regions";
@@ -26,12 +26,7 @@ function PromptForm({
   url,
   setUrl,
   onSubmit,
-}: {
-  inputRef: RefObject<HTMLInputElement | null>;
-  url: string;
-  setUrl: (value: string) => void;
-  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
-}) {
+}: Pick<TerminalConsoleProps, "inputRef" | "url" | "setUrl" | "onSubmit">) {
   return (
     <form className="terminal__line terminal__line--prompt" onSubmit={onSubmit}>
       <label htmlFor="url" className="terminal__prefix">
@@ -52,44 +47,40 @@ function PromptForm({
   );
 }
 
-function ConsoleStatuses({ isLoading, error }: { isLoading: boolean; error: string | null }) {
+function ConsoleStatuses({ isLoading, error }: Pick<TerminalConsoleProps, "isLoading" | "error">) {
+  if (isLoading) {
+    return (
+      <p className="terminal__status terminal__log--muted" role="status">
+        <span className="terminal__arrow">→</span>
+        dispatching to {PROBE_COUNTRY_LIST}…
+      </p>
+    );
+  }
+
+  if (!error) {
+    return null;
+  }
+
   return (
-    <>
-      {isLoading ? (
-        <p className="terminal__status terminal__log--muted" role="status">
-          <span className="terminal__arrow">→</span>
-          dispatching to {PROBE_COUNTRY_LIST}…
-        </p>
-      ) : null}
-      {error ? (
-        <p className="terminal__status terminal__log--error" role="alert">
-          <span className="terminal__arrow">✕</span>
-          {error}
-        </p>
-      ) : null}
-    </>
+    <p className="terminal__status terminal__log--error" role="alert">
+      <span className="terminal__arrow">✕</span>
+      {error}
+    </p>
   );
 }
 
-export function TerminalConsole({
-  inputRef,
-  url,
-  setUrl,
-  onSubmit,
-  showBoot,
-  bootReady,
-  bootLines,
-  isLoading,
-  error,
-  hasResults,
-}: TerminalConsoleProps) {
+function Masthead({ visible }: { visible: boolean }) {
+  return visible ? <Wordmark /> : null;
+}
+
+export function TerminalConsole(props: TerminalConsoleProps) {
+  const { showBoot, bootReady, bootLines, hasResults, isLoading, error } = props;
+
   return (
     <div className="terminal__console">
-      {bootReady && !hasResults ? <Wordmark /> : null}
+      <Masthead visible={bootReady && !hasResults} />
       {showBoot ? <BootPanel bootLines={bootLines} /> : null}
-      {bootReady ? (
-        <PromptForm inputRef={inputRef} url={url} setUrl={setUrl} onSubmit={onSubmit} />
-      ) : null}
+      {bootReady ? <PromptForm {...props} /> : null}
       <ConsoleStatuses isLoading={isLoading} error={error} />
     </div>
   );

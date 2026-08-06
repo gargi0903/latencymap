@@ -18,7 +18,7 @@ const SECRET = configuredSecret;
 const resolvePublicHostname = withDnsCache(createNodeDnsResolver());
 const validatePublicUrl = (rawUrl: string) => validatePublicUrlWithDns(rawUrl, resolvePublicHostname);
 
-async function handleHealthz(response: ServerResponse) {
+function handleHealthz(response: ServerResponse) {
   sendJson(response, 200, {
     ok: true,
     region: REGION,
@@ -27,14 +27,18 @@ async function handleHealthz(response: ServerResponse) {
   });
 }
 
-async function handleProbe(request: IncomingMessage, response: ServerResponse) {
+async function authorizeProbe(request: IncomingMessage, response: ServerResponse) {
   const providedSecret = request.headers["x-probe-secret"];
   const secret = Array.isArray(providedSecret) ? providedSecret[0] : providedSecret ?? null;
-  if (!(await matchesProbeSecret(secret, SECRET))) {
-    sendJson(response, 401, { error: "Unauthorized." });
-    return;
+  if (await matchesProbeSecret(secret, SECRET)) {
+    return true;
   }
 
+  sendJson(response, 401, { error: "Unauthorized." });
+  return false;
+}
+
+async function runAuthorizedProbe(request: IncomingMessage, response: ServerResponse) {
   try {
     const body = JSON.parse(await readRequestBody(request)) as { url?: unknown };
     if (typeof body.url !== "string") {
@@ -58,18 +62,38 @@ async function handleProbe(request: IncomingMessage, response: ServerResponse) {
   }
 }
 
-const server = http.createServer(async (request, response) => {
-  if (request.method === "GET" && request.url === "/healthz") {
-    await handleHealthz(response);
+async function handleProbe(request: IncomingMessage, response: ServerResponse) {
+  if (!(await authorizeProbe(request, response))) {
     return;
   }
 
-  if (request.method === "POST" && request.url === "/probe") {
-    await handleProbe(request, response);
+  await runAuthorizedProbe(request, response);
+}
+
+function isHealthz(request: IncomingMessage) {
+  return request.method === "GET" && request.url === "/healthz";
+}
+
+function isProbeRoute(request: IncomingMessage) {
+  return request.method === "POST" && request.url === "/probe";
+}
+
+function routeRequest(request: IncomingMessage, response: ServerResponse) {
+  if (isHealthz(request)) {
+    handleHealthz(response);
+    return;
+  }
+
+  if (isProbeRoute(request)) {
+    void handleProbe(request, response);
     return;
   }
 
   sendJson(response, 404, { error: "Not found." });
+}
+
+const server = http.createServer((request, response) => {
+  routeRequest(request, response);
 });
 
 server.on("error", (error: NodeJS.ErrnoException) => {

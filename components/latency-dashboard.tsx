@@ -7,6 +7,15 @@ import { useTerminalInputCapture } from "@/components/use-terminal-input-capture
 import { sharePathForRun } from "@/lib/share-payload";
 import { useCopyShareLink } from "@/lib/use-copy-share-link";
 import { useLatencyTest } from "@/lib/use-latency-test";
+import type { TestRun } from "@/lib/types";
+
+function resolveSharePath(sharePath: string | null, run: TestRun | null) {
+  if (sharePath) {
+    return sharePath;
+  }
+
+  return run ? sharePathForRun(run) : null;
+}
 
 export function LatencyDashboard() {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -14,10 +23,11 @@ export function LatencyDashboard() {
   const isLoadingRef = useRef(false);
   const bootReadyRef = useRef(false);
   const { url, setUrl, run, sharePath, error, isLoading, onSubmit, runTest } = useLatencyTest();
-  const activeSharePath = sharePath ?? (run ? sharePathForRun(run) : null);
+  const activeSharePath = resolveSharePath(sharePath, run);
   const { copyState, copyShareLink } = useCopyShareLink(activeSharePath);
   const { showBoot, visibleBootLines, bootReady, skipBoot } = useTerminalBoot();
   const hasResults = Boolean(run && !isLoading);
+  const bootLines = showBoot ? renderBootLines(visibleBootLines) : null;
 
   useEffect(() => {
     runTestRef.current = runTest;
@@ -43,7 +53,7 @@ export function LatencyDashboard() {
       onSubmit={onSubmit}
       showBoot={showBoot}
       bootReady={bootReady}
-      bootLines={showBoot ? renderBootLines(visibleBootLines) : null}
+      bootLines={bootLines}
       isLoading={isLoading}
       error={error}
       hasResults={hasResults}

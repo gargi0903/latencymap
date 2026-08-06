@@ -20,6 +20,12 @@ type Props = {
   footer?: ReactNode;
 };
 
+function rowClassName(selected: boolean, failed: boolean) {
+  return ["terminal__table-row", selected ? "terminal__table-row--selected" : null, failed ? "terminal__table-row--failed" : null]
+    .filter(Boolean)
+    .join(" ");
+}
+
 function ProbeInspector({ result }: { result: ProbeResult }) {
   const failed = isProbeFailed(result);
   const latencyColor = latencyHexColor(result.totalMs, result.error);
@@ -56,6 +62,18 @@ function ProbeInspector({ result }: { result: ProbeResult }) {
   );
 }
 
+function ResultLatency({ result }: { result: ProbeResult }) {
+  const failed = isProbeFailed(result);
+  return (
+    <span
+      className={["terminal__ms", failed ? "terminal__ms--failed" : null].filter(Boolean).join(" ")}
+      style={failed ? undefined : { color: latencyHexColor(result.totalMs, result.error) }}
+    >
+      {failed ? formatProbeStatus(result) : formatLatency(result)}
+    </span>
+  );
+}
+
 function ResultRow({
   result,
   selected,
@@ -67,67 +85,84 @@ function ResultRow({
   index: number;
   onSelect: (region: string) => void;
 }) {
-  const failed = isProbeFailed(result);
-
   return (
     <li className="terminal__table-item">
       <button
         type="button"
-        className={[
-          "terminal__table-row",
-          selected ? "terminal__table-row--selected" : null,
-          failed ? "terminal__table-row--failed" : null,
-        ]
-          .filter(Boolean)
-          .join(" ")}
+        className={rowClassName(selected, isProbeFailed(result))}
         style={{ animationDelay: `${index * 45}ms` }}
         onClick={() => onSelect(result.region)}
       >
         <span className="terminal__region">{probeCountryName(result.region)}</span>
-        <span
-          className={["terminal__ms", failed ? "terminal__ms--failed" : null].filter(Boolean).join(" ")}
-          style={failed ? undefined : { color: latencyHexColor(result.totalMs, result.error) }}
-        >
-          {failed ? formatProbeStatus(result) : formatLatency(result)}
-        </span>
+        <ResultLatency result={result} />
       </button>
     </li>
   );
+}
+
+function ResultsBody({
+  orderedResults,
+  currentRegion,
+  selectedResult,
+  onSelect,
+}: {
+  orderedResults: ProbeResult[];
+  currentRegion: string | null;
+  selectedResult: ProbeResult | null;
+  onSelect: (region: string) => void;
+}) {
+  return (
+    <div className="terminal__results-body">
+      <h2 className="terminal__section-title">results</h2>
+      <ul className="terminal__table" aria-label="Latency by country">
+        {orderedResults.map((result, index) => (
+          <ResultRow
+            key={result.region}
+            result={result}
+            selected={currentRegion === result.region}
+            index={index}
+            onSelect={onSelect}
+          />
+        ))}
+      </ul>
+      {selectedResult ? <ProbeInspector result={selectedResult} /> : null}
+      <p className="terminal__log terminal__log--muted terminal__results-note">{latencyMeasurementNote()}</p>
+    </div>
+  );
+}
+
+function selectResult(orderedResults: ProbeResult[], currentRegion: string | null) {
+  return orderedResults.find((result) => result.region === currentRegion) ?? null;
+}
+
+function FooterLog({ footer }: { footer?: ReactNode }) {
+  if (!footer) {
+    return null;
+  }
+
+  return <p className="terminal__log terminal__log--footer">{footer}</p>;
 }
 
 export function ProbeResultsPanel({ results, regionCountLabel, footer }: Props) {
   const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
   const orderedResults = useMemo(() => sortResultsByRegionOrder(results), [results]);
   const currentRegion = selectedRegion ?? defaultSelectedRegion(results);
-  const selectedResult = orderedResults.find((result) => result.region === currentRegion) ?? null;
+  const selectedResult = selectResult(orderedResults, currentRegion);
+  const completeLabel = regionCountLabel ?? `${results.length} regions`;
 
   return (
     <>
       <p className="terminal__log terminal__log--complete" role="status">
         <span className="terminal__arrow">✓</span>
-        probe complete · {regionCountLabel ?? `${results.length} regions`}
+        probe complete · {completeLabel}
       </p>
-
-      <div className="terminal__results-body">
-        <h2 className="terminal__section-title">results</h2>
-        <ul className="terminal__table" aria-label="Latency by country">
-          {orderedResults.map((result, index) => (
-            <ResultRow
-              key={result.region}
-              result={result}
-              selected={currentRegion === result.region}
-              index={index}
-              onSelect={setSelectedRegion}
-            />
-          ))}
-        </ul>
-
-        {selectedResult ? <ProbeInspector result={selectedResult} /> : null}
-
-        <p className="terminal__log terminal__log--muted terminal__results-note">{latencyMeasurementNote()}</p>
-      </div>
-
-      {footer ? <p className="terminal__log terminal__log--footer">{footer}</p> : null}
+      <ResultsBody
+        orderedResults={orderedResults}
+        currentRegion={currentRegion}
+        selectedResult={selectedResult}
+        onSelect={setSelectedRegion}
+      />
+      <FooterLog footer={footer} />
     </>
   );
 }

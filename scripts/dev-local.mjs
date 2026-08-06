@@ -39,10 +39,16 @@ const children = [probe, app];
 
 let shuttingDown = false;
 
-function stopChildren(signal = "SIGTERM") {
-  for (const child of children) {
-    if (!child.killed) {
-      child.kill(signal);
+function stopChild(child, signal = "SIGTERM") {
+  if (!child.killed) {
+    child.kill(signal);
+  }
+}
+
+function stopOtherChildren(child, signal = "SIGTERM") {
+  for (const other of children) {
+    if (other !== child) {
+      stopChild(other, signal);
     }
   }
 }
@@ -72,9 +78,7 @@ app.on("exit", (code, signal) => {
     return;
   }
 
-  if (!probe.killed) {
-    probe.kill(signal || "SIGTERM");
-  }
+  stopChild(probe, signal || "SIGTERM");
 });
 
 for (const child of children) {
@@ -83,17 +87,15 @@ for (const child of children) {
       return;
     }
 
-    for (const other of children) {
-      if (other !== child && !other.killed) {
-        other.kill("SIGTERM");
-      }
-    }
+    stopOtherChildren(child);
   });
 }
 
 for (const signal of ["SIGINT", "SIGTERM"]) {
   process.on(signal, () => {
     shuttingDown = true;
-    stopChildren(signal);
+    for (const child of children) {
+      stopChild(child, signal);
+    }
   });
 }
