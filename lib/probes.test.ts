@@ -178,7 +178,7 @@ describe("runRegionalTest production mode", () => {
   });
 });
 
-describe("runRegionalTest local mode", () => {
+describe("runRegionalTest local probe calls", () => {
   it("calls the local probe directly in development", async () => {
     process.env.NODE_ENV = "development";
     delete process.env.PROBE_WORKERS_SUBDOMAIN;
@@ -210,7 +210,9 @@ describe("runRegionalTest local mode", () => {
       }),
     ]);
   });
+});
 
+describe("runRegionalTest local mode failures", () => {
   it("requires workers subdomain in production", async () => {
     process.env.NODE_ENV = "production";
     delete process.env.PROBE_WORKERS_SUBDOMAIN;

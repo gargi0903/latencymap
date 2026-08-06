@@ -3,13 +3,13 @@ import type { UrlValidationResult } from "@/lib/probe-url-safety";
 import { parsePublicHttpUrl, stripIpv6Brackets } from "@/lib/probe-url-safety";
 
 export { PROBE_FETCH_TIMEOUT_MS };
-export const PROBE_FETCH_MAX_REDIRECTS = 3;
+const PROBE_FETCH_MAX_REDIRECTS = 3;
 export const PROBE_FETCH_WARMUP_COUNT = 3;
 export const PROBE_FETCH_MEASURE_SAMPLE_COUNT = 3;
 export const PROBE_FETCH_MIN_SUCCESSFUL_SAMPLES = 3;
 export const PROBE_FETCH_PASS_TIMEOUT_MS = 4_000;
 /** Round reported latency to reduce jitter from sub-10ms noise. */
-export const LATENCY_ROUNDING_MS = 10;
+const LATENCY_ROUNDING_MS = 10;
 
 export type ProbeFetchResult = {
   totalMs: number | null;
@@ -42,6 +42,90 @@ function bindFetch(fetchImpl?: typeof fetch) {
   return fetchImpl ?? ((input: RequestInfo | URL, init?: RequestInit) => fetch(input, init));
 }
 
+type PassTiming = {
+  fetchImpl: typeof fetch;
+  userAgent: string;
+  remainingMs: () => number;
+  passTimeoutMs: () => number;
+};
+
+async function resolveMeasureUrl(
+  targetUrl: string,
+  validateUrl: ValidateUrl,
+  timing: PassTiming,
+): Promise<ProbeFetchResult | { ok: true; measureUrl: string; validateCachedUrl: ValidateUrl }> {
+  const initialValidation = await validateUrl(targetUrl);
+  if (!initialValidation.ok) {
+    return failureResult(initialValidation.error);
+  }
+
+  if (timing.remainingMs() < 500) {
+    return failureResult("Request timed out.");
+  }
+
+  const validateCachedUrl = createMeasurementUrlValidator(validateUrl);
+  const resolved = await runProbePass(targetUrl, validateCachedUrl, {
+    fetchImpl: timing.fetchImpl,
+    userAgent: timing.userAgent,
+    timeoutMs: timing.passTimeoutMs(),
+    measure: false,
+  });
+
+  if (!resolved.ok) {
+    return failureResult(resolved.error, resolved.statusCode);
+  }
+
+  return { ok: true, measureUrl: resolved.resolvedUrl, validateCachedUrl };
+}
+
+async function collectLatencySamples(
+  measureUrl: string,
+  validateCachedUrl: ValidateUrl,
+  timing: PassTiming,
+): Promise<{ samples: number[]; lastStatusCode: number | null; lastError: string | null }> {
+  await runWarmupPasses(PROBE_FETCH_WARMUP_COUNT, async () => {
+    if (timing.remainingMs() < 500) {
+      return false;
+    }
+
+    await runProbePass(measureUrl, validateCachedUrl, {
+      fetchImpl: timing.fetchImpl,
+      userAgent: timing.userAgent,
+      timeoutMs: timing.passTimeoutMs(),
+      measure: false,
+    }).catch(() => undefined);
+    return true;
+  });
+
+  const samples: number[] = [];
+  let lastStatusCode: number | null = null;
+  let lastError: string | null = null;
+
+  await runMeasurePasses(PROBE_FETCH_MEASURE_SAMPLE_COUNT, async () => {
+    if (timing.remainingMs() < timing.passTimeoutMs()) {
+      return false;
+    }
+
+    const result = await runProbePass(measureUrl, validateCachedUrl, {
+      fetchImpl: timing.fetchImpl,
+      userAgent: timing.userAgent,
+      timeoutMs: timing.passTimeoutMs(),
+      measure: true,
+    });
+
+    if (!result.ok || result.totalMs === null) {
+      lastError = result.ok ? "Request failed." : result.error;
+      return true;
+    }
+
+    samples.push(result.totalMs);
+    lastStatusCode = result.statusCode;
+    return true;
+  });
+
+  return { samples, lastStatusCode, lastError };
+}
+
 export async function runProbeMeasurement(
   targetUrl: string,
   validateUrl: ValidateUrl,
@@ -52,92 +136,138 @@ export async function runProbeMeasurement(
   const remainingMs = () => Math.max(0, deadlineAt - performance.now());
   const passTimeoutMs = () =>
     Math.max(250, Math.min(PROBE_FETCH_PASS_TIMEOUT_MS, remainingMs() - 250));
+  const timing = { fetchImpl, userAgent: options.userAgent, remainingMs, passTimeoutMs };
 
-  const initialValidation = await validateUrl(targetUrl);
-  if (!initialValidation.ok) {
-    return failureResult(initialValidation.error);
+  const resolved = await resolveMeasureUrl(targetUrl, validateUrl, timing);
+  if (!("measureUrl" in resolved)) {
+    return resolved;
   }
 
-  if (remainingMs() < 500) {
-    return failureResult("Request timed out.");
-  }
-
-  const validateCachedUrl = createMeasurementUrlValidator(validateUrl);
-  const resolved = await runProbePass(targetUrl, validateCachedUrl, {
-    fetchImpl,
-    userAgent: options.userAgent,
-    timeoutMs: passTimeoutMs(),
-    measure: false,
-  });
-
-  if (!resolved.ok) {
-    return failureResult(resolved.error, resolved.statusCode);
-  }
-
-  const measureUrl = resolved.resolvedUrl;
-
-  for (let warmup = 0; warmup < PROBE_FETCH_WARMUP_COUNT; warmup += 1) {
-    if (remainingMs() < 500) {
-      break;
-    }
-
-    await runProbePass(measureUrl, validateCachedUrl, {
-      fetchImpl,
-      userAgent: options.userAgent,
-      timeoutMs: passTimeoutMs(),
-      measure: false,
-    }).catch(() => undefined);
-  }
-
-  const samples: number[] = [];
-  let lastSuccess: Extract<ProbePassResult, { ok: true }> | null = null;
-  let lastError: string | null = null;
-
-  for (let sample = 0; sample < PROBE_FETCH_MEASURE_SAMPLE_COUNT; sample += 1) {
-    if (remainingMs() < passTimeoutMs()) {
-      break;
-    }
-
-    const result = await runProbePass(measureUrl, validateCachedUrl, {
-      fetchImpl,
-      userAgent: options.userAgent,
-      timeoutMs: passTimeoutMs(),
-      measure: true,
-    });
-
-    if (!result.ok || result.totalMs === null) {
-      lastError = result.ok ? "Request failed." : result.error;
-      continue;
-    }
-
-    samples.push(result.totalMs);
-    lastSuccess = result;
-  }
+  const { samples, lastStatusCode, lastError } = await collectLatencySamples(
+    resolved.measureUrl,
+    resolved.validateCachedUrl,
+    timing,
+  );
 
   if (samples.length < PROBE_FETCH_MIN_SUCCESSFUL_SAMPLES) {
     return {
       totalMs: null,
-      statusCode: lastSuccess?.statusCode ?? null,
+      statusCode: lastStatusCode,
       error: lastError ?? "Request timed out.",
     };
   }
 
   return {
     totalMs: aggregateLatencySamples(samples),
-    statusCode: lastSuccess!.statusCode,
+    statusCode: lastStatusCode,
     error: null,
   };
+}
+
+/** Sequential pass runner — warmups/samples must not overlap or timings change. */
+async function runWarmupPasses(
+  remaining: number,
+  runPass: () => Promise<boolean>,
+): Promise<void> {
+  if (remaining <= 0) {
+    return;
+  }
+
+  const shouldContinue = await runPass();
+  if (!shouldContinue) {
+    return;
+  }
+
+  await runWarmupPasses(remaining - 1, runPass);
+}
+
+async function runMeasurePasses(
+  remaining: number,
+  runPass: () => Promise<boolean>,
+): Promise<void> {
+  if (remaining <= 0) {
+    return;
+  }
+
+  const shouldContinue = await runPass();
+  if (!shouldContinue) {
+    return;
+  }
+
+  await runMeasurePasses(remaining - 1, runPass);
+}
+
+function probeFetchErrorMessage(error: unknown): string {
+  if (error instanceof Error && error.name === "AbortError") {
+    return "Request timed out.";
+  }
+
+  if (error instanceof Error && error.message) {
+    return `Request failed: ${error.message}`;
+  }
+
+  return "Request failed.";
+}
+
+type ProbePassOptions = {
+  fetchImpl: typeof fetch;
+  userAgent: string;
+  timeoutMs: number;
+  measure: boolean;
+};
+
+async function followRedirectOrFinish(
+  response: Response,
+  validationUrl: string,
+  redirects: number,
+  options: ProbePassOptions,
+  measuredStarted: number | null,
+): Promise<{ kind: "redirect"; url: string } | { kind: "result"; result: ProbePassResult }> {
+  if (!isRedirect(response.status)) {
+    const totalMs =
+      options.measure && measuredStarted !== null ? Math.round(performance.now() - measuredStarted) : null;
+    await releaseProbeResponse(response);
+    return {
+      kind: "result",
+      result: {
+        ok: true,
+        resolvedUrl: validationUrl,
+        totalMs,
+        statusCode: response.status,
+      },
+    };
+  }
+
+  const location = response.headers.get("location");
+  if (!location) {
+    await releaseProbeResponse(response);
+    return {
+      kind: "result",
+      result: passError(
+        options.measure,
+        measuredStarted,
+        response.status,
+        "Redirect response did not include a location header.",
+      ),
+    };
+  }
+
+  if (redirects === PROBE_FETCH_MAX_REDIRECTS) {
+    await releaseProbeResponse(response);
+    return {
+      kind: "result",
+      result: passError(options.measure, measuredStarted, response.status, "Too many redirects."),
+    };
+  }
+
+  await releaseProbeResponse(response);
+  return { kind: "redirect", url: new URL(location, validationUrl).toString() };
 }
 
 async function runProbePass(
   targetUrl: string,
   validateUrl: ValidateUrl,
-  options: {
-    fetchImpl: typeof fetch;
-    userAgent: string;
-    timeoutMs: number;
-    measure: boolean;
-  },
+  options: ProbePassOptions,
 ): Promise<ProbePassResult> {
   let currentUrl = targetUrl;
   let measuredStarted: number | null = null;
@@ -165,42 +295,21 @@ async function runProbePass(
         headers: probeFetchHeaders(options.userAgent),
       });
 
-      if (isRedirect(response.status)) {
-        const location = response.headers.get("location");
-        if (!location) {
-          await releaseProbeResponse(response);
-          return passError(options.measure, measuredStarted, response.status, "Redirect response did not include a location header.");
-        }
-
-        if (redirects === PROBE_FETCH_MAX_REDIRECTS) {
-          await releaseProbeResponse(response);
-          return passError(options.measure, measuredStarted, response.status, "Too many redirects.");
-        }
-
-        await releaseProbeResponse(response);
-        currentUrl = new URL(location, validation.url).toString();
+      const outcome = await followRedirectOrFinish(
+        response,
+        validation.url,
+        redirects,
+        options,
+        measuredStarted,
+      );
+      if (outcome.kind === "redirect") {
+        currentUrl = outcome.url;
         continue;
       }
 
-      const totalMs =
-        options.measure && measuredStarted !== null ? Math.round(performance.now() - measuredStarted) : null;
-
-      await releaseProbeResponse(response);
-
-      return {
-        ok: true,
-        resolvedUrl: validation.url,
-        totalMs,
-        statusCode: response.status,
-      };
+      return outcome.result;
     } catch (error) {
-      const message =
-        error instanceof Error && error.name === "AbortError"
-          ? "Request timed out."
-          : error instanceof Error && error.message
-            ? `Request failed: ${error.message}`
-            : "Request failed.";
-      return { ok: false, error: message, statusCode: null, totalMs: null };
+      return { ok: false, error: probeFetchErrorMessage(error), statusCode: null, totalMs: null };
     } finally {
       clearTimeout(timeout);
     }

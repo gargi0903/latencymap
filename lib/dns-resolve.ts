@@ -79,5 +79,11 @@ async function queryDohRecords(hostname: string, type: number, fetchImpl: typeof
     return [];
   }
 
-  return payload.Answer.filter((record) => record.type === type).map((record) => record.data);
+  const addresses: string[] = [];
+  for (const record of payload.Answer) {
+    if (record.type === type) {
+      addresses.push(record.data);
+    }
+  }
+  return addresses;
 }

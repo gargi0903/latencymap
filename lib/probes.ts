@@ -1,6 +1,7 @@
 import { PROBE_CLIENT_TIMEOUT_MS } from "@/lib/constants";
+import { formatProbeFetchError } from "@/lib/probe-client-errors";
 import { buildProbeResult, mapProbeWireResponse } from "@/lib/probe-response";
-import { getLocalProbeEndpoint, getProbeRegions, isProductionProbeMode } from "@/lib/probe-regions";
+import { getProbeRegions, isProductionProbeMode } from "@/lib/probe-regions";
 import type { ProbeConfig, ProbeResult } from "@/lib/types";
 
 export class ProbeConfigurationError extends Error {
@@ -9,6 +10,8 @@ export class ProbeConfigurationError extends Error {
     this.name = "ProbeConfigurationError";
   }
 }
+
+export { formatProbeFetchError } from "@/lib/probe-client-errors";
 
 export async function runRegionalTest(url: string): Promise<ProbeResult[]> {
   const probes = getProbeRegions();
@@ -73,33 +76,4 @@ async function callRemoteProbe(probe: ProbeConfig, url: string, probeSecret: str
   } finally {
     clearTimeout(timeout);
   }
-}
-
-export function formatProbeFetchError(error: unknown, probe: ProbeConfig): string {
-  if (error instanceof Error && error.name === "AbortError") {
-    return "Probe timed out.";
-  }
-
-  if (isConnectionRefusedError(error)) {
-    if (process.env.NODE_ENV === "production") {
-      return `Probe unreachable at ${probe.endpoint}. Check regional probe deployment and PROBE_WORKERS_SUBDOMAIN.`;
-    }
-
-    return `Probe unreachable at ${probe.endpoint ?? getLocalProbeEndpoint()}. Start the local probe with npm run probe:dev or use npm run dev:local.`;
-  }
-
-  return "Probe failed.";
-}
-
-function isConnectionRefusedError(error: unknown): boolean {
-  if (!error || typeof error !== "object") {
-    return false;
-  }
-
-  const code = "code" in error ? error.code : "cause" in error ? getErrorCode(error.cause) : null;
-  return code === "ECONNREFUSED" || code === "ENOTFOUND";
-}
-
-function getErrorCode(value: unknown): unknown {
-  return value && typeof value === "object" && "code" in value ? value.code : null;
 }

@@ -37,7 +37,7 @@ const sampleRun: TestRun = {
   ],
 };
 
-describe("share payload", () => {
+describe("share payload encoding", () => {
   it("round-trips a test run through base64url encoding", () => {
     const token = encodeSharePayload(sampleRun);
     const decoded = decodeSharePayload(token);
@@ -80,7 +80,9 @@ describe("share payload", () => {
     expect(decoded?.results[0]?.totalMs).toBe(142);
     expect(decoded?.results[0]?.ttfbMs).toBe(142);
   });
+});
 
+describe("share payload paths", () => {
   it("builds a share path from a run", () => {
     const path = sharePathForRun({ ...sampleRun, id: "cached-token" });
     expect(path).toBe("/r/cached-token");

@@ -31,7 +31,7 @@ describe("isBlockedIp", () => {
   });
 });
 
-describe("normalizeAndValidatePublicUrl", () => {
+describe("normalizeAndValidatePublicUrl rejections", () => {
   beforeEach(() => {
     clearDnsCacheForTests();
     vi.mocked(dns.lookup).mockClear();
@@ -74,6 +74,14 @@ describe("normalizeAndValidatePublicUrl", () => {
       ok: false,
       error: "This hostname resolves to a private or internal IP address.",
     });
+  });
+});
+
+describe("normalizeAndValidatePublicUrl normalization and DNS cache", () => {
+  beforeEach(() => {
+    clearDnsCacheForTests();
+    vi.mocked(dns.lookup).mockClear();
+    vi.mocked(dns.lookup).mockResolvedValue(publicIpv4);
   });
 
   it("normalizes scheme, host, default ports, fragments, and root slash", async () => {

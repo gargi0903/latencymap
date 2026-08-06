@@ -1,4 +1,5 @@
 import type { DnsResolver } from "@/lib/dns-resolve";
+import { normalizeHttpUrl, validateHttpUrlParts } from "@/lib/http-url";
 import { isBlockedIp, isIpv4Literal } from "@/lib/ip-blocklist";
 
 const BLOCKED_HOSTNAMES = new Set(["localhost", "ip6-localhost", "ip6-loopback"]);
@@ -11,7 +12,7 @@ export function stripIpv6Brackets(hostname: string) {
   return hostname.startsWith("[") && hostname.endsWith("]") ? hostname.slice(1, -1) : hostname;
 }
 
-export function isBlockedHostname(hostname: string) {
+function isBlockedHostname(hostname: string) {
   return (
     BLOCKED_HOSTNAMES.has(hostname) ||
     hostname.endsWith(".localhost") ||
@@ -20,24 +21,8 @@ export function isBlockedHostname(hostname: string) {
   );
 }
 
-export function isLikelyIpv6Address(value: string) {
+function isLikelyIpv6Address(value: string) {
   return value.includes(":");
-}
-
-export function normalizeHttpUrl(url: URL) {
-  url.hash = "";
-  url.protocol = url.protocol.toLowerCase();
-  url.hostname = url.hostname.toLowerCase();
-
-  if ((url.protocol === "https:" && url.port === "443") || (url.protocol === "http:" && url.port === "80")) {
-    url.port = "";
-  }
-
-  if (url.pathname === "/") {
-    url.pathname = "";
-  }
-
-  return url;
 }
 
 export function parsePublicHttpUrl(rawUrl: string): ParsedPublicUrlResult {
@@ -48,16 +33,9 @@ export function parsePublicHttpUrl(rawUrl: string): ParsedPublicUrlResult {
     return { ok: false, error: "Enter a valid absolute URL." };
   }
 
-  if (url.protocol !== "http:" && url.protocol !== "https:") {
-    return { ok: false, error: "Only HTTP and HTTPS URLs are allowed." };
-  }
-
-  if (!url.hostname) {
-    return { ok: false, error: "URL must include a hostname." };
-  }
-
-  if (url.username || url.password) {
-    return { ok: false, error: "URLs with embedded credentials are not allowed." };
+  const parts = validateHttpUrlParts(url);
+  if (!parts.ok) {
+    return parts;
   }
 
   normalizeHttpUrl(url);
