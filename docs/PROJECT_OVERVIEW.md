@@ -343,7 +343,7 @@ Applied on **both** the central API (`lib/url-safety.ts`) and probes (`lib/probe
 | Variable | Where | Required | Purpose |
 | --- | --- | --- | --- |
 | `PROBE_WORKERS_SUBDOMAIN` | Vercel | Yes (prod) | Workers subdomain, e.g. `acme.workers.dev` |
-| `PROBE_SECRET` | Vercel + all Workers | Yes | Shared probe authentication |
+| `PROBE_SECRET` | Vercel + all Workers + local probe | Yes | Shared probe authentication |
 | `LOCAL_PROBE_ENDPOINT` | Local | No | Override local probe URL |
 | `PROBE_HOST`, `PROBE_PORT` | Local | No | Local probe bind (default `127.0.0.1:8787`) |
 | `PROBE_REGION` | Local probe | No | Region label for local probe |
