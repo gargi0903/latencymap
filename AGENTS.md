@@ -126,7 +126,7 @@ each test run: max 5 probe requests
 
 ## URL Normalization
 
-History should group by normalized full URL.
+History (if added later) should group by normalized full URL.
 
 - Lowercase scheme and host.
 - Remove URL fragments.

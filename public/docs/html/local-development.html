@@ -56,12 +56,13 @@
             <p>
               Think of this as a handshake between the website and the probes. The website says
               “I am allowed to run tests” by sending a password. Probes ignore strangers without the
-              password. On your laptop you pick any non-empty password and put it in the config file.
+              password.               On your laptop you pick any non-empty password and put it in the config file.
               In production the same password must be configured on the hosting platform and on every
               probe.
             </p>
             <p>
-              Automated tests also need this password set, or they cannot simulate probe calls.
+              Unit tests set this password themselves when they simulate probe calls — you do not
+              need a local config file just to run <code>npm test</code>.
             </p>
           </div>
         </section>

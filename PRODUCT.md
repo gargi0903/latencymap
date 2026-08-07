@@ -78,7 +78,7 @@ User-provided URL fetching must remain abuse-resistant:
 
 Recommended anonymous rate limit is 10 test runs per hour per IP, with each test run calling at most 5 probes.
 
-History groups by normalized full URL: lowercase scheme and host, remove fragments, preserve path and query string, remove default ports, and only remove the trailing slash for the root path. Different paths or query strings are different URLs.
+Share links store the normalized full URL inside the encoded payload. Normalization rules: lowercase scheme and host, remove fragments, preserve path and query string, remove default ports, and only remove the trailing slash for the root path. Different paths or query strings are different URLs.
 
 The UI presents a terminal-style regional results table with a selected-row inspector. Failed probes must be visually distinct from slow probes. The latency color contract is green for `<150 ms`, yellow for `150-300 ms`, red for `>300 ms`, and gray for failed.
 

@@ -149,8 +149,9 @@ MVP timing data:
 - `total_ms` (aggregated from 3 timed samples; slowest dropped; rounded to 10 ms)
 - `status_code`
 - `error`
-- `tested_at`
 - `cloudflare_colo`, `placement_region`
+
+The central API adds `testedAt` (and human `label`) when it maps probe responses into `ProbeResult`.
 
 Skip for MVP:
 - DNS timing

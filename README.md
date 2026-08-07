@@ -57,7 +57,7 @@ Latency colors: green `<150 ms`, yellow `150–300 ms`, red `>300 ms`, gray = fa
 
 ```bash
 npm install
-cp .env.example .env.local   # optional for local probe auth
+cp .env.example .env.local   # set PROBE_SECRET (required for local probe)
 npm run dev:local
 ```
 
