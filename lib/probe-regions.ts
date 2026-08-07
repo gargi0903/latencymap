@@ -4,8 +4,6 @@ type ProbeRegionDefinition = {
   id: string;
   label: string;
   country: string;
-  lat: number;
-  lng: number;
 };
 
 const PROBE_REGIONS = [
@@ -13,36 +11,26 @@ const PROBE_REGIONS = [
     id: "iad",
     label: "US East (Ashburn)",
     country: "United States",
-    lat: 39.0438,
-    lng: -77.4874,
   },
   {
     id: "lhr",
     label: "Europe West (London)",
     country: "United Kingdom",
-    lat: 51.5072,
-    lng: -0.1276,
   },
   {
     id: "sin",
     label: "Asia Southeast (Singapore)",
     country: "Singapore",
-    lat: 1.3521,
-    lng: 103.8198,
   },
   {
     id: "syd",
     label: "Australia East (Sydney)",
     country: "Australia",
-    lat: -33.8688,
-    lng: 151.2093,
   },
   {
     id: "gru",
     label: "South America (Sao Paulo)",
     country: "Brazil",
-    lat: -23.5558,
-    lng: -46.6396,
   },
 ] as const satisfies readonly ProbeRegionDefinition[];
 
@@ -52,8 +40,6 @@ const LOCAL_PROBE_REGION = {
   id: "local",
   label: "Local development",
   country: "Local",
-  lat: 0,
-  lng: 0,
 } as const;
 
 const PROBE_COUNTRIES = PROBE_REGIONS.map((region) => region.country);
@@ -73,15 +59,6 @@ export function probeCountryName(regionId: string) {
   return regionId;
 }
 
-function toProbeConfig(region: ProbeRegionDefinition): ProbeConfig {
-  return {
-    id: region.id,
-    label: region.label,
-    lat: region.lat,
-    lng: region.lng,
-  };
-}
-
 function getProductionProbeEndpoint(regionId: string): string {
   const subdomain = process.env.PROBE_WORKERS_SUBDOMAIN?.trim();
   if (!subdomain) {
@@ -93,7 +70,8 @@ function getProductionProbeEndpoint(regionId: string): string {
 
 function getProductionProbeRegions(): ProbeConfig[] {
   return PROBE_REGIONS.map((region) => ({
-    ...toProbeConfig(region),
+    id: region.id,
+    label: region.label,
     endpoint: getProductionProbeEndpoint(region.id),
   }));
 }
@@ -113,8 +91,6 @@ function getLocalProbeRegion(endpoint = getLocalProbeEndpoint()): ProbeConfig {
   return {
     id: LOCAL_PROBE_REGION.id,
     label: LOCAL_PROBE_REGION.label,
-    lat: LOCAL_PROBE_REGION.lat,
-    lng: LOCAL_PROBE_REGION.lng,
     endpoint,
   };
 }

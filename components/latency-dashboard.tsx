@@ -1,21 +1,13 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { TerminalDashboardView } from "@/components/terminal-dashboard-view";
+import { ProbeResultsPanel } from "@/components/probe-results-panel";
+import { TerminalConsole } from "@/components/terminal-console";
 import { renderBootLines, useTerminalBoot } from "@/components/use-terminal-boot";
 import { useTerminalInputCapture } from "@/components/use-terminal-input-capture";
 import { sharePathForRun } from "@/lib/share-payload";
 import { useCopyShareLink } from "@/lib/use-copy-share-link";
 import { useLatencyTest } from "@/lib/use-latency-test";
-import type { TestRun } from "@/lib/types";
-
-function resolveSharePath(sharePath: string | null, run: TestRun | null) {
-  if (sharePath) {
-    return sharePath;
-  }
-
-  return run ? sharePathForRun(run) : null;
-}
 
 export function LatencyDashboard() {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -23,7 +15,7 @@ export function LatencyDashboard() {
   const isLoadingRef = useRef(false);
   const bootReadyRef = useRef(false);
   const { url, setUrl, run, sharePath, error, isLoading, onSubmit, runTest } = useLatencyTest();
-  const activeSharePath = resolveSharePath(sharePath, run);
+  const activeSharePath = sharePath ?? (run ? sharePathForRun(run) : null);
   const { copyState, copyShareLink } = useCopyShareLink(activeSharePath);
   const { showBoot, visibleBootLines, bootReady, skipBoot } = useTerminalBoot();
   const hasResults = Boolean(run && !isLoading);
@@ -46,21 +38,46 @@ export function LatencyDashboard() {
   });
 
   return (
-    <TerminalDashboardView
-      inputRef={inputRef}
-      url={url}
-      setUrl={setUrl}
-      onSubmit={onSubmit}
-      showBoot={showBoot}
-      bootReady={bootReady}
-      bootLines={bootLines}
-      isLoading={isLoading}
-      error={error}
-      hasResults={hasResults}
-      run={run}
-      activeSharePath={activeSharePath}
-      copyState={copyState}
-      copyShareLink={copyShareLink}
-    />
+    <main className="terminal">
+      <section
+        className={["terminal__session", hasResults ? "terminal__session--results" : null]
+          .filter(Boolean)
+          .join(" ")}
+        aria-label="Latency probe terminal"
+      >
+        <TerminalConsole
+          inputRef={inputRef}
+          url={url}
+          setUrl={setUrl}
+          onSubmit={onSubmit}
+          showBoot={showBoot}
+          bootReady={bootReady}
+          bootLines={bootLines}
+          isLoading={isLoading}
+          error={error}
+          hasResults={hasResults}
+        />
+        {hasResults && run ? (
+          <div className="terminal__workspace">
+            <ProbeResultsPanel
+              key={run.id}
+              results={run.results}
+              footer={
+                activeSharePath ? (
+                  <button
+                    type="button"
+                    className="terminal__link"
+                    title="Copy permanent share link"
+                    onClick={copyShareLink}
+                  >
+                    {copyState === "copied" ? "copied" : "share"}
+                  </button>
+                ) : null
+              }
+            />
+          </div>
+        ) : null}
+      </section>
+    </main>
   );
 }

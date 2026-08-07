@@ -2,7 +2,6 @@ import { PROBE_FETCH_TIMEOUT_MS } from "@/lib/constants";
 import type { UrlValidationResult } from "@/lib/probe-url-safety";
 import { parsePublicHttpUrl, stripIpv6Brackets } from "@/lib/probe-url-safety";
 
-export { PROBE_FETCH_TIMEOUT_MS };
 const PROBE_FETCH_MAX_REDIRECTS = 3;
 export const PROBE_FETCH_WARMUP_COUNT = 3;
 export const PROBE_FETCH_MEASURE_SAMPLE_COUNT = 3;
@@ -83,7 +82,7 @@ async function collectLatencySamples(
   validateCachedUrl: ValidateUrl,
   timing: PassTiming,
 ): Promise<{ samples: number[]; lastStatusCode: number | null; lastError: string | null }> {
-  await runWarmupPasses(PROBE_FETCH_WARMUP_COUNT, async () => {
+  await runSequentialPasses(PROBE_FETCH_WARMUP_COUNT, async () => {
     if (timing.remainingMs() < 500) {
       return false;
     }
@@ -101,7 +100,7 @@ async function collectLatencySamples(
   let lastStatusCode: number | null = null;
   let lastError: string | null = null;
 
-  await runMeasurePasses(PROBE_FETCH_MEASURE_SAMPLE_COUNT, async () => {
+  await runSequentialPasses(PROBE_FETCH_MEASURE_SAMPLE_COUNT, async () => {
     if (timing.remainingMs() < timing.passTimeoutMs()) {
       return false;
     }
@@ -165,7 +164,7 @@ export async function runProbeMeasurement(
 }
 
 /** Sequential pass runner — warmups/samples must not overlap or timings change. */
-async function runWarmupPasses(
+async function runSequentialPasses(
   remaining: number,
   runPass: () => Promise<boolean>,
 ): Promise<void> {
@@ -178,23 +177,7 @@ async function runWarmupPasses(
     return;
   }
 
-  await runWarmupPasses(remaining - 1, runPass);
-}
-
-async function runMeasurePasses(
-  remaining: number,
-  runPass: () => Promise<boolean>,
-): Promise<void> {
-  if (remaining <= 0) {
-    return;
-  }
-
-  const shouldContinue = await runPass();
-  if (!shouldContinue) {
-    return;
-  }
-
-  await runMeasurePasses(remaining - 1, runPass);
+  await runSequentialPasses(remaining - 1, runPass);
 }
 
 function probeFetchErrorMessage(error: unknown): string {

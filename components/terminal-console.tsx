@@ -1,25 +1,21 @@
 "use client";
 
-import type { ReactNode } from "react";
+import type { FormEvent, ReactNode, RefObject } from "react";
 import { CmdLabel } from "@/components/cmd-label";
-import type { TerminalConsoleProps } from "@/components/terminal-console-props";
 import { PROBE_COUNTRY_LIST } from "@/lib/probe-regions";
 
-function Wordmark() {
-  return (
-    <p className="terminal__boot-line terminal__boot-line--brand terminal__masthead">
-      <CmdLabel />
-    </p>
-  );
-}
-
-function BootPanel({ bootLines }: { bootLines: ReactNode[] | null }) {
-  return (
-    <div className="terminal__boot" aria-live="polite">
-      {bootLines}
-    </div>
-  );
-}
+export type TerminalConsoleProps = {
+  inputRef: RefObject<HTMLInputElement | null>;
+  url: string;
+  setUrl: (value: string) => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  showBoot: boolean;
+  bootReady: boolean;
+  bootLines: ReactNode[] | null;
+  isLoading: boolean;
+  error: string | null;
+  hasResults: boolean;
+};
 
 function PromptForm({
   inputRef,
@@ -69,17 +65,21 @@ function ConsoleStatuses({ isLoading, error }: Pick<TerminalConsoleProps, "isLoa
   );
 }
 
-function Masthead({ visible }: { visible: boolean }) {
-  return visible ? <Wordmark /> : null;
-}
-
 export function TerminalConsole(props: TerminalConsoleProps) {
   const { showBoot, bootReady, bootLines, hasResults, isLoading, error } = props;
 
   return (
     <div className="terminal__console">
-      <Masthead visible={bootReady && !hasResults} />
-      {showBoot ? <BootPanel bootLines={bootLines} /> : null}
+      {bootReady && !hasResults ? (
+        <p className="terminal__boot-line terminal__boot-line--brand terminal__masthead">
+          <CmdLabel />
+        </p>
+      ) : null}
+      {showBoot ? (
+        <div className="terminal__boot" aria-live="polite">
+          {bootLines}
+        </div>
+      ) : null}
       {bootReady ? <PromptForm {...props} /> : null}
       <ConsoleStatuses isLoading={isLoading} error={error} />
     </div>

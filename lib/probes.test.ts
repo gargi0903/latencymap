@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { formatProbeFetchError } from "./probe-client-errors";
 import { getProbeRegions } from "./probe-regions";
-import { formatProbeFetchError, getProbeSecret, ProbeConfigurationError, runRegionalTest } from "./probes";
+import { getProbeSecret, ProbeConfigurationError, runRegionalTest } from "./probes";
 import type { ProbeConfig } from "./types";
 
 const originalNodeEnv = process.env.NODE_ENV;
@@ -11,8 +12,6 @@ const originalLocalProbeEndpoint = process.env.LOCAL_PROBE_ENDPOINT;
 const localProbe: ProbeConfig = {
   id: "local",
   label: "Local development",
-  lat: 0,
-  lng: 0,
   endpoint: "http://127.0.0.1:8787/probe",
 };
 
@@ -122,8 +121,6 @@ describe("getProbeRegions", () => {
       {
         id: "local",
         label: "Local development",
-        lat: 0,
-        lng: 0,
         endpoint: "http://127.0.0.1:8787/probe",
       },
     ]);
@@ -168,7 +165,6 @@ describe("runRegionalTest production mode", () => {
         expect.objectContaining({
           region: "iad",
           totalMs: 88,
-          ttfbMs: 88,
           statusCode: 200,
           cloudflareColo: "IAD",
           placementRegion: "aws:us-east-1",
@@ -205,7 +201,6 @@ describe("runRegionalTest local probe calls", () => {
       expect.objectContaining({
         region: "local",
         totalMs: 42,
-        ttfbMs: 42,
         statusCode: 200,
       }),
     ]);

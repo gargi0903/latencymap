@@ -5,9 +5,6 @@
   "functions": {
     "app/api/tests/route.ts": {
       "maxDuration": 30
-    },
-    "app/api/tests/[id]/route.ts": {
-      "maxDuration": 10
     }
   }
 }

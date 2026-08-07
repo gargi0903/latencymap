@@ -6,10 +6,7 @@ function result(region: string, totalMs: number | null): ProbeResult {
   return {
     region,
     label: region,
-    lat: 0,
-    lng: 0,
     totalMs,
-    ttfbMs: totalMs,
     statusCode: totalMs === null ? null : 200,
     error: totalMs === null ? "failed" : null,
     testedAt: "2026-01-01T00:00:00.000Z",
