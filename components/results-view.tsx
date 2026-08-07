@@ -37,27 +37,25 @@ export function ResultsView({ initialRun }: Props) {
       </div>
 
       <div className="terminal__workspace">
-        <div className="terminal__feed">
-          <ProbeResultsPanel
-            results={initialRun.results}
-            footer={
-              <>
-                <Link href="/" className="terminal__link">
-                  new test
-                </Link>
-                <span aria-hidden="true"> · </span>
-                <button
-                  type="button"
-                  className="terminal__link"
-                  title="Copy permanent share link"
-                  onClick={copyShareLink}
-                >
-                  {copyState === "copied" ? "copied" : "share"}
-                </button>
-              </>
-            }
-          />
-        </div>
+        <ProbeResultsPanel
+          results={initialRun.results}
+          footer={
+            <>
+              <Link href="/" className="terminal__link">
+                new test
+              </Link>
+              <span aria-hidden="true"> · </span>
+              <button
+                type="button"
+                className="terminal__link"
+                title="Copy permanent share link"
+                onClick={copyShareLink}
+              >
+                {copyState === "copied" ? "copied" : "share"}
+              </button>
+            </>
+          }
+        />
       </div>
     </section>
   );

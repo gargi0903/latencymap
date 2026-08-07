@@ -260,7 +260,8 @@
 
 .terminal__workspace {
   display: grid;
-  gap: 2rem;
+  gap: 1rem;
+  align-content: start;
   width: 100%;
   max-width: 42rem;
   margin-top: 0.5rem;
@@ -269,6 +270,11 @@
   border-top: 1px solid #1a1a1a;
   min-width: 0;
   animation: terminal-workspace-in 320ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.terminal__workspace > * {
+  min-width: 0;
+  max-width: 100%;
 }
 
 @keyframes terminal-workspace-in {
@@ -288,19 +294,6 @@
   .terminal__table-row {
     animation: none;
   }
-}
-
-.terminal__feed {
-  display: grid;
-  gap: 1rem;
-  align-content: start;
-  min-width: 0;
-  max-width: 100%;
-}
-
-.terminal__feed > * {
-  min-width: 0;
-  max-width: 100%;
 }
 
 .terminal__results-body {

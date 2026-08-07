@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import dns from "node:dns/promises";
-import { clearDnsCacheForTests, isBlockedIp, normalizeAndValidatePublicUrl } from "@/lib/url-safety";
+import { clearDnsCacheForTests } from "@/lib/dns-resolve";
+import { normalizeAndValidatePublicUrl } from "@/lib/url-safety";
 
 vi.mock("node:dns/promises", () => ({
   default: {
@@ -9,27 +10,6 @@ vi.mock("node:dns/promises", () => ({
 }));
 
 const publicIpv4 = [{ address: "93.184.216.34", family: 4 }];
-
-describe("isBlockedIp", () => {
-  it("blocks loopback and private IPv4 ranges", () => {
-    expect(isBlockedIp("127.0.0.1")).toBe(true);
-    expect(isBlockedIp("10.0.0.1")).toBe(true);
-    expect(isBlockedIp("172.16.0.1")).toBe(true);
-    expect(isBlockedIp("192.168.1.1")).toBe(true);
-    expect(isBlockedIp("169.254.169.254")).toBe(true);
-  });
-
-  it("allows public IPv4", () => {
-    expect(isBlockedIp("93.184.216.34")).toBe(false);
-    expect(isBlockedIp("8.8.8.8")).toBe(false);
-  });
-
-  it("blocks private IPv6 ranges", () => {
-    expect(isBlockedIp("::1")).toBe(true);
-    expect(isBlockedIp("fc00::1")).toBe(true);
-    expect(isBlockedIp("fe80::1")).toBe(true);
-  });
-});
 
 describe("normalizeAndValidatePublicUrl rejections", () => {
   beforeEach(() => {
@@ -90,7 +70,6 @@ describe("normalizeAndValidatePublicUrl normalization and DNS cache", () => {
     expect(result).toEqual({
       ok: true,
       url: "https://example.com/",
-      hostname: "example.com",
     });
   });
 
@@ -100,7 +79,6 @@ describe("normalizeAndValidatePublicUrl normalization and DNS cache", () => {
     expect(result).toEqual({
       ok: true,
       url: "https://example.com/users?limit=10",
-      hostname: "example.com",
     });
   });
 

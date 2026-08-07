@@ -17,22 +17,6 @@ export type TerminalConsoleProps = {
   hasResults: boolean;
 };
 
-function Wordmark() {
-  return (
-    <p className="terminal__boot-line terminal__boot-line--brand terminal__masthead">
-      <CmdLabel />
-    </p>
-  );
-}
-
-function BootPanel({ bootLines }: { bootLines: ReactNode[] | null }) {
-  return (
-    <div className="terminal__boot" aria-live="polite">
-      {bootLines}
-    </div>
-  );
-}
-
 function PromptForm({
   inputRef,
   url,
@@ -81,17 +65,21 @@ function ConsoleStatuses({ isLoading, error }: Pick<TerminalConsoleProps, "isLoa
   );
 }
 
-function Masthead({ visible }: { visible: boolean }) {
-  return visible ? <Wordmark /> : null;
-}
-
 export function TerminalConsole(props: TerminalConsoleProps) {
   const { showBoot, bootReady, bootLines, hasResults, isLoading, error } = props;
 
   return (
     <div className="terminal__console">
-      <Masthead visible={bootReady && !hasResults} />
-      {showBoot ? <BootPanel bootLines={bootLines} /> : null}
+      {bootReady && !hasResults ? (
+        <p className="terminal__boot-line terminal__boot-line--brand terminal__masthead">
+          <CmdLabel />
+        </p>
+      ) : null}
+      {showBoot ? (
+        <div className="terminal__boot" aria-live="polite">
+          {bootLines}
+        </div>
+      ) : null}
       {bootReady ? <PromptForm {...props} /> : null}
       <ConsoleStatuses isLoading={isLoading} error={error} />
     </div>

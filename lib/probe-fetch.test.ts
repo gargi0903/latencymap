@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { PROBE_FETCH_TIMEOUT_MS } from "./constants";
 import {
   PROBE_FETCH_MEASURE_SAMPLE_COUNT,
   PROBE_FETCH_MIN_SUCCESSFUL_SAMPLES,
   PROBE_FETCH_PASS_TIMEOUT_MS,
-  PROBE_FETCH_TIMEOUT_MS,
   PROBE_FETCH_WARMUP_COUNT,
   aggregateLatencySamples,
   roundLatencyMs,

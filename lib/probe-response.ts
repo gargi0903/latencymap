@@ -16,10 +16,7 @@ export function buildProbeResult(
   return {
     region: probe.id,
     label: probe.label,
-    lat: probe.lat,
-    lng: probe.lng,
     totalMs: null,
-    ttfbMs: null,
     statusCode: null,
     error: null,
     testedAt,
@@ -35,7 +32,6 @@ export function mapProbeWireResponse(probe: ProbeConfig, testedAt: string, body:
 
   return buildProbeResult(probe, testedAt, {
     totalMs,
-    ttfbMs: totalMs,
     statusCode: coerceNumber(wire?.status_code),
     error: wire?.error ?? null,
     cloudflareColo: coerceString(wire?.cloudflare_colo),

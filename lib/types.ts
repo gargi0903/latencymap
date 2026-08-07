@@ -1,10 +1,7 @@
 export type ProbeResult = {
   region: string;
   label: string;
-  lat: number;
-  lng: number;
   totalMs: number | null;
-  ttfbMs: number | null;
   statusCode: number | null;
   error: string | null;
   testedAt: string;
@@ -23,7 +20,5 @@ export type TestRun = {
 export type ProbeConfig = {
   id: string;
   label: string;
-  lat: number;
-  lng: number;
   endpoint?: string;
 };

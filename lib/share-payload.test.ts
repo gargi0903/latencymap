@@ -11,10 +11,7 @@ const sampleRun: TestRun = {
     {
       region: "iad",
       label: "US East (Ashburn)",
-      lat: 39.04,
-      lng: -77.49,
       totalMs: 142,
-      ttfbMs: 138,
       statusCode: 200,
       error: null,
       testedAt: "2026-07-22T12:00:01.000Z",
@@ -24,10 +21,7 @@ const sampleRun: TestRun = {
     {
       region: "sin",
       label: "Singapore",
-      lat: 1.35,
-      lng: 103.82,
       totalMs: null,
-      ttfbMs: null,
       statusCode: null,
       error: "timeout",
       testedAt: "2026-07-22T12:00:02.000Z",
@@ -50,7 +44,7 @@ describe("share payload encoding", () => {
     expect(decoded?.id).toBe(token);
   });
 
-  it("decodes legacy tokens that only stored total latency", () => {
+  it("decodes legacy tokens that included coords and ttfb aliases", () => {
     const legacyToken = Buffer.from(
       JSON.stringify({
         v: 1,
@@ -65,6 +59,7 @@ describe("share payload encoding", () => {
               a: 39.04,
               o: -77.49,
               m: 142,
+              f: 138,
               s: 200,
               e: null,
               d: "2026-07-22T12:00:01.000Z",
@@ -77,8 +72,16 @@ describe("share payload encoding", () => {
     ).toString("base64url");
 
     const decoded = decodeSharePayload(legacyToken);
-    expect(decoded?.results[0]?.totalMs).toBe(142);
-    expect(decoded?.results[0]?.ttfbMs).toBe(142);
+    expect(decoded?.results[0]).toEqual({
+      region: "iad",
+      label: "US East (Ashburn)",
+      totalMs: 142,
+      statusCode: 200,
+      error: null,
+      testedAt: "2026-07-22T12:00:01.000Z",
+      cloudflareColo: "IAD",
+      placementRegion: "aws:us-east-1",
+    });
   });
 });
 

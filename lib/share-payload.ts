@@ -4,8 +4,8 @@ import type { ProbeResult, TestRun } from "@/lib/types";
 type WireProbe = {
   g: string;
   l: string;
-  a: number;
-  o: number;
+  a?: number;
+  o?: number;
   m: number | null;
   f?: number | null;
   s: number | null;
@@ -78,17 +78,12 @@ function probeToWire(result: ProbeResult): WireProbe {
   const wire: WireProbe = {
     g: result.region,
     l: result.label,
-    a: result.lat,
-    o: result.lng,
     m: result.totalMs,
     s: result.statusCode,
     e: result.error,
     d: result.testedAt,
   };
 
-  if (result.ttfbMs !== null && result.ttfbMs !== result.totalMs) {
-    wire.f = result.ttfbMs;
-  }
   if (result.cloudflareColo) wire.c = result.cloudflareColo;
   if (result.placementRegion) wire.p = result.placementRegion;
   return wire;
@@ -98,10 +93,7 @@ function wireToProbe(wire: WireProbe): ProbeResult {
   return {
     region: wire.g,
     label: wire.l,
-    lat: wire.a,
-    lng: wire.o,
     totalMs: wire.m,
-    ttfbMs: wire.f ?? wire.m,
     statusCode: wire.s,
     error: wire.e,
     testedAt: wire.d,

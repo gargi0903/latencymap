@@ -130,23 +130,11 @@ function ResultsBody({
   );
 }
 
-function selectResult(orderedResults: ProbeResult[], currentRegion: string | null) {
-  return orderedResults.find((result) => result.region === currentRegion) ?? null;
-}
-
-function FooterLog({ footer }: { footer?: ReactNode }) {
-  if (!footer) {
-    return null;
-  }
-
-  return <p className="terminal__log terminal__log--footer">{footer}</p>;
-}
-
 export function ProbeResultsPanel({ results, footer }: Props) {
   const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
   const orderedResults = useMemo(() => sortResultsByRegionOrder(results), [results]);
   const currentRegion = selectedRegion ?? defaultSelectedRegion(results);
-  const selectedResult = selectResult(orderedResults, currentRegion);
+  const selectedResult = orderedResults.find((result) => result.region === currentRegion) ?? null;
 
   return (
     <>
@@ -160,7 +148,7 @@ export function ProbeResultsPanel({ results, footer }: Props) {
         selectedResult={selectedResult}
         onSelect={setSelectedRegion}
       />
-      <FooterLog footer={footer} />
+      {footer ? <p className="terminal__log terminal__log--footer">{footer}</p> : null}
     </>
   );
 }
