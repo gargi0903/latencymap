@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted (updated 2026-07-25)
+Accepted (updated 2026-08-07)
 
 ## Context
 
@@ -12,7 +12,7 @@ During design grilling, these decisions were made:
 
 - The UI itself should make the first impression.
 - The URL input and Run button must remain prominent.
-- The dashboard should feel like a clean technical workspace.
+- The dashboard should feel like a clean technical workspace (shipped as a full-screen terminal shell).
 - After a test, exact regional results must be shown in a terminal-style table with a selected-row inspector.
 - Before the first test, the page should stay focused on the URL task with minimal supporting context.
 
@@ -30,3 +30,4 @@ After a test runs, reveal the regional results table, selected-row inspector, ma
 - Keep visual polish in the shell, spacing, typography, and evidence hierarchy rather than adding extra pre-run content.
 - Preserve the MVP rule that exact probe numbers remain available in the table and selected-row inspector.
 - Future first-run changes should be judged against the "URL task first" decision.
+- Visual tokens for the live surface are documented in `DESIGN.md` (black terminal + orange accents).

@@ -28,7 +28,7 @@ Paste a URL → Vercel Next.js API validates and rate-limits → five Cloudflare
 - SSRF protection on central API and every probe fetch path
 - Anonymous rate limiting (in-memory per serverless instance)
 - Local Node probe for development flow testing only
-- Vitest unit tests for core `lib/` behavior (75+ tests)
+- Vitest unit tests for core `lib/` behavior
 
 ### Not built (do not claim)
 
@@ -40,6 +40,7 @@ Paste a URL → Vercel Next.js API validates and rate-limits → five Cloudflare
 - 3D globe visualization (deferred; table is the evidence surface)
 - Global distributed rate limiting
 - Share-link expiry (tokens do not expire; decode failure only)
+- Separate JSON decode API for share tokens (decode happens on `/r/[id]`)
 
 ---
 
@@ -53,7 +54,6 @@ Next.js app on Vercel
   /                  home dashboard
   /r/[id]            shareable result page (decodes token server-side)
   /api/tests         POST — run a test
-  /api/tests/[id]    GET  — decode share token as JSON
   |
   +--> 5 x Cloudflare Worker probes (parallel POST /probe)
   |         |
@@ -68,7 +68,7 @@ Next.js app on Vercel
 ```mermaid
 flowchart LR
   Browser["Browser<br/>/ and /r/id"]
-  Next["Next.js on Vercel<br/>POST /api/tests<br/>GET /api/tests/id"]
+  Next["Next.js on Vercel<br/>POST /api/tests"]
   IAD["CF Worker iad"]
   LHR["CF Worker lhr"]
   SIN["CF Worker sin"]
@@ -90,7 +90,7 @@ flowchart LR
 | Hosting | Vercel (`vercel.json`: Fluid Compute, `iad1`, function timeouts) |
 | Probes (prod) | Cloudflare Workers + Wrangler (5 named environments) |
 | Probes (local) | Node.js HTTP server (`probes/node/server.ts`) |
-| Validation | Zod (API body), custom URL safety + DNS |
+| Validation | Manual JSON body parse + custom URL safety + DNS |
 | Tests | Vitest |
 | Styling | Custom terminal CSS (`app/styles.css`) + Tailwind available |
 
@@ -105,7 +105,7 @@ flowchart LR
 3. `app/api/tests/route.ts`:
    - Extracts client IP from `x-forwarded-for` or `x-real-ip`
    - Checks rate limit (`lib/rate-limit.ts`): **10 runs/hour/IP**, in-memory `Map` per instance
-   - Parses body with Zod (url: 1–2048 chars)
+   - Parses body manually (`url` string, length 1–2048 chars)
    - Normalizes and validates URL (`lib/url-safety.ts`): scheme, credentials, localhost, private IPs, DNS resolution + blocklist
    - Calls `runRegionalTest()` (`lib/probes.ts`)
 4. `runRegionalTest` fans out with `Promise.all` to configured probes:
@@ -126,7 +126,7 @@ flowchart LR
    - **Reported value:** average of the **2 fastest** samples, rounded to nearest **10 ms**
    - **Response body:** cancelled after headers; not stored
 7. Probe returns JSON: `region`, `placement_region`, `cloudflare_colo`, `total_ms`, `status_code`, `error`
-8. API maps probe responses into `ProbeResult[]`, builds `TestRun` (`lib/test-run.ts`), sets `id = encodeSharePayload(run)` (`lib/share-payload.ts`)
+8. API maps probe responses into `ProbeResult[]`, builds `TestRun` inline in the route handler (`lib/types.ts`), sets `id = encodeSharePayload(run)` (`lib/share-payload.ts`)
 9. API responds `{ run, sharePath }` where `sharePath` is `/r/<token>`
 10. UI renders `ProbeResultsPanel`: color-coded table + row inspector; user can copy share link
 11. Share page `/r/[id]` decodes token server-side and renders `ResultsView` with the same panel
@@ -153,7 +153,7 @@ sequenceDiagram
     T-->>P: HTTP status
     P-->>API: total_ms, colo, status, error
   end
-  API->>API: buildTestRun + encodeSharePayload
+  API->>API: encodeSharePayload
   API-->>UI: {run, sharePath}
   UI-->>U: table, inspector, share link
 ```
@@ -164,14 +164,14 @@ sequenceDiagram
 flowchart TD
   Run["TestRun object"]
   Enc["encodeSharePayload<br/>compact JSON v1 → base64url"]
-  Path["/r/id  and  GET /api/tests/id"]
+  Path["/r/id"]
   Dec["decodeSharePayload"]
   View["ResultsView / ProbeResultsPanel"]
 
   Run --> Enc --> Path --> Dec --> View
 ```
 
-There is **no database read or write**. Persistence is the URL token itself.
+There is **no database read or write**. Persistence is the URL token itself. Share tokens are decoded on the share page (`app/r/[id]/page.tsx`), not via a separate API route.
 
 ---
 
@@ -184,7 +184,6 @@ There is **no database read or write**. Persistence is the URL token itself.
 | `/` | GET | Latency test dashboard |
 | `/r/[id]` | GET | Shareable result page; `id` is base64url share token |
 | `/api/tests` | POST | Run a test. Body: `{ "url": string }`. Returns `{ run, sharePath }` |
-| `/api/tests/[id]` | GET | Decode share token; returns `{ run }` or 404 |
 
 **`POST /api/tests` responses:**
 
@@ -195,7 +194,7 @@ There is **no database read or write**. Persistence is the URL token itself.
 | 429 | Rate limit exceeded (10/hour/IP) |
 | 503 | Probe misconfiguration (`PROBE_SECRET` or `PROBE_WORKERS_SUBDOMAIN` missing in prod) |
 
-**Note:** `GET /api/tests/[id]` returns `"Invalid or expired share link."` on failure, but tokens **do not expire** — only invalid/malformed tokens fail decode.
+**Note:** Invalid or malformed share tokens cause `/r/[id]` to 404. Tokens **do not expire**.
 
 ### Probe API (Cloudflare Workers + local Node)
 
@@ -237,9 +236,7 @@ Defined in `lib/types.ts`.
 | --- | --- | --- |
 | `region` | string | Probe id, e.g. `iad`, `sin`, `local` |
 | `label` | string | Human label, e.g. `US East (Ashburn)` |
-| `lat`, `lng` | number | Map coordinates (table uses labels; no globe in MVP) |
 | `totalMs` | number \| null | Reported latency in ms; null on failure |
-| `ttfbMs` | number \| null | **Currently aliased to `totalMs`** — not true TTFB |
 | `statusCode` | number \| null | HTTP status from target |
 | `error` | string \| null | Error message if probe failed |
 | `testedAt` | string | ISO timestamp when probe call started |
@@ -285,13 +282,13 @@ https://api.example.com/health
 
 Committed in `lib/probe-regions.ts`. Deployed via `probes/cloudflare/wrangler.jsonc`.
 
-| ID | Label | Placement hint |
-| --- | --- | --- |
-| `iad` | US East (Ashburn) | `aws:us-east-1` |
-| `lhr` | Europe West (London) | `aws:eu-west-2` |
-| `sin` | Asia Southeast (Singapore) | `aws:ap-southeast-1` |
-| `syd` | Australia East (Sydney) | `aws:ap-southeast-2` |
-| `gru` | South America (Sao Paulo) | `aws:sa-east-1` |
+| ID | Label | Country | Placement hint |
+| --- | --- | --- | --- |
+| `iad` | US East (Ashburn) | United States | `aws:us-east-1` |
+| `lhr` | Europe West (London) | United Kingdom | `aws:eu-west-2` |
+| `sin` | Asia Southeast (Singapore) | Singapore | `aws:ap-southeast-1` |
+| `syd` | Australia East (Sydney) | Australia | `aws:ap-southeast-2` |
+| `gru` | South America (Sao Paulo) | Brazil | `aws:sa-east-1` |
 
 **Production probe URL pattern:**
 
@@ -306,6 +303,7 @@ https://latencymap-probe-{regionId}.{PROBE_WORKERS_SUBDOMAIN}/probe
 ## UI behavior
 
 - **First screen is the tool**, not a marketing page (`components/latency-dashboard.tsx`)
+- Full-screen terminal shell with orange command accents (`app/styles.css`)
 - Terminal boot sequence on first visit (skipped on repeat via `sessionStorage`)
 - After test: regional results table in fixed probe order + selected-row inspector
 - **Latency color contract** (`lib/latency-display.ts`):
@@ -332,7 +330,7 @@ Applied on **both** the central API (`lib/url-safety.ts`) and probes (`lib/probe
 - Re-validate every redirect target; cap at 3 redirects
 - 12-second probe measurement budget
 - Cancel response body after headers (no body storage)
-- Cap probe request body size (16 KB on Worker)
+- Cap probe request body size (16 KB on Worker / Node probe)
 - Rate limit: 10 test runs/hour/IP (in-memory, per serverless instance)
 - Probe auth: shared `PROBE_SECRET` via `x-probe-secret` header (timing-safe compare)
 
@@ -345,7 +343,7 @@ Applied on **both** the central API (`lib/url-safety.ts`) and probes (`lib/probe
 | Variable | Where | Required | Purpose |
 | --- | --- | --- | --- |
 | `PROBE_WORKERS_SUBDOMAIN` | Vercel | Yes (prod) | Workers subdomain, e.g. `acme.workers.dev` |
-| `PROBE_SECRET` | Vercel + all Workers | Yes | Shared probe authentication |
+| `PROBE_SECRET` | Vercel + all Workers + local probe | Yes | Shared probe authentication |
 | `LOCAL_PROBE_ENDPOINT` | Local | No | Override local probe URL |
 | `PROBE_HOST`, `PROBE_PORT` | Local | No | Local probe bind (default `127.0.0.1:8787`) |
 | `PROBE_REGION` | Local probe | No | Region label for local probe |
@@ -378,7 +376,6 @@ Local mode uses **one** probe region (`local`) — useful for flow testing, not 
 | Path | Responsibility |
 | --- | --- |
 | `app/api/tests/route.ts` | Run test: rate limit, validate, fan-out, encode share |
-| `app/api/tests/[id]/route.ts` | Decode share token as JSON |
 | `app/r/[id]/page.tsx` | Share page (server-side decode) |
 | `app/page.tsx` | Home dashboard |
 | `components/latency-dashboard.tsx` | Boot UX, form, results shell |
@@ -394,7 +391,7 @@ Local mode uses **one** probe region (`local`) — useful for flow testing, not 
 | `lib/use-copy-share-link.ts` | Shared share-link copy behavior |
 | `lib/probe-regions.ts` | Region metadata + endpoint derivation |
 | `lib/latency-display.ts` | Colors, formatting, measurement note |
-| `lib/types.ts` | Shared TypeScript types |
+| `lib/types.ts` | Shared TypeScript types (`ProbeResult`, `TestRun`) |
 | `probes/cloudflare/src/worker.ts` | Production regional probe |
 | `probes/cloudflare/wrangler.jsonc` | Worker names, placement hints |
 | `probes/node/server.ts` | Local development probe |
@@ -418,22 +415,6 @@ Local mode uses **one** probe region (`local`) — useful for flow testing, not 
 
 ---
 
-## Known doc / code inconsistencies
-
-When explaining the project, prefer this file and the source files above.
-
-| Claim in some docs | Actual behavior |
-| --- | --- |
-| "Persist the run" / "saved results" | Encoded into URL token — not stored server-side |
-| `/r/[token]`, `/api/tests/[token]` | Route param is `[id]`; value is the share token |
-| "Invalid or expired share link" | No expiry; only invalid/malformed tokens fail |
-| `ttfbMs` in types | Aliased to `totalMs`; not measured separately |
-| "One GET per region" | 3 warmups + 3 timed samples with aggregation |
-| MVP "3–5 regions" | Production ships exactly **5** regions |
-| 3D globe | Deferred; removed from current UI |
-
----
-
 ## Related documentation
 
 | File | Purpose |
@@ -444,7 +425,7 @@ When explaining the project, prefer this file and the source files above.
 | `CONTEXT.md` | Short agent context |
 | `AGENTS.md` | Cursor agent instructions |
 | `PRODUCT.md` | Product definition |
-| `DESIGN.md` | Visual system |
+| `DESIGN.md` | Visual system (shipped terminal UI) |
 | `public/docs/html/` | Plain-language HTML docs (served at `/docs/html/` when deployed) |
 
 ---

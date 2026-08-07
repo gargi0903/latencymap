@@ -70,14 +70,15 @@ User-provided URL fetching must remain abuse-resistant:
 - validate every redirect target before following it
 - cap redirects at 3
 - use short timeouts, currently 12 seconds per probe measurement budget
-- cap response bytes
+- cancel/discard response bodies after headers (do not store them)
+- cap inbound probe request bodies at 16 KiB
 - never store fetched response bodies
 - do not accept user-supplied headers in the MVP
 - rate limit anonymous users
 
 Recommended anonymous rate limit is 10 test runs per hour per IP, with each test run calling at most 5 probes.
 
-History groups by normalized full URL: lowercase scheme and host, remove fragments, preserve path and query string, remove default ports, and only remove the trailing slash for the root path. Different paths or query strings are different URLs.
+Share links store the normalized full URL inside the encoded payload. Normalization rules: lowercase scheme and host, remove fragments, preserve path and query string, remove default ports, and only remove the trailing slash for the root path. Different paths or query strings are different URLs.
 
 The UI presents a terminal-style regional results table with a selected-row inspector. Failed probes must be visually distinct from slow probes. The latency color contract is green for `<150 ms`, yellow for `150-300 ms`, red for `>300 ms`, and gray for failed.
 
@@ -85,7 +86,7 @@ The UI presents a terminal-style regional results table with a selected-row insp
 
 The product name is Latencymap.
 
-The interface should feel like a clean, technical operating console for developer use: cobalt primary action and active state, dark ink/navy operational surfaces, crisp typography, generous whitespace around the main task, and high-contrast data. See `DESIGN.md` for the current visual system.
+The interface should feel like a clean, technical operating console for developer use: a full-screen terminal shell, orange command accents, monospace data typography, and high-contrast regional results. See `DESIGN.md` for the current visual system.
 
 The initial state contains the URL input and one clear test action in a terminal-style prompt. After a successful run, reveal the regional results table, selected-row inspector, margin-of-error note, and share action. Do not add charts, filter toolbars, metric-card grids, onboarding tours, or decorative dashboard modules.
 
@@ -96,7 +97,8 @@ Use Tailwind CSS for styling. Keep project-specific components for domain surfac
 - Product and architecture plan: `MVP_PLAN.md`.
 - Active project instructions and scope constraints: `AGENTS.md` in the conversation context.
 - App entry and dashboard surface: `app/page.tsx`, `components/latency-dashboard.tsx`, `components/results-view.tsx`, `components/probe-results-panel.tsx`, and `app/styles.css`.
-- API and shared behavior: `app/api/tests/route.ts`, `app/api/tests/[id]/route.ts`, `lib/types.ts`, `lib/probes.ts`, `lib/probe-response.ts`, `lib/rate-limit.ts`, `lib/url-safety.ts`, `lib/probe-fetch.ts`, `lib/share-payload.ts`, and `lib/latency-display.ts`.
+- API and shared behavior: `app/api/tests/route.ts`, `lib/types.ts`, `lib/probes.ts`, `lib/probe-response.ts`, `lib/rate-limit.ts`, `lib/url-safety.ts`, `lib/probe-url-safety.ts`, `lib/probe-fetch.ts`, `lib/share-payload.ts`, and `lib/latency-display.ts`.
+- Share page: `app/r/[id]/page.tsx` (server-side decode via `lib/share-payload.ts`; no separate GET decode API).
 - Client hooks: `lib/use-latency-test.ts`, `lib/use-copy-share-link.ts`.
 - Cloudflare probe direction: `probes/cloudflare/wrangler.jsonc`, `probes/cloudflare/src/worker.ts`, and `npm run probe:cf:*` scripts.
 - Local development probe path: `probes/node/server.ts` and `npm run probe:dev`.

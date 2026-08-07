@@ -120,9 +120,9 @@ window.LATENCYMAP_CONCEPTS = [
     id: "url-normalization",
     layer: "data",
     title: "URL normalization",
-    summary: "Rules for treating URLs as the same or different when grouping history.",
+    summary: "Rules for treating two URLs as the same or different after cleanup.",
     detail:
-      "https://API.EXAMPLE.COM and https://api.example.com count as the same URL. Trailing slashes on the root are ignored. But /users and /users?limit=10 are different URLs. History groups results by these normalized URLs.",
+      "https://API.EXAMPLE.COM and https://api.example.com count as the same URL. Trailing slashes on the root are ignored. But /users and /users?limit=10 are different URLs. Share links store the normalized URL inside the encoded payload.",
     connects: [],
   },
 

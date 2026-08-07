@@ -57,7 +57,7 @@ Latency colors: green `<150 ms`, yellow `150–300 ms`, red `>300 ms`, gray = fa
 
 ```bash
 npm install
-cp .env.example .env.local   # optional for local probe auth
+cp .env.example .env.local   # set PROBE_SECRET (required for local probe)
 npm run dev:local
 ```
 
@@ -84,7 +84,7 @@ Open [http://localhost:3000](http://localhost:3000).
 app/                      Next.js pages and API routes
   page.tsx                Home dashboard
   r/[id]/page.tsx         Shareable result page
-  api/tests/              POST run test, GET decode token
+  api/tests/              POST run test (share page decodes /r/[id])
 
 components/               Terminal-style UI (dashboard, table, inspector)
 lib/                      Shared logic (probes, URL safety, share encoding, rate limit)
@@ -104,7 +104,7 @@ scripts/                  Dev and deploy helpers
 | Variable | Required | Purpose |
 | --- | --- | --- |
 | `PROBE_WORKERS_SUBDOMAIN` | Yes (prod) | Your Workers subdomain (e.g. `latencymap-gargi.workers.dev`) |
-| `PROBE_SECRET` | Yes (prod) | Shared secret between Vercel app and all probes |
+| `PROBE_SECRET` | Yes (prod + local probe) | Shared secret between the app and all probes |
 
 Production probe URLs are derived from `PROBE_WORKERS_SUBDOMAIN` and region metadata in `lib/probe-regions.ts`:
 
@@ -167,7 +167,8 @@ User-provided URLs are validated on the API and every probe:
 - Blocks localhost, private IPs, and cloud metadata endpoints
 - DNS resolution checked before fetch
 - Re-validates redirect targets (max 3 redirects)
-- 12-second timeout per probe, response body not stored
+- 12-second timeout per probe; response body cancelled (not stored)
+- Inbound probe request body capped at 16 KiB
 - Rate limited: 10 test runs/hour/IP, max 5 probes per run
 - Probes protected with shared `x-probe-secret` header
 

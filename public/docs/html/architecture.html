@@ -56,7 +56,8 @@
               There is no database. After probes finish, the server bundles the URL you tested, the
               timestamp, and every regional measurement into a compact package. That package is turned
               into a safe string of letters and symbols and appended to the address
-              <strong>/r/…</strong>. Anyone with the link can decode it in their browser. Treat share
+              <strong>/r/…</strong>. Anyone with the link can open that page; the server decodes
+              the token and shows the same results table and inspector. Treat share
               links like public notes — do not put secrets in tested URLs.
             </p>
           </div>
@@ -68,8 +69,9 @@
           <div class="prose">
             <p>
               A probe receives a URL and a password. It checks the password, validates the URL again
-              (even if the central server already did), opens the link with a short timeout, reads only
-              enough to measure speed, and returns milliseconds plus an HTTP status code. It does
+              (even if the central server already did), opens the link with a short timeout, measures
+              latency from timed samples, cancels the response body, and returns milliseconds plus an
+              HTTP status code. It does
               <strong>not</strong> store or return the page HTML body.
             </p>
           </div>
@@ -95,8 +97,8 @@
             <p>
               Without these rules, a malicious user could use the tool to scan internal company
               networks. Latencymap only allows ordinary public web addresses, blocks private IPs and
-              localhost, re-checks redirects, limits how much data is downloaded, and caps how many
-              tests one person can run per hour.
+              localhost, re-checks redirects, discards response bodies after measuring, and caps how
+              many tests one person can run per hour.
             </p>
           </div>
         </section>
@@ -157,7 +159,7 @@
             { title: "Probes finish", detail: "Each region reports milliseconds and status", layer: "probe" },
             { title: "Bundle results", detail: "URL, time, and all regional measurements combined", layer: "data" },
             { title: "Encode into link", detail: "Compact text safe for URLs — no database write", layer: "data" },
-            { title: "Anyone opens /r/…", detail: "Browser decodes and shows results table again", layer: "ui" },
+            { title: "Anyone opens /r/…", detail: "Server decodes the token and shows the results table again", layer: "ui" },
           ],
         }));
         V.mount("probe-swimlane", V.renderSwimlane({
@@ -167,9 +169,9 @@
               { title: "Password check", detail: "Must match PROBE_SECRET" },
             ]},
             { layer: "server", label: "Fetch safely", items: [
-              { title: "5 second timeout", detail: "Probe gives up if site is too slow" },
+              { title: "12 second budget", detail: "Probe stops if the target is too slow" },
               { title: "Redirect limits", detail: "Up to 3 hops, each re-validated" },
-              { title: "Size cap", detail: "Only reads enough to measure, not full pages" },
+              { title: "Body discarded", detail: "Response body cancelled after headers — never stored" },
             ]},
             { layer: "probe", label: "Return", items: [
               { title: "Milliseconds", detail: "Total time for the request" },
