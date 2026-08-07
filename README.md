@@ -104,7 +104,7 @@ scripts/                  Dev and deploy helpers
 | Variable | Required | Purpose |
 | --- | --- | --- |
 | `PROBE_WORKERS_SUBDOMAIN` | Yes (prod) | Your Workers subdomain (e.g. `latencymap-gargi.workers.dev`) |
-| `PROBE_SECRET` | Yes (prod) | Shared secret between Vercel app and all probes |
+| `PROBE_SECRET` | Yes (prod + local probe) | Shared secret between the app and all probes |
 
 Production probe URLs are derived from `PROBE_WORKERS_SUBDOMAIN` and region metadata in `lib/probe-regions.ts`:
 
