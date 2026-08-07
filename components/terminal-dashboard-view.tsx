@@ -1,8 +1,7 @@
 "use client";
 
-import { TerminalConsole } from "@/components/terminal-console";
-import type { TerminalConsoleProps } from "@/components/terminal-console-props";
-import { TerminalResultsWorkspace } from "@/components/terminal-results-workspace";
+import { ProbeResultsPanel } from "@/components/probe-results-panel";
+import { TerminalConsole, type TerminalConsoleProps } from "@/components/terminal-console";
 import type { TestRun } from "@/lib/types";
 
 type TerminalDashboardViewProps = TerminalConsoleProps & {
@@ -25,12 +24,26 @@ export function TerminalDashboardView(props: TerminalDashboardViewProps) {
       >
         <TerminalConsole {...props} />
         {hasResults && run ? (
-          <TerminalResultsWorkspace
-            run={run}
-            activeSharePath={activeSharePath}
-            copyState={copyState}
-            copyShareLink={copyShareLink}
-          />
+          <div className="terminal__workspace">
+            <div className="terminal__feed">
+              <ProbeResultsPanel
+                key={run.id}
+                results={run.results}
+                footer={
+                  activeSharePath ? (
+                    <button
+                      type="button"
+                      className="terminal__link"
+                      title="Copy permanent share link"
+                      onClick={copyShareLink}
+                    >
+                      {copyState === "copied" ? "copied" : "share"}
+                    </button>
+                  ) : null
+                }
+              />
+            </div>
+          </div>
         ) : null}
       </section>
     </main>

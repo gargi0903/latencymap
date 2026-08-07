@@ -32,7 +32,7 @@ describe("mapProbeWireResponse", () => {
     );
   });
 
-  it("maps camelCase probe responses", () => {
+  it("ignores camelCase aliases", () => {
     const result = mapProbeWireResponse(probe, "2026-07-26T00:00:00.000Z", {
       totalMs: 95,
       statusCode: 204,
@@ -40,9 +40,9 @@ describe("mapProbeWireResponse", () => {
       placementRegion: "aws:eu-west-2",
     });
 
-    expect(result.totalMs).toBe(95);
-    expect(result.statusCode).toBe(204);
-    expect(result.cloudflareColo).toBe("LHR");
-    expect(result.placementRegion).toBe("aws:eu-west-2");
+    expect(result.totalMs).toBeNull();
+    expect(result.statusCode).toBeNull();
+    expect(result.cloudflareColo).toBeNull();
+    expect(result.placementRegion).toBeNull();
   });
 });

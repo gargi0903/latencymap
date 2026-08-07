@@ -2,15 +2,9 @@ import type { ProbeConfig, ProbeResult } from "@/lib/types";
 
 type ProbeWireResponse = {
   total_ms?: number;
-  totalMs?: number;
-  ttfb_ms?: number;
-  ttfbMs?: number;
   status_code?: number;
-  statusCode?: number;
   cloudflare_colo?: string | null;
-  cloudflareColo?: string | null;
   placement_region?: string | null;
-  placementRegion?: string | null;
   error?: string | null;
 };
 
@@ -37,15 +31,15 @@ export function buildProbeResult(
 
 export function mapProbeWireResponse(probe: ProbeConfig, testedAt: string, body: unknown): ProbeResult {
   const wire = (body ?? null) as ProbeWireResponse | null;
-  const totalMs = coerceNumber(wire?.total_ms ?? wire?.totalMs);
+  const totalMs = coerceNumber(wire?.total_ms);
 
   return buildProbeResult(probe, testedAt, {
     totalMs,
     ttfbMs: totalMs,
-    statusCode: coerceNumber(wire?.status_code ?? wire?.statusCode),
+    statusCode: coerceNumber(wire?.status_code),
     error: wire?.error ?? null,
-    cloudflareColo: coerceString(wire?.cloudflare_colo ?? wire?.cloudflareColo),
-    placementRegion: coerceString(wire?.placement_region ?? wire?.placementRegion),
+    cloudflareColo: coerceString(wire?.cloudflare_colo),
+    placementRegion: coerceString(wire?.placement_region),
   });
 }
 

@@ -20,12 +20,6 @@ export type TestRun = {
   results: ProbeResult[];
 };
 
-export type CreateTestRunInput = {
-  inputUrl: string;
-  normalizedUrl: string;
-  results: ProbeResult[];
-};
-
 export type ProbeConfig = {
   id: string;
   label: string;

@@ -16,7 +16,6 @@ import type { ProbeResult } from "@/lib/types";
 
 type Props = {
   results: ProbeResult[];
-  regionCountLabel?: string;
   footer?: ReactNode;
 };
 
@@ -143,18 +142,17 @@ function FooterLog({ footer }: { footer?: ReactNode }) {
   return <p className="terminal__log terminal__log--footer">{footer}</p>;
 }
 
-export function ProbeResultsPanel({ results, regionCountLabel, footer }: Props) {
+export function ProbeResultsPanel({ results, footer }: Props) {
   const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
   const orderedResults = useMemo(() => sortResultsByRegionOrder(results), [results]);
   const currentRegion = selectedRegion ?? defaultSelectedRegion(results);
   const selectedResult = selectResult(orderedResults, currentRegion);
-  const completeLabel = regionCountLabel ?? `${results.length} regions`;
 
   return (
     <>
       <p className="terminal__log terminal__log--complete" role="status">
         <span className="terminal__arrow">✓</span>
-        probe complete · {completeLabel}
+        probe complete · {results.length} regions
       </p>
       <ResultsBody
         orderedResults={orderedResults}

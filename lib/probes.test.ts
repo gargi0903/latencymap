@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { formatProbeFetchError } from "./probe-client-errors";
 import { getProbeRegions } from "./probe-regions";
-import { formatProbeFetchError, getProbeSecret, ProbeConfigurationError, runRegionalTest } from "./probes";
+import { getProbeSecret, ProbeConfigurationError, runRegionalTest } from "./probes";
 import type { ProbeConfig } from "./types";
 
 const originalNodeEnv = process.env.NODE_ENV;

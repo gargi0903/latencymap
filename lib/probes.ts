@@ -11,8 +11,6 @@ export class ProbeConfigurationError extends Error {
   }
 }
 
-export { formatProbeFetchError } from "@/lib/probe-client-errors";
-
 export async function runRegionalTest(url: string): Promise<ProbeResult[]> {
   const probes = getProbeRegions();
   const probeSecret = getProbeSecret();
