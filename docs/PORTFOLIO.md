@@ -53,7 +53,7 @@ A **terminal-style dashboard** where you:
 | **SSRF protection** | URL validation + DNS checks on API and every probe | Safe to expose a URL-fetch tool on the public internet |
 | **Provider-agnostic contract** | `POST /probe` with shared secret auth | Probes could move off Cloudflare without rewriting the app |
 | **Honest UI** | Terminal table + inspector; no fake regional coverage | Trust is the product |
-| **Abuse controls** | Rate limit, redirect caps, byte limits, 12s timeout | Production-minded MVP |
+| **Abuse controls** | Rate limit, redirect caps, 16 KiB probe request cap, body discard, 12s timeout | Production-minded MVP |
 
 ## Architecture (whiteboard version)
 

@@ -14,7 +14,7 @@ Use [`docs/PORTFOLIO.md`](docs/PORTFOLIO.md) for pitch scripts, demo flow, and h
 - **Equal evidence**: Every row in the table is backed by a real probe response. The UI never shows fake regional coverage.
 - **First-run screen**: Terminal boot sequence, URL form, and concise safety copy before any test runs.
 - **Row inspector**: Detail panel for the selected probe result — latency, HTTP status, region, Cloudflare colo, placement hint, and timestamp.
-- **Clean technical workspace**: Dense, readable developer-tool UI with cobalt command accents and mineral operational surfaces.
+- **Clean technical workspace**: Dense, readable developer-tool UI — full-screen terminal shell with orange command accents on a black surface.
 
 ## Architecture
 
@@ -22,7 +22,7 @@ Use [`docs/PORTFOLIO.md`](docs/PORTFOLIO.md) for pitch scripts, demo flow, and h
 Browser
   |
   v
-Next.js app (Vercel) — /, /r/[id], /api/tests, /api/tests/[id]
+Next.js app (Vercel) — /, /r/[id], POST /api/tests
   |
   +--> 5 regional Cloudflare Worker probes (parallel)
   |         |

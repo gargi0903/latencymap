@@ -84,7 +84,7 @@ Open [http://localhost:3000](http://localhost:3000).
 app/                      Next.js pages and API routes
   page.tsx                Home dashboard
   r/[id]/page.tsx         Shareable result page
-  api/tests/              POST run test, GET decode token
+  api/tests/              POST run test (share page decodes /r/[id])
 
 components/               Terminal-style UI (dashboard, table, inspector)
 lib/                      Shared logic (probes, URL safety, share encoding, rate limit)
@@ -167,7 +167,8 @@ User-provided URLs are validated on the API and every probe:
 - Blocks localhost, private IPs, and cloud metadata endpoints
 - DNS resolution checked before fetch
 - Re-validates redirect targets (max 3 redirects)
-- 12-second timeout per probe, response body not stored
+- 12-second timeout per probe; response body cancelled (not stored)
+- Inbound probe request body capped at 16 KiB
 - Rate limited: 10 test runs/hour/IP, max 5 probes per run
 - Probes protected with shared `x-probe-secret` header
 

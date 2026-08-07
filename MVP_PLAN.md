@@ -89,10 +89,9 @@ Central backend:
 
 ```txt
 POST /api/tests
-GET /api/tests/:token
 ```
 
-`:token` is a base64url-encoded share payload, not a database id.
+Share pages decode the base64url payload at `/r/[id]` (no separate GET API for tokens).
 
 Probe service:
 
@@ -130,7 +129,7 @@ PROBE_SECRET=<shared secret>
 
 Vercel derives each regional probe URL from the subdomain and committed region ids (for example `https://latencymap-probe-iad.<subdomain>/probe`).
 
-Region metadata (id, label, lat, lng) is committed in `lib/probe-regions.ts`.
+Region metadata (id, label, country) is committed in `lib/probe-regions.ts`.
 
 ## Probe Behavior
 
@@ -142,7 +141,7 @@ Rules:
 - follow max 3 redirects
 - validate each redirect target before following
 - do not store response body
-- read only a tiny amount of response body, or stop after headers if practical
+- cancel/discard the response body after headers (no body storage)
 - return total request time, status code, and error
 
 MVP timing data:
@@ -198,7 +197,7 @@ Protections:
 - limit redirects to 3
 - validate every redirect target
 - use 12 second probe measurement budget
-- cap response bytes
+- cancel/discard response bodies; cap inbound probe request bodies (16 KiB)
 - rate limit by IP
 - do not allow custom headers in MVP
 - do not allow arbitrary HTTP methods in MVP

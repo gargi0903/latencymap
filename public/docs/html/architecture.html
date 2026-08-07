@@ -68,8 +68,9 @@
           <div class="prose">
             <p>
               A probe receives a URL and a password. It checks the password, validates the URL again
-              (even if the central server already did), opens the link with a short timeout, reads only
-              enough to measure speed, and returns milliseconds plus an HTTP status code. It does
+              (even if the central server already did), opens the link with a short timeout, measures
+              latency from timed samples, cancels the response body, and returns milliseconds plus an
+              HTTP status code. It does
               <strong>not</strong> store or return the page HTML body.
             </p>
           </div>
@@ -95,8 +96,8 @@
             <p>
               Without these rules, a malicious user could use the tool to scan internal company
               networks. Latencymap only allows ordinary public web addresses, blocks private IPs and
-              localhost, re-checks redirects, limits how much data is downloaded, and caps how many
-              tests one person can run per hour.
+              localhost, re-checks redirects, discards response bodies after measuring, and caps how
+              many tests one person can run per hour.
             </p>
           </div>
         </section>

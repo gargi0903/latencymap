@@ -111,7 +111,8 @@ Any implementation that fetches user-provided URLs must:
 - validate every redirect target before following it
 - cap redirects at 3
 - set short timeouts, currently 12 seconds per probe measurement budget
-- cap response bytes
+- cancel/discard response bodies after headers (do not store them)
+- cap inbound probe request bodies (16 KiB)
 - avoid storing response bodies
 - avoid allowing user-supplied headers in the MVP
 - rate limit anonymous users
