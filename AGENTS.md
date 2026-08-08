@@ -6,7 +6,7 @@ Latencymap is a portfolio/demo MVP for testing public API or website latency fro
 
 **Portfolio pitch:** See `docs/PORTFOLIO.md` for elevator pitch, demo script, and interview/VC framing.
 
-Always read `MVP_PLAN.md` before making product, architecture, or implementation decisions. If this file and `MVP_PLAN.md` conflict, preserve the current explicit user direction in this file and update `MVP_PLAN.md` only when asked.
+Always read `docs/MVP_PLAN.md` before making product, architecture, or implementation decisions. If this file and `docs/MVP_PLAN.md` conflict, preserve the current explicit user direction in this file and update `docs/MVP_PLAN.md` only when asked.
 
 ## Product Direction
 

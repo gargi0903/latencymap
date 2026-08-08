@@ -415,11 +415,11 @@ Local app development calls the same five regional Workers as production when en
 | --- | --- |
 | `README.md` | Setup, deploy commands, env vars |
 | `docs/PORTFOLIO.md` | Interview pitch, demo script, VC framing |
-| `MVP_PLAN.md` | Product scope and constraints |
+| `docs/MVP_PLAN.md` | Product scope and constraints |
 | `CONTEXT.md` | Short agent context |
 | `AGENTS.md` | Cursor agent instructions |
-| `PRODUCT.md` | Product definition |
-| `DESIGN.md` | Visual system (shipped terminal UI) |
+| `docs/PRODUCT.md` | Product definition |
+| `docs/DESIGN.md` | Visual system (shipped terminal UI) |
 | `public/docs/html/` | Plain-language HTML docs (served at `/docs/html/` when deployed) |
 
 ---
