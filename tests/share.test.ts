@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { decodeSharePayload, encodeSharePayload, sharePathForRun } from "./share";
-import type { TestRun } from "./types";
+import { decodeSharePayload, encodeSharePayload, sharePathForRun } from "@/lib/share";
+import type { TestRun } from "@/lib/types";
 
 const sampleRun: TestRun = {
   id: "",

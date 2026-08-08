@@ -7,8 +7,8 @@ import {
   mapProbeWireResponse,
   ProbeConfigurationError,
   runRegionalTest,
-} from "./regions";
-import type { ProbeConfig } from "./types";
+} from "@/lib/regions";
+import type { ProbeConfig } from "@/lib/types";
 
 const originalNodeEnv = process.env.NODE_ENV;
 const originalProbeSecret = process.env.PROBE_SECRET;

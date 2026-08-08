@@ -87,6 +87,7 @@ app/                      Next.js pages and API routes
 components/               Terminal-style UI (dashboard, table, inspector)
 lib/                      Shared logic (URL safety, share encoding, rate limit, measurement)
 workers/                  Regional Cloudflare Workers (5 environments)
+tests/                    Unit tests
 ```
 
 ## Environment variables
