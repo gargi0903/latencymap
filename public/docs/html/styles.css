@@ -312,8 +312,6 @@ th {
 .latency.slow { background: var(--slow); }
 .latency.failed { background: var(--failed); }
 
-/* ── Visualizations ── */
-
 .viz-flow {
   margin: 0 0 1rem;
   padding: 1rem;

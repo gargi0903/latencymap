@@ -1,7 +1,3 @@
-/**
- * SSRF denylist for addresses probes and the API must not fetch.
- */
-
 import { isBlockedIpv4, isIpv4Literal } from "@/lib/ipv4-blocklist";
 import { isBlockedIpv6 } from "@/lib/ipv6-blocklist";
 

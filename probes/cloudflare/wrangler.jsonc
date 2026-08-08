@@ -11,7 +11,6 @@
     "enabled": true
   },
   "env": {
-    // Region ids and placement hints are defined in lib/probe-regions.ts.
     "iad": {
       "name": "latencymap-probe-iad",
       "workers_dev": true,

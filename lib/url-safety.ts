@@ -4,7 +4,6 @@ import { validatePublicUrlWithDns } from "@/lib/probe-url-safety";
 
 type ValidationResult = { ok: true; url: string } | { ok: false; error: string };
 
-/** Default bare hosts to https://, then run the shared public-URL + DNS checks. */
 export async function normalizeAndValidatePublicUrl(rawUrl: string): Promise<ValidationResult> {
   const trimmed = rawUrl.trim();
   if (!trimmed) {

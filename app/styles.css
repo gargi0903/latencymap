@@ -62,8 +62,6 @@
   a { @apply text-inherit no-underline; }
 }
 
-/* —— terminal home —— */
-
 .terminal {
   --terminal-ink: #000000;
   --terminal-border: #1a1a1a;

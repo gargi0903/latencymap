@@ -1,7 +1,3 @@
-/**
- * IPv6 parsing and blocked unique-local / link-local / mapped ranges.
- */
-
 import { ipv4FromLow32Bits, isBlockedIpv4, parseIpv4 } from "@/lib/ipv4-blocklist";
 
 const IPV6_128_BIT_MASK = (1n << 128n) - 1n;
@@ -20,20 +16,18 @@ export function isBlockedIpv6(ip: string): boolean {
 
   const first16Bits = Number(address >> 112n);
   if (
-    (first16Bits & 0xfe00) === 0xfc00 || // unique-local fc00::/7
-    (first16Bits & 0xffc0) === 0xfe80 || // link-local fe80::/10
-    (first16Bits & 0xff00) === 0xff00 // multicast ff00::/8
+    (first16Bits & 0xfe00) === 0xfc00 ||
+    (first16Bits & 0xffc0) === 0xfe80 ||
+    (first16Bits & 0xff00) === 0xff00
   ) {
     return true;
   }
 
-  // IPv4-compatible and IPv4-mapped IPv6 literals can otherwise hide a blocked IPv4 address.
   const upper96Bits = address >> 32n;
   if (upper96Bits === IPV4_COMPATIBLE_PREFIX || upper96Bits === IPV4_MAPPED_PREFIX) {
     return isBlockedIpv4(ipv4FromLow32Bits(address));
   }
 
-  // Documentation-only range (RFC 3849) is not publicly routable.
   return address >> 96n === 0x20010db8n;
 }
 

@@ -1,8 +1,3 @@
-/**
- * Cloudflare Worker credential comparison.
- * Verification is delegated to Web Crypto, avoiding a direct JavaScript
- * comparison of secret values.
- */
 export async function matchesProbeSecret(provided: string | null, expected: string): Promise<boolean> {
   const message = new TextEncoder().encode("latencymap-probe-auth-v1");
   const [providedKey, expectedKey] = await Promise.all([

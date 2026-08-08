@@ -1,6 +1,5 @@
 export type HttpUrlPartsResult = { ok: true } | { ok: false; error: string };
 
-/** Normalize scheme/host casing, strip default ports, root slash, and fragments. */
 export function normalizeHttpUrl(url: URL): URL {
   url.hash = "";
   url.protocol = url.protocol.toLowerCase();
@@ -17,7 +16,6 @@ export function normalizeHttpUrl(url: URL): URL {
   return url;
 }
 
-/** Shared protocol, hostname, and credentials checks for public HTTP(S) URLs. */
 export function validateHttpUrlParts(url: URL): HttpUrlPartsResult {
   if (url.protocol !== "http:" && url.protocol !== "https:") {
     return { ok: false, error: "Only HTTP and HTTPS URLs are allowed." };
