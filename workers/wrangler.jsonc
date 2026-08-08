@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/wrangler/config-schema.json",
   "name": "latencymap-probe",
-  "main": "src/worker.ts",
+  "main": "worker.ts",
   "compatibility_date": "2026-07-22",
   "workers_dev": true,
   "vars": {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import worker from "../workers/src/worker";
+import worker from "../workers/worker";
 
 function probeRequest(url: string, secret?: string) {
   return new Request("https://probe.example/probe", {
