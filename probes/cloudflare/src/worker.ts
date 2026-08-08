@@ -1,3 +1,4 @@
+import { matchesProbeSecret } from "./auth";
 import { createDohDnsResolver, withDnsCache } from "../../../lib/dns-resolve";
 import { readLimitedRequestText } from "../../../lib/probe-request-body";
 import { runProbeMeasurement } from "../../../lib/probe-fetch";
@@ -8,6 +9,7 @@ const DEFAULT_REGION = "cloudflare";
 type ProbeEnv = {
   PROBE_REGION?: string;
   PLACEMENT_REGION?: string;
+  PROBE_SECRET?: string;
 };
 
 type CloudflareRequest = Request & {
@@ -35,6 +37,14 @@ const worker = {
 
     if (request.method !== "POST" || requestUrl.pathname !== "/probe") {
       return json({ error: "Not found." }, 404);
+    }
+
+    if (!env.PROBE_SECRET) {
+      return json({ error: "Probe is not configured." }, 503);
+    }
+
+    if (!(await matchesProbeSecret(request.headers.get("x-probe-secret"), env.PROBE_SECRET))) {
+      return json({ error: "Unauthorized." }, 401);
     }
 
     try {
