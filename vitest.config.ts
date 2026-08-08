@@ -4,21 +4,7 @@ import path from "node:path";
 export default defineConfig({
   test: {
     environment: "node",
-    include: ["lib/**/*.test.ts", "probes/**/*.test.ts"],
-    coverage: {
-      provider: "istanbul",
-      reportsDirectory: "./coverage",
-      reporter: ["json", "text"],
-      include: [
-        "lib/**/*.ts",
-        "lib/**/*.tsx",
-        "probes/**/*.ts",
-        "app/**/*.{ts,tsx}",
-        "components/**/*.{ts,tsx}",
-        "scripts/env-local.mjs",
-      ],
-      exclude: ["**/*.test.ts", "**/*.d.ts"],
-    },
+    include: ["tests/**/*.test.ts"],
   },
   resolve: {
     alias: {

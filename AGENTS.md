@@ -4,9 +4,7 @@
 
 Latencymap is a portfolio/demo MVP for testing public API or website latency from multiple real probe regions and visualizing results in a terminal-style dashboard.
 
-**Portfolio pitch:** See `docs/PORTFOLIO.md` for elevator pitch, demo script, and interview/VC framing.
-
-Always read `MVP_PLAN.md` before making product, architecture, or implementation decisions. If this file and `MVP_PLAN.md` conflict, preserve the current explicit user direction in this file and update `MVP_PLAN.md` only when asked.
+Use this file as the source of truth for product, architecture, and implementation decisions.
 
 ## Product Direction
 
@@ -31,9 +29,7 @@ Always read `MVP_PLAN.md` before making product, architecture, or implementation
 ## UI System
 
 - The current UI uses custom terminal-style components in `components/` and CSS in `app/styles.css`.
-- Tailwind CSS is available for utility classes where helpful (`app/layout.tsx`).
-- `components.json` is reserved for future `shadcn/ui` adoption. Add shadcn primitives only when a real UI need appears; do not scaffold unused component libraries.
-- Keep project-specific custom components for domain surfaces such as probe results, latency summaries, and share-page composition.
+- Keep project-specific custom components for domain surfaces such as probe results, latency summaries, and share-page composition. Split only when a module is reused across pages, owns a substantial page experience, or is independently tested — avoid unjustified micro-splits.
 - Do not turn this into a generic component-library showcase. The UI should stay dense, clean, technical, and readable.
 - Avoid marketing hero layouts. Keep the dashboard/tool experience as the first viewport.
 - Exact probe numbers must remain available in the results table and selected-row inspector.
@@ -58,7 +54,7 @@ Browser
 - Central API routes validate and normalize URLs, rate limit anonymous users, call probes in parallel, encode runs into share links, and return results to the UI.
 - Probe endpoints fetch the target URL with strict limits and return timing/status metadata only.
 - Keep the probe HTTP contract provider-agnostic even when the implementation is Cloudflare Workers.
-- Do not switch probes to Fly.io, Render, Railway, or another compute provider unless explicitly requested.
+- Do not switch workers to Fly.io, Render, Railway, or another compute provider unless explicitly requested.
 - Use Cloudflare Worker placement hints where available.
 - Expose actual `request.cf.colo` in probe results so the UI remains honest about where Cloudflare executed the request.
 
@@ -150,7 +146,7 @@ https://api.example.com/health
 - Keep route handlers small and push reusable validation/probe/storage behavior into `lib/`.
 - Never store fetched response bodies.
 - Do not show fake regional data when probe configuration is missing.
-- `PROBE_WORKERS_SUBDOMAIN` and `PROBE_SECRET` are required for real regional tests; Vercel derives Worker URLs from the subdomain and region metadata in `lib/probe-regions.ts`.
+- `PROBE_WORKERS_SUBDOMAIN` and `PROBE_SECRET` are required for real regional tests; Vercel derives Worker URLs from the subdomain and region metadata in `lib/regions.ts`.
 - Regional measurement uses Cloudflare Workers only (no separate local measurement server).
 - Maintain stateless share links that encode full test runs in the URL.
 - Preserve existing user changes in the working tree. Do not revert unrelated files.
@@ -169,13 +165,13 @@ npm run build
 For local app testing:
 
 ```bash
-npm run dev:local
+npm run dev
 ```
 
 For Cloudflare Worker development:
 
 ```bash
-npm run probe:cf:dev
+npm run workers:dev
 ```
 
 ## Collaboration Notes
@@ -188,11 +184,7 @@ npm run probe:cf:dev
 
 ### Issue tracker
 
-Issues and PRDs are tracked in GitHub Issues for `gargi0903/latencymap`. See `docs/agents/issue-tracker.md`.
-
-### Domain docs
-
-Domain documentation uses a single-context layout with root `CONTEXT.md` and root ADRs in `docs/adr/`. See `docs/agents/domain.md`.
+Issues and PRDs are tracked in GitHub Issues for `gargi0903/latencymap`.
 
 ### Loopy
 

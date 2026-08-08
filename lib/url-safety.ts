@@ -1,10 +1,24 @@
-import { createNodeDnsResolver } from "@/lib/dns-resolve-node";
-import { withDnsCache } from "@/lib/dns-resolve";
-import { validatePublicUrlWithDns } from "@/lib/probe-url-safety";
+import dns from "node:dns/promises";
+import type { DnsResolver } from "@/lib/url";
+import { validatePublicUrlWithDns, withDnsCache } from "@/lib/url";
 
-type ValidationResult = { ok: true; url: string } | { ok: false; error: string };
+export function createNodeDnsResolver(): DnsResolver {
+  return async (hostname) => {
+    try {
+      const records = await dns.lookup(hostname, { all: true, verbatim: true });
+      if (records.length === 0) {
+        return { ok: false, error: "Hostname did not resolve." };
+      }
 
-/** Default bare hosts to https://, then run the shared public-URL + DNS checks. */
+      return { ok: true, addresses: records.map((record) => record.address) };
+    } catch {
+      return { ok: false, error: "Hostname did not resolve." };
+    }
+  };
+}
+
+type ValidationResult = { ok: true; url: string } | { ok: false, error: string };
+
 export async function normalizeAndValidatePublicUrl(rawUrl: string): Promise<ValidationResult> {
   const trimmed = rawUrl.trim();
   if (!trimmed) {

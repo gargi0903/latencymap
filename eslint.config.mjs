@@ -7,8 +7,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const require = createRequire(import.meta.url);
 
-// FlatCompat resolves the short "next/*" ids to this package; resolve it
-// explicitly so dependency analysis can see the real eslint-config-next use.
 require.resolve("eslint-config-next");
 
 const compat = new FlatCompat({
@@ -18,14 +16,14 @@ const compat = new FlatCompat({
 const eslintConfig = [
   {
     ignores: [
+      ".cursor/**",
       ".agents/**",
       ".impeccable/**",
       ".next/**",
       ".next-dev/**",
       ".wrangler/**",
-      "probes/**/.wrangler/**",
+      "workers/**/.wrangler/**",
       "node_modules/**",
-      "scripts/**",
       "next-env.d.ts",
     ],
   },
