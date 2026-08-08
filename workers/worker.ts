@@ -1,6 +1,6 @@
 import { matchesProbeSecret } from "./auth";
-import { createDohDnsResolver, withDnsCache, validatePublicUrlWithDns } from "../../lib/url";
-import { readLimitedRequestText, runProbeMeasurement } from "../../lib/measure";
+import { createDohDnsResolver, withDnsCache, validatePublicUrlWithDns } from "../lib/url";
+import { readLimitedRequestText, runProbeMeasurement } from "../lib/measure";
 
 const DEFAULT_REGION = "cloudflare";
 
