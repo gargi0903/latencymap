@@ -1,0 +1,105 @@
+import { describe, expect, it, vi, beforeEach } from "vitest";
+import dns from "node:dns/promises";
+import { clearDnsCacheForTests } from "@/lib/dns-resolve";
+import { normalizeAndValidatePublicUrl } from "@/lib/url-safety";
+
+vi.mock("node:dns/promises", () => ({
+  default: {
+    lookup: vi.fn(),
+  },
+}));
+
+const publicIpv4 = [{ address: "93.184.216.34", family: 4 }];
+
+describe("normalizeAndValidatePublicUrl rejections", () => {
+  beforeEach(() => {
+    clearDnsCacheForTests();
+    vi.mocked(dns.lookup).mockClear();
+    vi.mocked(dns.lookup).mockResolvedValue(publicIpv4);
+  });
+
+  it("rejects unsupported schemes and credentials", async () => {
+    await expect(normalizeAndValidatePublicUrl("ftp://example.com")).resolves.toEqual({
+      ok: false,
+      error: "Only HTTP and HTTPS URLs are allowed.",
+    });
+    await expect(normalizeAndValidatePublicUrl("https://user:pass@example.com")).resolves.toEqual({
+      ok: false,
+      error: "URLs with embedded credentials are not allowed.",
+    });
+  });
+
+  it("rejects localhost hostnames", async () => {
+    await expect(normalizeAndValidatePublicUrl("http://localhost/health")).resolves.toEqual({
+      ok: false,
+      error: "Localhost URLs are not allowed.",
+    });
+    await expect(normalizeAndValidatePublicUrl("https://admin.internal")).resolves.toEqual({
+      ok: false,
+      error: "Localhost URLs are not allowed.",
+    });
+  });
+
+  it("rejects direct private IPs", async () => {
+    await expect(normalizeAndValidatePublicUrl("http://127.0.0.1")).resolves.toEqual({
+      ok: false,
+      error: "Private or internal IP addresses are not allowed.",
+    });
+  });
+
+  it("rejects hostnames that resolve to private IPs", async () => {
+    vi.mocked(dns.lookup).mockResolvedValue([{ address: "10.0.0.5", family: 4 }]);
+
+    await expect(normalizeAndValidatePublicUrl("https://internal.example")).resolves.toEqual({
+      ok: false,
+      error: "This hostname resolves to a private or internal IP address.",
+    });
+  });
+});
+
+describe("normalizeAndValidatePublicUrl normalization and DNS cache", () => {
+  beforeEach(() => {
+    clearDnsCacheForTests();
+    vi.mocked(dns.lookup).mockClear();
+    vi.mocked(dns.lookup).mockResolvedValue(publicIpv4);
+  });
+
+  it("normalizes scheme, host, default ports, fragments, and root slash", async () => {
+    const result = await normalizeAndValidatePublicUrl("HTTPS://Example.COM:443/#frag");
+
+    expect(result).toEqual({
+      ok: true,
+      url: "https://example.com/",
+    });
+  });
+
+  it("preserves non-root paths and query strings", async () => {
+    const result = await normalizeAndValidatePublicUrl("example.com/users?limit=10");
+
+    expect(result).toEqual({
+      ok: true,
+      url: "https://example.com/users?limit=10",
+    });
+  });
+
+  it("caches successful DNS lookups for the same hostname", async () => {
+    await normalizeAndValidatePublicUrl("https://example.com");
+    await normalizeAndValidatePublicUrl("https://example.com/health");
+
+    expect(vi.mocked(dns.lookup)).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not cache failed DNS lookups", async () => {
+    vi.mocked(dns.lookup).mockRejectedValueOnce(new Error("ENOTFOUND"));
+
+    await expect(normalizeAndValidatePublicUrl("https://missing.example")).resolves.toEqual({
+      ok: false,
+      error: "Hostname did not resolve.",
+    });
+
+    vi.mocked(dns.lookup).mockResolvedValue(publicIpv4);
+    await normalizeAndValidatePublicUrl("https://missing.example");
+
+    expect(vi.mocked(dns.lookup)).toHaveBeenCalledTimes(2);
+  });
+});
