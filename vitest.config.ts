@@ -4,7 +4,7 @@ import path from "node:path";
 export default defineConfig({
   test: {
     environment: "node",
-    include: ["lib/**/*.test.ts", "probes/**/*.test.ts"],
+    include: ["lib/**/*.test.ts", "workers/**/*.test.ts"],
     coverage: {
       provider: "istanbul",
       reportsDirectory: "./coverage",
@@ -12,7 +12,7 @@ export default defineConfig({
       include: [
         "lib/**/*.ts",
         "lib/**/*.tsx",
-        "probes/**/*.ts",
+        "workers/**/*.ts",
         "app/**/*.{ts,tsx}",
         "components/**/*.{ts,tsx}",
       ],

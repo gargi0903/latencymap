@@ -55,7 +55,7 @@ Browser
 - Central API routes validate and normalize URLs, rate limit anonymous users, call probes in parallel, encode runs into share links, and return results to the UI.
 - Probe endpoints fetch the target URL with strict limits and return timing/status metadata only.
 - Keep the probe HTTP contract provider-agnostic even when the implementation is Cloudflare Workers.
-- Do not switch probes to Fly.io, Render, Railway, or another compute provider unless explicitly requested.
+- Do not switch workers to Fly.io, Render, Railway, or another compute provider unless explicitly requested.
 - Use Cloudflare Worker placement hints where available.
 - Expose actual `request.cf.colo` in probe results so the UI remains honest about where Cloudflare executed the request.
 
@@ -172,7 +172,7 @@ npm run dev
 For Cloudflare Worker development:
 
 ```bash
-npm run probe:cf:dev
+npm run workers:dev
 ```
 
 ## Collaboration Notes

@@ -14,7 +14,7 @@
     "lib/probe-auth.ts",
     "lib/probe-fetch.ts",
     "lib/probe-url-safety.ts",
-    "probes/**/*.ts"
+    "workers/**/*.ts"
   ],
   "exclude": ["node_modules"]
 }

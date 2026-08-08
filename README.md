@@ -70,7 +70,7 @@ Set `PROBE_WORKERS_SUBDOMAIN` and `PROBE_SECRET` in `.env.local` to run real reg
 | Command | What it does |
 | --- | --- |
 | `npm run dev` | Next.js app |
-| `npm run probe:cf:dev` | Cloudflare Worker via Wrangler |
+| `npm run workers:dev` | Cloudflare Worker via Wrangler |
 | `npm run test` | Run Vitest unit tests |
 | `npm run typecheck` | TypeScript check |
 | `npm run lint` | ESLint |
@@ -85,13 +85,8 @@ app/                      Next.js pages and API routes
   api/tests/              POST run test (share page decodes /r/[id])
 
 components/               Terminal-style UI (dashboard, table, inspector)
-lib/                      Shared logic (probes, URL safety, share encoding, rate limit)
-  probe-response.ts       Map probe wire format → ProbeResult
-  share-payload.ts        Encode/decode share tokens
-  url-safety.ts           Central API SSRF validation
-  probe-fetch.ts          Shared measurement algorithm (warmups + samples)
-probes/
-  cloudflare/             Regional Workers (5 environments)
+lib/                      Shared logic (URL safety, share encoding, rate limit, measurement)
+workers/                  Regional Cloudflare Workers (5 environments)
 ```
 
 ## Environment variables
@@ -111,17 +106,17 @@ Copy `.env.example` to `.env.local` for local development. Set the same variable
 
 ## Production deployment
 
-### 1. Deploy Cloudflare probes
+### 1. Deploy Cloudflare workers
 
 Set the same `PROBE_SECRET` on every Worker environment with Wrangler, then deploy all five regions:
 
 ```bash
-wrangler secret put PROBE_SECRET --config probes/cloudflare/wrangler.jsonc --env iad
-wrangler secret put PROBE_SECRET --config probes/cloudflare/wrangler.jsonc --env lhr
-wrangler secret put PROBE_SECRET --config probes/cloudflare/wrangler.jsonc --env sin
-wrangler secret put PROBE_SECRET --config probes/cloudflare/wrangler.jsonc --env syd
-wrangler secret put PROBE_SECRET --config probes/cloudflare/wrangler.jsonc --env gru
-npm run probe:cf:deploy:regions
+wrangler secret put PROBE_SECRET --config workers/wrangler.jsonc --env iad
+wrangler secret put PROBE_SECRET --config workers/wrangler.jsonc --env lhr
+wrangler secret put PROBE_SECRET --config workers/wrangler.jsonc --env sin
+wrangler secret put PROBE_SECRET --config workers/wrangler.jsonc --env syd
+wrangler secret put PROBE_SECRET --config workers/wrangler.jsonc --env gru
+npm run workers:deploy:regions
 ```
 
 Verify:
