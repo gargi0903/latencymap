@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { ResultsView } from "@/components/results-view";
-import { decodeSharePayload } from "@/lib/share-payload";
+import { decodeSharePayload } from "@/lib/share";
 
 type Props = {
   params: Promise<{ id: string }>;

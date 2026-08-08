@@ -2,7 +2,7 @@
 
 import type { FormEvent, ReactNode, RefObject } from "react";
 import { CmdLabel } from "@/components/cmd-label";
-import { PROBE_COUNTRY_LIST } from "@/lib/probe-regions";
+import { PROBE_COUNTRY_LIST } from "@/lib/regions";
 
 export type TerminalConsoleProps = {
   inputRef: RefObject<HTMLInputElement | null>;

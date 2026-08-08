@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { CmdLabel } from "@/components/cmd-label";
 import { ProbeResultsPanel } from "@/components/probe-results-panel";
-import { sharePathForRun } from "@/lib/share-payload";
-import { useCopyShareLink } from "@/lib/use-copy-share-link";
+import { sharePathForRun } from "@/lib/share";
+import { useCopyShareLink } from "@/components/use-copy-share-link";
 import type { TestRun } from "@/lib/types";
 
 type Props = {

@@ -5,9 +5,9 @@ import { ProbeResultsPanel } from "@/components/probe-results-panel";
 import { TerminalConsole } from "@/components/terminal-console";
 import { renderBootLines, useTerminalBoot } from "@/components/use-terminal-boot";
 import { useTerminalInputCapture } from "@/components/use-terminal-input-capture";
-import { sharePathForRun } from "@/lib/share-payload";
-import { useCopyShareLink } from "@/lib/use-copy-share-link";
-import { useLatencyTest } from "@/lib/use-latency-test";
+import { sharePathForRun } from "@/lib/share";
+import { useCopyShareLink } from "@/components/use-copy-share-link";
+import { useLatencyTest } from "@/components/use-latency-test";
 
 export function LatencyDashboard() {
   const inputRef = useRef<HTMLInputElement>(null);

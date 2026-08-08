@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { PROBE_FETCH_TIMEOUT_MS } from "./constants";
+import { PROBE_FETCH_TIMEOUT_MS } from "./measure";
 import {
   PROBE_FETCH_MEASURE_SAMPLE_COUNT,
   PROBE_FETCH_MIN_SUCCESSFUL_SAMPLES,
@@ -8,7 +8,7 @@ import {
   aggregateLatencySamples,
   roundLatencyMs,
   runProbeMeasurement,
-} from "./probe-fetch";
+} from "./measure";
 
 const validateUrl = vi.fn(async (url: string) => ({ ok: true as const, url }));
 

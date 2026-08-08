@@ -2,7 +2,7 @@
  * @vitest-environment happy-dom
  */
 import { describe, expect, it, vi } from "vitest";
-import { handleTerminalKeyDown, isInteractiveTarget } from "./terminal-key-handler";
+import { handleTerminalKeyDown, isInteractiveTarget } from "./terminal";
 
 function makeEvent(partial: Partial<KeyboardEvent> & { key: string }): KeyboardEvent {
   return {

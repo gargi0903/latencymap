@@ -96,7 +96,7 @@ workers/                  Regional Cloudflare Workers (5 environments)
 | `PROBE_WORKERS_SUBDOMAIN` | Yes | Your Workers subdomain (e.g. `latencymap-gargi.workers.dev`) |
 | `PROBE_SECRET` | Yes | Shared secret between the app and all Workers |
 
-Production probe URLs are derived from `PROBE_WORKERS_SUBDOMAIN` and region metadata in `lib/probe-regions.ts`:
+Production probe URLs are derived from `PROBE_WORKERS_SUBDOMAIN` and region metadata in `lib/regions.ts`:
 
 ```txt
 https://latencymap-probe-{regionId}.{PROBE_WORKERS_SUBDOMAIN}/probe

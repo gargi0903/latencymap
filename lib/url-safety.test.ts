@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import dns from "node:dns/promises";
-import { clearDnsCacheForTests } from "@/lib/dns-resolve";
-import { normalizeAndValidatePublicUrl } from "@/lib/url-safety";
+import { clearDnsCacheForTests } from "@/lib/url";
+import { createNodeDnsResolver, normalizeAndValidatePublicUrl } from "@/lib/url-safety";
 
 vi.mock("node:dns/promises", () => ({
   default: {
@@ -10,6 +10,31 @@ vi.mock("node:dns/promises", () => ({
 }));
 
 const publicIpv4 = [{ address: "93.184.216.34", family: 4 }];
+
+describe("createNodeDnsResolver", () => {
+  beforeEach(() => {
+    clearDnsCacheForTests();
+    vi.mocked(dns.lookup).mockReset();
+  });
+
+  it("returns resolved addresses", async () => {
+    vi.mocked(dns.lookup).mockResolvedValue([{ address: "93.184.216.34", family: 4 }]);
+
+    await expect(createNodeDnsResolver()("example.com")).resolves.toEqual({
+      ok: true,
+      addresses: ["93.184.216.34"],
+    });
+  });
+
+  it("fails when lookup throws", async () => {
+    vi.mocked(dns.lookup).mockRejectedValue(new Error("ENOTFOUND"));
+
+    await expect(createNodeDnsResolver()("missing.example")).resolves.toEqual({
+      ok: false,
+      error: "Hostname did not resolve.",
+    });
+  });
+});
 
 describe("normalizeAndValidatePublicUrl rejections", () => {
   beforeEach(() => {

@@ -9,9 +9,9 @@ import {
   isProbeFailed,
   latencyHexColor,
   latencyMeasurementNote,
-} from "@/lib/latency-display";
-import { defaultSelectedRegion, sortResultsByRegionOrder } from "@/lib/result-order";
-import { probeCountryName } from "@/lib/probe-regions";
+} from "@/lib/results";
+import { defaultSelectedRegion, sortResultsByRegionOrder } from "@/lib/results";
+import { probeCountryName } from "@/lib/regions";
 import type { ProbeResult } from "@/lib/types";
 
 type Props = {

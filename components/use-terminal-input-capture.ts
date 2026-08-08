@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, type Dispatch, type RefObject, type SetStateAction } from "react";
-import { handleTerminalKeyDown, isInteractiveTarget } from "@/lib/terminal-key-handler";
+import { handleTerminalKeyDown, isInteractiveTarget } from "@/lib/terminal";
 
 type TerminalInputCaptureOptions = {
   inputRef: RefObject<HTMLInputElement | null>;
