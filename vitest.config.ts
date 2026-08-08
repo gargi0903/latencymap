@@ -15,7 +15,6 @@ export default defineConfig({
         "probes/**/*.ts",
         "app/**/*.{ts,tsx}",
         "components/**/*.{ts,tsx}",
-        "scripts/env-local.mjs",
       ],
       exclude: ["**/*.test.ts", "**/*.d.ts"],
     },

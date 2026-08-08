@@ -58,19 +58,18 @@ Latency colors: green `<150 ms`, yellow `150–300 ms`, red `>300 ms`, gray = fa
 ```bash
 npm install
 cp .env.example .env.local   # set PROBE_WORKERS_SUBDOMAIN and PROBE_SECRET
-npm run dev:local
+npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
 
-`dev:local` starts the Next.js app. Set `PROBE_WORKERS_SUBDOMAIN` and `PROBE_SECRET` to run real regional tests against deployed Workers.
+Set `PROBE_WORKERS_SUBDOMAIN` and `PROBE_SECRET` in `.env.local` to run real regional tests against deployed Workers.
 
 ### Common commands
 
 | Command | What it does |
 | --- | --- |
-| `npm run dev:local` | Next.js app (recommended) |
-| `npm run dev:app` | Next.js only |
+| `npm run dev` | Next.js app |
 | `npm run probe:cf:dev` | Cloudflare Worker via Wrangler |
 | `npm run test` | Run Vitest unit tests |
 | `npm run typecheck` | TypeScript check |
@@ -93,7 +92,6 @@ lib/                      Shared logic (probes, URL safety, share encoding, rate
   probe-fetch.ts          Shared measurement algorithm (warmups + samples)
 probes/
   cloudflare/             Regional Workers (5 environments)
-scripts/                  Dev and deploy helpers
 ```
 
 ## Environment variables
@@ -115,10 +113,14 @@ Copy `.env.example` to `.env.local` for local development. Set the same variable
 
 ### 1. Deploy Cloudflare probes
 
-Set the same `PROBE_SECRET` on every Worker environment, then deploy all five regions:
+Set the same `PROBE_SECRET` on every Worker environment with Wrangler, then deploy all five regions:
 
 ```bash
-npm run probe:cf:secrets:set
+wrangler secret put PROBE_SECRET --config probes/cloudflare/wrangler.jsonc --env iad
+wrangler secret put PROBE_SECRET --config probes/cloudflare/wrangler.jsonc --env lhr
+wrangler secret put PROBE_SECRET --config probes/cloudflare/wrangler.jsonc --env sin
+wrangler secret put PROBE_SECRET --config probes/cloudflare/wrangler.jsonc --env syd
+wrangler secret put PROBE_SECRET --config probes/cloudflare/wrangler.jsonc --env gru
 npm run probe:cf:deploy:regions
 ```
 
@@ -130,12 +132,11 @@ curl https://latencymap-probe-iad.<your-subdomain>/healthz
 
 ### 2. Configure Vercel
 
-Set `PROBE_WORKERS_SUBDOMAIN` and `PROBE_SECRET` in the Vercel project settings, then redeploy.
+Set these in the Vercel project settings, then redeploy:
 
-Print the env block after deploy:
-
-```bash
-npm run probe:cf:print-env -- <your-workers-subdomain>
+```txt
+PROBE_WORKERS_SUBDOMAIN=<your-workers-subdomain>
+PROBE_SECRET=<same secret deployed to every Cloudflare Worker environment>
 ```
 
 ### 3. Deploy the app
@@ -182,10 +183,3 @@ User-provided URLs are validated on the API and every probe:
 ## What's not in this MVP
 
 No accounts, billing, scheduled monitoring, alerts, custom headers, arbitrary HTTP methods, or server-side history. See `AGENTS.md` for scope boundaries.
-
-## More documentation
-
-| Doc | For |
-| --- | --- |
-| [`CONTEXT.md`](CONTEXT.md) | Short project context and vocabulary |
-| [`AGENTS.md`](AGENTS.md) | Agent and contributor instructions |

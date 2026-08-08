@@ -166,7 +166,7 @@ npm run build
 For local app testing:
 
 ```bash
-npm run dev:local
+npm run dev
 ```
 
 For Cloudflare Worker development:
@@ -186,10 +186,6 @@ npm run probe:cf:dev
 ### Issue tracker
 
 Issues and PRDs are tracked in GitHub Issues for `gargi0903/latencymap`.
-
-### Domain docs
-
-Domain vocabulary lives in root `CONTEXT.md`.
 
 ### Loopy
 
