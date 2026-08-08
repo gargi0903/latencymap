@@ -32,7 +32,6 @@ Always read `docs/MVP_PLAN.md` before making product, architecture, or implement
 
 - The current UI uses custom terminal-style components in `components/` and CSS in `app/styles.css`.
 - Tailwind CSS is available for utility classes where helpful (`app/layout.tsx`).
-- `components.json` is reserved for future `shadcn/ui` adoption. Add shadcn primitives only when a real UI need appears; do not scaffold unused component libraries.
 - Keep project-specific custom components for domain surfaces such as probe results, latency summaries, and share-page composition.
 - Do not turn this into a generic component-library showcase. The UI should stay dense, clean, technical, and readable.
 - Avoid marketing hero layouts. Keep the dashboard/tool experience as the first viewport.
