@@ -30,4 +30,4 @@ After a test runs, reveal the regional results table, selected-row inspector, ma
 - Keep visual polish in the shell, spacing, typography, and evidence hierarchy rather than adding extra pre-run content.
 - Preserve the MVP rule that exact probe numbers remain available in the table and selected-row inspector.
 - Future first-run changes should be judged against the "URL task first" decision.
-- Visual tokens for the live surface are documented in `DESIGN.md` (black terminal + orange accents).
+- Visual tokens for the live surface are documented in `docs/DESIGN.md` (black terminal + orange accents).
