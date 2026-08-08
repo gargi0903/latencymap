@@ -29,7 +29,6 @@ Use this file as the source of truth for product, architecture, and implementati
 ## UI System
 
 - The current UI uses custom terminal-style components in `components/` and CSS in `app/styles.css`.
-- Tailwind CSS is available for utility classes where helpful (`app/layout.tsx`).
 - Keep project-specific custom components for domain surfaces such as probe results, latency summaries, and share-page composition. Split only when a module is reused across pages, owns a substantial page experience, or is independently tested — avoid unjustified micro-splits.
 - Do not turn this into a generic component-library showcase. The UI should stay dense, clean, technical, and readable.
 - Avoid marketing hero layouts. Keep the dashboard/tool experience as the first viewport.
