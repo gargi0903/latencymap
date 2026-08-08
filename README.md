@@ -93,6 +93,7 @@ lib/                      Shared logic (probes, URL safety, share encoding, rate
   probe-fetch.ts          Shared measurement algorithm (warmups + samples)
 probes/
   cloudflare/             Regional Workers (5 environments)
+docs/                     Product, design, portfolio, and architecture docs
 public/docs/html/         Plain-language docs (served at /docs/html/ when deployed)
 scripts/                  Dev and deploy helpers
 ```
