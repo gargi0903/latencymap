@@ -65,86 +65,24 @@ type ProbeFetchOptions = {
   fetchImpl?: typeof fetch;
 };
 
-type ProbePassResult =
-  | {
-      ok: true;
-      resolvedUrl: string;
-      totalMs: number | null;
-      statusCode: number;
-    }
-  | {
-      ok: false;
-      error: string;
-      statusCode: number | null;
-      totalMs: number | null;
-    };
-
-function bindFetch(fetchImpl?: typeof fetch) {
-  return fetchImpl ?? ((input: RequestInfo | URL, init?: RequestInit) => fetch(input, init));
-}
-
-// ponytail: one timed GET (incl. redirects); multi-sample if noise becomes a problem
 export async function runProbeMeasurement(
   targetUrl: string,
   validateUrl: ValidateUrl,
   options: ProbeFetchOptions,
 ): Promise<ProbeFetchResult> {
-  const result = await runProbePass(targetUrl, createMeasurementUrlValidator(validateUrl), {
-    fetchImpl: bindFetch(options.fetchImpl),
-    userAgent: options.userAgent,
-    timeoutMs: PROBE_FETCH_TIMEOUT_MS,
-  });
-
-  if (!result.ok) {
-    return {
-      totalMs: result.totalMs,
-      statusCode: result.statusCode,
-      error: result.error,
-    };
-  }
-
-  return {
-    totalMs: result.totalMs,
-    statusCode: result.statusCode,
-    error: null,
-  };
-}
-
-function probeFetchErrorMessage(error: unknown): string {
-  if (error instanceof Error && error.name === "AbortError") {
-    return "Request timed out.";
-  }
-
-  if (error instanceof Error && error.message) {
-    return `Request failed: ${error.message}`;
-  }
-
-  return "Request failed.";
-}
-
-type ProbePassOptions = {
-  fetchImpl: typeof fetch;
-  userAgent: string;
-  timeoutMs: number;
-};
-
-async function runProbePass(
-  targetUrl: string,
-  validateUrl: ValidateUrl,
-  options: ProbePassOptions,
-): Promise<ProbePassResult> {
+  const fetchImpl = options.fetchImpl ?? fetch;
+  const validateCached = createMeasurementUrlValidator(validateUrl);
   let currentUrl = targetUrl;
   let measuredStarted: number | null = null;
-  const fetchImpl = bindFetch(options.fetchImpl);
 
   for (let redirects = 0; redirects <= PROBE_FETCH_MAX_REDIRECTS; redirects += 1) {
-    const validation = await validateUrl(currentUrl);
+    const validation = await validateCached(currentUrl);
     if (!validation.ok) {
-      return { ok: false, error: validation.error, statusCode: null, totalMs: null };
+      return { totalMs: null, statusCode: null, error: validation.error };
     }
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), options.timeoutMs);
+    const timeout = setTimeout(() => controller.abort(), PROBE_FETCH_TIMEOUT_MS);
 
     try {
       if (measuredStarted === null) {
@@ -164,51 +102,49 @@ async function runProbePass(
         },
       });
 
-      if (!isRedirect(response.status)) {
+      if (!(response.status >= 300 && response.status < 400)) {
         const totalMs = Math.round(performance.now() - measuredStarted);
         await releaseProbeResponse(response);
-        return {
-          ok: true,
-          resolvedUrl: validation.url,
-          totalMs,
-          statusCode: response.status,
-        };
+        return { totalMs, statusCode: response.status, error: null };
       }
 
       const location = response.headers.get("location");
       await releaseProbeResponse(response);
+      const totalMs = Math.round(performance.now() - measuredStarted);
 
       if (!location) {
         return {
-          ok: false,
-          error: "Redirect response did not include a location header.",
+          totalMs,
           statusCode: response.status,
-          totalMs: Math.round(performance.now() - measuredStarted),
+          error: "Redirect response did not include a location header.",
         };
       }
 
       if (redirects === PROBE_FETCH_MAX_REDIRECTS) {
-        return {
-          ok: false,
-          error: "Too many redirects.",
-          statusCode: response.status,
-          totalMs: Math.round(performance.now() - measuredStarted),
-        };
+        return { totalMs, statusCode: response.status, error: "Too many redirects." };
       }
 
       currentUrl = new URL(location, validation.url).toString();
     } catch (error) {
-      return { ok: false, error: probeFetchErrorMessage(error), statusCode: null, totalMs: null };
+      return { totalMs: null, statusCode: null, error: probeFetchErrorMessage(error) };
     } finally {
       clearTimeout(timeout);
     }
   }
 
-  return { ok: false, error: "Too many redirects.", statusCode: null, totalMs: null };
+  return { totalMs: null, statusCode: null, error: "Too many redirects." };
 }
 
-function isRedirect(status: number) {
-  return status >= 300 && status < 400;
+function probeFetchErrorMessage(error: unknown): string {
+  if (error instanceof Error && error.name === "AbortError") {
+    return "Request timed out.";
+  }
+
+  if (error instanceof Error && error.message) {
+    return `Request failed: ${error.message}`;
+  }
+
+  return "Request failed.";
 }
 
 async function releaseProbeResponse(response: Response) {

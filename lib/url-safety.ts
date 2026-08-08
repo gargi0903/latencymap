@@ -1,5 +1,5 @@
 import dns from "node:dns/promises";
-import type { DnsResolver } from "@/lib/url";
+import type { DnsResolver, UrlValidationResult } from "@/lib/url";
 import { validatePublicUrlWithDns, withDnsCache } from "@/lib/url";
 
 export function createNodeDnsResolver(): DnsResolver {
@@ -17,16 +17,16 @@ export function createNodeDnsResolver(): DnsResolver {
   };
 }
 
-type ValidationResult = { ok: true; url: string } | { ok: false, error: string };
+const resolvePublicHostname = withDnsCache(createNodeDnsResolver());
 
-export async function normalizeAndValidatePublicUrl(rawUrl: string): Promise<ValidationResult> {
+export async function normalizeAndValidatePublicUrl(rawUrl: string): Promise<UrlValidationResult> {
   const trimmed = rawUrl.trim();
   if (!trimmed) {
     return { ok: false, error: "Enter a valid URL." };
   }
 
   const candidate = hasUrlScheme(trimmed) ? trimmed : `https://${trimmed}`;
-  const result = await validatePublicUrlWithDns(candidate, withDnsCache(createNodeDnsResolver()));
+  const result = await validatePublicUrlWithDns(candidate, resolvePublicHostname);
   if (!result.ok && result.error === "Enter a valid absolute URL.") {
     return { ok: false, error: "Enter a valid URL." };
   }

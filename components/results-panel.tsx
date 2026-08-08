@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  useCallback,
-  useMemo,
-  useState,
-  type ReactNode,
-} from "react";
+import { useState, type ReactNode } from "react";
 import {
   formatLatency,
   formatProbeMetadataValue,
@@ -13,7 +8,6 @@ import {
   formatProbeTimestamp,
   isProbeFailed,
   latencyHexColor,
-  defaultSelectedRegion,
   sortResultsByRegionOrder,
 } from "@/lib/results";
 import { probeCountryName } from "@/lib/regions";
@@ -31,7 +25,7 @@ export function CmdLabel() {
 export function useCopyShareLink(sharePath: string | null) {
   const [copyState, setCopyState] = useState<"idle" | "copied">("idle");
 
-  const copyShareLink = useCallback(async () => {
+  async function copyShareLink() {
     if (!sharePath) {
       return;
     }
@@ -43,7 +37,7 @@ export function useCopyShareLink(sharePath: string | null) {
     } catch {
       setCopyState("idle");
     }
-  }, [sharePath]);
+  }
 
   return { copyState, copyShareLink };
 }
@@ -52,12 +46,6 @@ type ResultsPanelProps = {
   results: ProbeResult[];
   footer?: ReactNode;
 };
-
-function rowClassName(selected: boolean, failed: boolean) {
-  return ["terminal__table-row", selected ? "terminal__table-row--selected" : null, failed ? "terminal__table-row--failed" : null]
-    .filter(Boolean)
-    .join(" ");
-}
 
 function ProbeInspector({ result }: { result: ProbeResult }) {
   const failed = isProbeFailed(result);
@@ -95,78 +83,10 @@ function ProbeInspector({ result }: { result: ProbeResult }) {
   );
 }
 
-function ResultLatency({ result }: { result: ProbeResult }) {
-  const failed = isProbeFailed(result);
-  return (
-    <span
-      className={["terminal__ms", failed ? "terminal__ms--failed" : null].filter(Boolean).join(" ")}
-      style={failed ? undefined : { color: latencyHexColor(result.totalMs, result.error) }}
-    >
-      {failed ? formatProbeStatus(result) : formatLatency(result)}
-    </span>
-  );
-}
-
-function ResultRow({
-  result,
-  selected,
-  index,
-  onSelect,
-}: {
-  result: ProbeResult;
-  selected: boolean;
-  index: number;
-  onSelect: (region: string) => void;
-}) {
-  return (
-    <li className="terminal__table-item">
-      <button
-        type="button"
-        className={rowClassName(selected, isProbeFailed(result))}
-        style={{ animationDelay: `${index * 45}ms` }}
-        onClick={() => onSelect(result.region)}
-      >
-        <span className="terminal__region">{probeCountryName(result.region)}</span>
-        <ResultLatency result={result} />
-      </button>
-    </li>
-  );
-}
-
-function ResultsBody({
-  orderedResults,
-  currentRegion,
-  selectedResult,
-  onSelect,
-}: {
-  orderedResults: ProbeResult[];
-  currentRegion: string | null;
-  selectedResult: ProbeResult | null;
-  onSelect: (region: string) => void;
-}) {
-  return (
-    <div className="terminal__results-body">
-      <h2 className="terminal__section-title">results</h2>
-      <ul className="terminal__table" aria-label="Latency by country">
-        {orderedResults.map((result, index) => (
-          <ResultRow
-            key={result.region}
-            result={result}
-            selected={currentRegion === result.region}
-            index={index}
-            onSelect={onSelect}
-          />
-        ))}
-      </ul>
-      {selectedResult ? <ProbeInspector result={selectedResult} /> : null}
-    </div>
-  );
-}
-
 export function ResultsPanel({ results, footer }: ResultsPanelProps) {
   const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
-  const orderedResults = useMemo(() => sortResultsByRegionOrder(results), [results]);
-  const currentRegion = selectedRegion ?? defaultSelectedRegion(results);
+  const orderedResults = sortResultsByRegionOrder(results);
+  const currentRegion = selectedRegion ?? orderedResults[0]?.region ?? null;
   const selectedResult = orderedResults.find((result) => result.region === currentRegion) ?? null;
 
   return (
@@ -175,12 +95,42 @@ export function ResultsPanel({ results, footer }: ResultsPanelProps) {
         <span className="terminal__arrow">✓</span>
         probe complete · {results.length} regions
       </p>
-      <ResultsBody
-        orderedResults={orderedResults}
-        currentRegion={currentRegion}
-        selectedResult={selectedResult}
-        onSelect={setSelectedRegion}
-      />
+      <div className="terminal__results-body">
+        <h2 className="terminal__section-title">results</h2>
+        <ul className="terminal__table" aria-label="Latency by country">
+          {orderedResults.map((result, index) => {
+            const failed = isProbeFailed(result);
+            const selected = currentRegion === result.region;
+            return (
+              <li key={result.region} className="terminal__table-item">
+                <button
+                  type="button"
+                  className={[
+                    "terminal__table-row",
+                    selected ? "terminal__table-row--selected" : null,
+                    failed ? "terminal__table-row--failed" : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                  style={{ animationDelay: `${index * 45}ms` }}
+                  onClick={() => setSelectedRegion(result.region)}
+                >
+                  <span className="terminal__region">{probeCountryName(result.region)}</span>
+                  <span
+                    className={["terminal__ms", failed ? "terminal__ms--failed" : null]
+                      .filter(Boolean)
+                      .join(" ")}
+                    style={failed ? undefined : { color: latencyHexColor(result.totalMs, result.error) }}
+                  >
+                    {failed ? formatProbeStatus(result) : formatLatency(result)}
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+        {selectedResult ? <ProbeInspector result={selectedResult} /> : null}
+      </div>
       {footer ? <p className="terminal__log terminal__log--footer">{footer}</p> : null}
     </>
   );

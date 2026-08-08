@@ -28,12 +28,12 @@ type ShareEnvelope = {
 export function encodeSharePayload(run: TestRun): string {
   const wire = testRunToWire(run);
   const json = JSON.stringify({ v: SHARE_VERSION, p: wire } satisfies ShareEnvelope);
-  return toBase64Url(encodeUtf8(json));
+  return toBase64Url(new TextEncoder().encode(json));
 }
 
 export function decodeSharePayload(token: string): TestRun | null {
   try {
-    const json = decodeUtf8(fromBase64Url(token));
+    const json = new TextDecoder().decode(fromBase64Url(token));
     const envelope = JSON.parse(json) as ShareEnvelope;
     if (envelope.v !== SHARE_VERSION || !envelope.p?.u || !Array.isArray(envelope.p.r)) {
       return null;
@@ -121,12 +121,4 @@ function fromBase64Url(token: string): Uint8Array {
     bytes[index] = binary.charCodeAt(index);
   }
   return bytes;
-}
-
-function encodeUtf8(value: string): Uint8Array {
-  return new TextEncoder().encode(value);
-}
-
-function decodeUtf8(bytes: Uint8Array): string {
-  return new TextDecoder().decode(bytes);
 }

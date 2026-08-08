@@ -61,7 +61,3 @@ export function sortResultsByRegionOrder(results: ProbeResult[]): ProbeResult[] 
     return leftIndex - rightIndex;
   });
 }
-
-export function defaultSelectedRegion(results: ProbeResult[]): string | null {
-  return sortResultsByRegionOrder(results)[0]?.region ?? null;
-}

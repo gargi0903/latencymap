@@ -18,24 +18,16 @@ type CloudflareRequest = Request & {
 const resolvePublicHostname = withDnsCache(createDohDnsResolver());
 const validatePublicUrl = (rawUrl: string) => validatePublicUrlWithDns(rawUrl, resolvePublicHostname);
 
-async function matchesProbeSecret(provided: string | null, expected: string): Promise<boolean> {
-  const message = new TextEncoder().encode("latencymap-probe-auth-v1");
-  const [providedKey, expectedKey] = await Promise.all([
-    importHmacKey(provided || "\0"),
-    importHmacKey(expected),
-  ]);
-  const providedSignature = await crypto.subtle.sign("HMAC", providedKey, message);
-  return crypto.subtle.verify("HMAC", expectedKey, providedSignature, message);
-}
+function matchesProbeSecret(provided: string | null, expected: string): boolean {
+  if (!provided || provided.length !== expected.length) {
+    return false;
+  }
 
-function importHmacKey(value: string) {
-  return crypto.subtle.importKey(
-    "raw",
-    new TextEncoder().encode(value),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign", "verify"],
-  );
+  let mismatch = 0;
+  for (let index = 0; index < expected.length; index += 1) {
+    mismatch |= provided.charCodeAt(index) ^ expected.charCodeAt(index);
+  }
+  return mismatch === 0;
 }
 
 const worker = {
@@ -60,7 +52,7 @@ const worker = {
       return json({ error: "Probe is not configured." }, 503);
     }
 
-    if (!(await matchesProbeSecret(request.headers.get("x-probe-secret"), env.PROBE_SECRET))) {
+    if (!matchesProbeSecret(request.headers.get("x-probe-secret"), env.PROBE_SECRET)) {
       return json({ error: "Unauthorized." }, 401);
     }
 

@@ -8,9 +8,9 @@ type Bucket = {
 
 const buckets = new Map<string, Bucket>();
 
-export async function checkRateLimit(
+export function checkRateLimit(
   key: string,
-): Promise<{ ok: true } | { ok: false; retryAfterSeconds: number }> {
+): { ok: true } | { ok: false; retryAfterSeconds: number } {
   const now = Date.now();
   const existing = buckets.get(key);
 

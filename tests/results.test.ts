@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ProbeResult } from "@/lib/types";
-import {
-  defaultSelectedRegion,
-  latencyHexColor,
-  sortResultsByRegionOrder,
-} from "@/lib/results";
+import { latencyHexColor, sortResultsByRegionOrder } from "@/lib/results";
 
 describe("latencyHexColor", () => {
   it("maps latency to the product color contract", () => {
@@ -35,17 +31,5 @@ describe("sortResultsByRegionOrder", () => {
     ]);
 
     expect(ordered.map((entry) => entry.region)).toEqual(["iad", "lhr", "sin"]);
-  });
-});
-
-describe("defaultSelectedRegion", () => {
-  it("defaults to the first configured probe region", () => {
-    expect(
-      defaultSelectedRegion([
-        result("sin", 40),
-        result("iad", 200),
-        result("lhr", 90),
-      ]),
-    ).toBe("iad");
   });
 });

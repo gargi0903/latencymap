@@ -3,12 +3,6 @@
 import { useState, type FormEvent } from "react";
 import type { TestRun } from "@/lib/types";
 
-type CreateTestResponse = {
-  run: TestRun;
-  sharePath: string;
-  error?: string;
-};
-
 export async function fetchLatencyTest(trimmed: string): Promise<
   | { ok: true; run: TestRun; sharePath: string }
   | { ok: false; error: string }
@@ -20,12 +14,18 @@ export async function fetchLatencyTest(trimmed: string): Promise<
       body: JSON.stringify({ url: trimmed }),
     });
 
+    const body = (await response.json().catch(() => null)) as
+      | { run?: TestRun; sharePath?: string; error?: string }
+      | null;
+
     if (!response.ok) {
-      const body = (await response.json().catch(() => null)) as CreateTestResponse | null;
       return { ok: false, error: body?.error ?? "Unable to run latency test." };
     }
 
-    const body = (await response.json()) as CreateTestResponse;
+    if (!body?.run || !body.sharePath) {
+      return { ok: false, error: "Unable to run latency test." };
+    }
+
     return { ok: true, run: body.run, sharePath: body.sharePath };
   } catch {
     return { ok: false, error: "Unable to reach the Latencymap API." };

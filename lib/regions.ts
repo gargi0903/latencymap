@@ -1,53 +1,20 @@
 import { PROBE_CLIENT_TIMEOUT_MS } from "@/lib/measure";
 import type { ProbeConfig, ProbeResult } from "@/lib/types";
 
-type ProbeRegionDefinition = {
-  id: string;
-  label: string;
-  country: string;
-};
-
 const PROBE_REGIONS = [
-  {
-    id: "iad",
-    label: "US East (Ashburn)",
-    country: "United States",
-  },
-  {
-    id: "lhr",
-    label: "Europe West (London)",
-    country: "United Kingdom",
-  },
-  {
-    id: "sin",
-    label: "Asia Southeast (Singapore)",
-    country: "Singapore",
-  },
-  {
-    id: "syd",
-    label: "Australia East (Sydney)",
-    country: "Australia",
-  },
-  {
-    id: "gru",
-    label: "South America (Sao Paulo)",
-    country: "Brazil",
-  },
-] as const satisfies readonly ProbeRegionDefinition[];
+  { id: "iad", label: "US East (Ashburn)", country: "United States" },
+  { id: "lhr", label: "Europe West (London)", country: "United Kingdom" },
+  { id: "sin", label: "Asia Southeast (Singapore)", country: "Singapore" },
+  { id: "syd", label: "Australia East (Sydney)", country: "Australia" },
+  { id: "gru", label: "South America (Sao Paulo)", country: "Brazil" },
+] as const;
 
 export const PROBE_REGION_IDS = PROBE_REGIONS.map((region) => region.id);
 
-const PROBE_COUNTRIES = PROBE_REGIONS.map((region) => region.country);
-
-export const PROBE_COUNTRY_LIST = PROBE_COUNTRIES.join(" · ");
+export const PROBE_COUNTRY_LIST = PROBE_REGIONS.map((region) => region.country).join(" · ");
 
 export function probeCountryName(regionId: string) {
-  const region = PROBE_REGIONS.find((entry) => entry.id === regionId);
-  if (region) {
-    return region.country;
-  }
-
-  return regionId;
+  return PROBE_REGIONS.find((entry) => entry.id === regionId)?.country ?? regionId;
 }
 
 function getProbeEndpoint(regionId: string): string {

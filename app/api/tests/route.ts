@@ -23,7 +23,7 @@ function parseUrlBody(body: unknown): string | null {
 }
 
 export async function POST(request: NextRequest) {
-  const allowed = await checkRateLimit(clientIp(request));
+  const allowed = checkRateLimit(clientIp(request));
   if (!allowed.ok) {
     return NextResponse.json(
       { error: `Rate limit exceeded. Try again in ${allowed.retryAfterSeconds}s.` },
