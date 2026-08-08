@@ -108,8 +108,7 @@ Frame these as **natural next steps**, not current features:
 
 - **Live app:** https://latencymap-six.vercel.app
 - **GitHub:** https://github.com/gargi0903/latencymap
-- **Docs:** `/docs/html/index.html` when deployed (served from `public/docs/html/`)
-- **Architecture:** `README.md` and `public/docs/html/architecture.html`
+- **Architecture:** `README.md` and `docs/PROJECT_OVERVIEW.md`
 
 ## Honesty checklist
 

@@ -94,7 +94,6 @@ lib/                      Shared logic (probes, URL safety, share encoding, rate
 probes/
   cloudflare/             Regional Workers (5 environments)
 docs/                     Product, design, portfolio, and architecture docs
-public/docs/html/         Plain-language docs (served at /docs/html/ when deployed)
 scripts/                  Dev and deploy helpers
 ```
 
@@ -194,6 +193,5 @@ No accounts, billing, scheduled monitoring, alerts, custom headers, arbitrary HT
 | [`docs/MVP_PLAN.md`](docs/MVP_PLAN.md) | Product scope and MVP boundaries |
 | [`docs/PRODUCT.md`](docs/PRODUCT.md) | Product definition |
 | [`docs/DESIGN.md`](docs/DESIGN.md) | Visual system |
-| [`public/docs/html/index.html`](public/docs/html/index.html) | Plain-language guide (live at `/docs/html/`) |
 | [`CONTEXT.md`](CONTEXT.md) | Short project context and vocabulary |
 | [`AGENTS.md`](AGENTS.md) | Agent and contributor instructions |

@@ -60,7 +60,6 @@ Next.js app (Vercel) — /, /r/[id], POST /api/tests
 ## Related docs
 
 - Portfolio pitch: `docs/PORTFOLIO.md`
-- Plain-language guide: `public/docs/html/index.html` (served at `/docs/html/` in production)
 - Product scope: `docs/PRODUCT.md`, `docs/MVP_PLAN.md`
 - Agent instructions: `AGENTS.md`
 - Layout decision: `docs/adr/0001-home-dashboard-layout.md`
