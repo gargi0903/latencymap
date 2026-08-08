@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { matchesProbeSecret } from "@/lib/auth";
+import { matchesProbeSecret } from "../workers/auth";
 
 describe("matchesProbeSecret", () => {
-  it("accepts the configured credential", () => {
-    expect(matchesProbeSecret("correct-secret", "correct-secret")).toBe(true);
+  it("accepts the configured credential", async () => {
+    await expect(matchesProbeSecret("correct-secret", "correct-secret")).resolves.toBe(true);
   });
 
-  it("rejects missing and incorrect credentials", () => {
-    expect(matchesProbeSecret(null, "correct-secret")).toBe(false);
-    expect(matchesProbeSecret("wrong-secret", "correct-secret")).toBe(false);
+  it("rejects missing and incorrect credentials", async () => {
+    await expect(matchesProbeSecret(null, "correct-secret")).resolves.toBe(false);
+    await expect(matchesProbeSecret("wrong-secret", "correct-secret")).resolves.toBe(false);
   });
 });

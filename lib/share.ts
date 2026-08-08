@@ -3,10 +3,7 @@ import type { ProbeResult, TestRun } from "@/lib/types";
 type WireProbe = {
   g: string;
   l: string;
-  a?: number;
-  o?: number;
   m: number | null;
-  f?: number | null;
   s: number | null;
   e: string | null;
   d: string;
@@ -127,17 +124,9 @@ function fromBase64Url(token: string): Uint8Array {
 }
 
 function encodeUtf8(value: string): Uint8Array {
-  if (typeof TextEncoder !== "undefined") {
-    return new TextEncoder().encode(value);
-  }
-
-  return new Uint8Array(Buffer.from(value, "utf8"));
+  return new TextEncoder().encode(value);
 }
 
 function decodeUtf8(bytes: Uint8Array): string {
-  if (typeof TextDecoder !== "undefined") {
-    return new TextDecoder().decode(bytes);
-  }
-
-  return Buffer.from(bytes).toString("utf8");
+  return new TextDecoder().decode(bytes);
 }

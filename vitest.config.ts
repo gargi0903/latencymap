@@ -5,18 +5,6 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["tests/**/*.test.ts"],
-    coverage: {
-      provider: "istanbul",
-      reportsDirectory: "./coverage",
-      reporter: ["json", "text"],
-      include: [
-        "lib/**/*.ts",
-        "lib/**/*.tsx",
-        "workers/**/*.ts",
-        "app/**/*.{ts,tsx}",
-      ],
-      exclude: ["**/*.test.ts", "**/*.d.ts"],
-    },
   },
   resolve: {
     alias: {
