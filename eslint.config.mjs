@@ -24,7 +24,6 @@ const eslintConfig = [
       ".wrangler/**",
       "probes/**/.wrangler/**",
       "node_modules/**",
-      "scripts/**",
       "next-env.d.ts",
     ],
   },
