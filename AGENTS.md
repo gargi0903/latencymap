@@ -4,7 +4,17 @@
 
 Latencymap is a portfolio/demo MVP for testing public API or website latency from multiple real probe regions and visualizing results in a terminal-style dashboard.
 
-Use this file as the source of truth for product, architecture, and implementation decisions.
+Use this file as the source of truth for product, architecture, and implementation decisions. Keep the repo lean: root docs are only `AGENTS.md` and `README.md`. Do not recreate `docs/`, `MVP_PLAN.md`, ADRs, portfolio docs, Tailwind, or shadcn scaffolding unless explicitly asked.
+
+## Project layout
+
+```txt
+app/           Next.js pages + API (`/api/tests`, `/r/[id]`)
+components/    Terminal UI (dashboard, share view, results panel)
+lib/           Shared logic (URL safety, measure, regions, share, types)
+workers/       Cloudflare Worker probe + Wrangler envs
+tests/         Vitest unit tests
+```
 
 ## Product Direction
 
@@ -28,7 +38,7 @@ Use this file as the source of truth for product, architecture, and implementati
 
 ## UI System
 
-- The current UI uses custom terminal-style components in `components/` and CSS in `app/styles.css`.
+- The current UI uses custom terminal-style components in `components/` and plain CSS in `app/styles.css` (no Tailwind, no component library).
 - Keep project-specific custom components for domain surfaces such as probe results, latency summaries, and share-page composition. Split only when a module is reused across pages, owns a substantial page experience, or is independently tested — avoid unjustified micro-splits.
 - Do not turn this into a generic component-library showcase. The UI should stay dense, clean, technical, and readable.
 - Avoid marketing hero layouts. Keep the dashboard/tool experience as the first viewport.
@@ -182,13 +192,6 @@ npm run workers:dev
 
 ## Agent skills
 
-### Issue tracker
-
 Issues and PRDs are tracked in GitHub Issues for `gargi0903/latencymap`.
 
-### Loopy
-
-Use Loopy for repeatable AI-agent workflows: discover loop opportunities in code or threads, find published loops from [Loop Library](https://signals.forwardfuture.com/loop-library/), audit or repair an existing loop, craft a new bounded loop, run one with an evidence receipt, debrief completed runs, or prepare a loop for publication.
-
-- Saved project loops live in root `LOOPS.md` when the user asks to keep one
-- Installing Loopy does not grant runtime permissions or authorize consequential actions
+If using Loopy for a workflow, keep any saved loop in root `LOOPS.md` only when asked — do not add a docs tree for it.

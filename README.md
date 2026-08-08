@@ -173,7 +173,7 @@ User-provided URLs are validated on the API and every probe:
 | Hosting | Vercel |
 | Probes | Cloudflare Workers, Wrangler |
 | Tests | Vitest |
-| Styling | Custom terminal CSS + Tailwind |
+| Styling | Custom terminal CSS (`app/styles.css`) |
 
 ## What's not in this MVP
 
