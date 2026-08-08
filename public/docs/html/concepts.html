@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>How it works — Latencymap</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="layout">
+      <aside class="sidebar">
+        <h1>Latencymap</h1>
+        <p class="tagline">Plain-language guide</p>
+        <nav>
+          <ul>
+            <li><a href="index.html">Overview</a></li>
+            <li><a href="getting-started.html">Getting started</a></li>
+            <li><a href="concepts.html" aria-current="page">How it works</a></li>
+            <li><a href="local-development.html">On your computer</a></li>
+            <li><a href="architecture.html">Behind the scenes</a></li>
+          </ul>
+        </nav>
+      </aside>
+
+      <main class="wide">
+        <h1 class="page-title">How it works</h1>
+        <p class="lead">Every important idea explained in plain English. Filter by topic below.</p>
+
+        <section class="prose">
+          <p>
+            Latencymap has no user accounts and no database. When a test finishes, the results are
+            squeezed into a long link you can copy. Probes never save the content of the pages they
+            visit — only how long the request took and whether it succeeded.
+          </p>
+        </section>
+
+        <section>
+          <h2>Browse by topic</h2>
+          <div id="layer-filters" class="viz-host"></div>
+          <div data-concept-grid-host class="viz-host"></div>
+        </section>
+      </main>
+    </div>
+
+    <script src="concepts-data.js"></script>
+    <script src="visuals.js"></script>
+    <script>
+      if (typeof window !== "undefined") {
+        const V = window.LatencymapVisuals;
+        V.mount("layer-filters", V.renderConceptFilters());
+        document.querySelector("[data-concept-grid-host]").innerHTML = V.renderConceptGrid("all");
+        V.initConceptFilters();
+      }
+    </script>
+  </body>
+</html>

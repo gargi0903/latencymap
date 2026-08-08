@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Latencymap — Learn the project</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="layout">
+      <aside class="sidebar">
+        <h1>Latencymap</h1>
+        <p class="tagline">Portfolio project guide</p>
+        <nav>
+          <ul>
+            <li><a href="index.html" aria-current="page">Overview</a></li>
+            <li><a href="getting-started.html">Getting started</a></li>
+            <li><a href="concepts.html">How it works</a></li>
+            <li><a href="local-development.html">On your computer</a></li>
+            <li><a href="architecture.html">Behind the scenes</a></li>
+          </ul>
+        </nav>
+      </aside>
+
+      <main>
+        <h1 class="page-title">What is Latencymap?</h1>
+        <p class="lead">A portfolio project for job applications and investor demos — explained in plain language.</p>
+
+        <section class="prose">
+          <h2>The idea in one sentence</h2>
+          <p>
+            Latencymap lets you type a public website or API address and see how long it takes to respond
+            from five real regions around the world — shown in a terminal-style results table with exact
+            numbers and a shareable link.
+          </p>
+          <p>
+            <strong>Live demo:</strong>
+            <a href="https://latencymap-six.vercel.app">latencymap-six.vercel.app</a>
+          </p>
+          <p>
+            <strong>Latency</strong> means delay: how many milliseconds pass between asking for a
+            page and receiving the HTTP response. Lower is better. Latencymap reports an aggregated
+            total request time per region (not a separate browser page-load or TTFB breakdown).
+          </p>
+        </section>
+
+        <section>
+          <h2>What happens when you run a test</h2>
+          <div id="overview-flow" class="viz-host"></div>
+          <div class="prose">
+            <p>
+              You stay in your browser the whole time. Behind the scenes, a central server receives
+              your URL, checks it is safe to fetch, and asks small measurement programs (called
+              <strong>probes</strong>) in different regions to visit that URL. Each probe reports
+              back how long it took. You get a shareable link containing the full result — no account
+              and no database needed.
+            </p>
+          </div>
+        </section>
+
+        <section>
+          <h2>The main parts</h2>
+          <div id="overview-layers" class="viz-host"></div>
+        </section>
+
+        <section>
+          <h2>Who is it for?</h2>
+          <div class="prose">
+            <p>
+              Built as a <strong>portfolio project</strong> to demonstrate full-stack engineering. The
+              primary use case is <strong>developers</strong> checking their own public APIs. It also works
+              for founders testing a public website before launch. It is a focused demo — one-off tests,
+              not 24/7 monitoring.
+            </p>
+            <p>
+              See <code>docs/PORTFOLIO.md</code> in the repository for elevator pitch, live demo script,
+              and how to present this in interviews or investor meetings.
+            </p>
+          </div>
+        </section>
+
+        <section>
+          <h2>Continue reading</h2>
+          <div class="card-grid">
+            <a class="card" href="getting-started.html">
+              <strong>Getting started</strong>
+              <span>Install the project and try your first test on your computer.</span>
+            </a>
+            <a class="card" href="concepts.html">
+              <strong>How it works</strong>
+              <span>Every idea explained: probes, safety, share links, colors.</span>
+            </a>
+            <a class="card" href="architecture.html">
+              <strong>Behind the scenes</strong>
+              <span>How local testing differs from the live site.</span>
+            </a>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="concepts-data.js"></script>
+    <script src="visuals.js"></script>
+    <script>
+      if (typeof window !== "undefined") {
+        const V = window.LatencymapVisuals;
+        V.mount("overview-flow", V.renderFlowSvg({
+          title: "Step by step",
+          nodes: [
+            { id: "a", label: "You", sub: "Paste a URL", layer: "ui" },
+            { id: "b", label: "Central server", sub: "Checks & coordinates", layer: "server" },
+            { id: "c", label: "Regional probes", sub: "Visit the URL", layer: "probe" },
+            { id: "d", label: "Results", sub: "Table + inspector", layer: "ui" },
+            { id: "e", label: "Share link", sub: "Copy to others", layer: "data" },
+          ],
+          edges: [
+            { from: "a", to: "b" },
+            { from: "b", to: "c" },
+            { from: "c", to: "b" },
+            { from: "b", to: "d" },
+            { from: "d", to: "e" },
+          ],
+        }));
+        V.mount("overview-layers", V.renderSwimlane({
+          lanes: [
+            { layer: "ui", label: "What you see", items: [
+              { title: "Dashboard", detail: "URL box, Run button, results table" },
+              { title: "Share page", detail: "Same results via a link someone sent you" },
+            ]},
+            { layer: "server", label: "Central server", items: [
+              { title: "Safety checks", detail: "Blocks dangerous or private URLs" },
+              { title: "Rate limits", detail: "Stops abuse — about 10 tests/hour" },
+            ]},
+            { layer: "probe", label: "Regions", items: [
+              { title: "5 Cloudflare Workers", detail: "US, UK, Singapore, Sydney, Brazil" },
+              { title: "Same everywhere", detail: "Local app and live site use the same Workers" },
+            ]},
+          ],
+        }));
+      }
+    </script>
+  </body>
+</html>
