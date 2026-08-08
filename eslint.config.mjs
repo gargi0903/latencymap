@@ -16,6 +16,7 @@ const compat = new FlatCompat({
 const eslintConfig = [
   {
     ignores: [
+      ".cursor/**",
       ".agents/**",
       ".impeccable/**",
       ".next/**",

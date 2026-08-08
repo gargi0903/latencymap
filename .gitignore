@@ -18,10 +18,13 @@ next-env.d.ts
 !.env.example
 .dev.vars
 
-# vercel / cloudflare / local tooling
+# vercel / cloudflare / editor / local tooling
 .vercel/
 .wrangler/
+.cursor/
 .impeccable/
+.agents/
+.fallowrc.json
 .data/
 skills-lock.json
 
