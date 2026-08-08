@@ -4,9 +4,7 @@
 
 Latencymap is a portfolio/demo MVP for testing public API or website latency from multiple real probe regions and visualizing results in a terminal-style dashboard.
 
-**Portfolio pitch:** See `docs/PORTFOLIO.md` for elevator pitch, demo script, and interview/VC framing.
-
-Always read `docs/MVP_PLAN.md` before making product, architecture, or implementation decisions. If this file and `docs/MVP_PLAN.md` conflict, preserve the current explicit user direction in this file and update `docs/MVP_PLAN.md` only when asked.
+Use this file as the source of truth for product, architecture, and implementation decisions.
 
 ## Product Direction
 
@@ -187,11 +185,11 @@ npm run probe:cf:dev
 
 ### Issue tracker
 
-Issues and PRDs are tracked in GitHub Issues for `gargi0903/latencymap`. See `docs/agents/issue-tracker.md`.
+Issues and PRDs are tracked in GitHub Issues for `gargi0903/latencymap`.
 
 ### Domain docs
 
-Domain documentation uses a single-context layout with root `CONTEXT.md` and root ADRs in `docs/adr/`. See `docs/agents/domain.md`.
+Domain vocabulary lives in root `CONTEXT.md`.
 
 ### Loopy
 

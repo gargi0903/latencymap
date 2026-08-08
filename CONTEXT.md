@@ -6,7 +6,7 @@ Latencymap is a **portfolio project** built for job applications and investor pr
 
 **Live demo:** [latencymap-six.vercel.app](https://latencymap-six.vercel.app)
 
-Use [`docs/PORTFOLIO.md`](docs/PORTFOLIO.md) for pitch scripts, demo flow, and how to frame the project in interviews vs VC conversations.
+Product and architecture constraints live in `AGENTS.md`.
 
 ## Core vocabulary
 
@@ -59,8 +59,5 @@ Next.js app (Vercel) — /, /r/[id], POST /api/tests
 
 ## Related docs
 
-- Portfolio pitch: `docs/PORTFOLIO.md`
-- Product scope: `docs/PRODUCT.md`, `docs/MVP_PLAN.md`
-- Agent instructions: `AGENTS.md`
-- Layout decision: `docs/adr/0001-home-dashboard-layout.md`
-- Visual system: `docs/DESIGN.md`
+- Agent instructions and product scope: `AGENTS.md`
+- Setup and deploy: `README.md`

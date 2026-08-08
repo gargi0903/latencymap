@@ -93,7 +93,6 @@ lib/                      Shared logic (probes, URL safety, share encoding, rate
   probe-fetch.ts          Shared measurement algorithm (warmups + samples)
 probes/
   cloudflare/             Regional Workers (5 environments)
-docs/                     Product, design, portfolio, and architecture docs
 scripts/                  Dev and deploy helpers
 ```
 
@@ -182,16 +181,11 @@ User-provided URLs are validated on the API and every probe:
 
 ## What's not in this MVP
 
-No accounts, billing, scheduled monitoring, alerts, custom headers, arbitrary HTTP methods, or server-side history. See [`docs/MVP_PLAN.md`](docs/MVP_PLAN.md) for scope boundaries.
+No accounts, billing, scheduled monitoring, alerts, custom headers, arbitrary HTTP methods, or server-side history. See `AGENTS.md` for scope boundaries.
 
 ## More documentation
 
 | Doc | For |
 | --- | --- |
-| [`docs/PROJECT_OVERVIEW.md`](docs/PROJECT_OVERVIEW.md) | Deep technical overview and source file map |
-| [`docs/PORTFOLIO.md`](docs/PORTFOLIO.md) | Interview pitch, demo script, talking points |
-| [`docs/MVP_PLAN.md`](docs/MVP_PLAN.md) | Product scope and MVP boundaries |
-| [`docs/PRODUCT.md`](docs/PRODUCT.md) | Product definition |
-| [`docs/DESIGN.md`](docs/DESIGN.md) | Visual system |
 | [`CONTEXT.md`](CONTEXT.md) | Short project context and vocabulary |
 | [`AGENTS.md`](AGENTS.md) | Agent and contributor instructions |
