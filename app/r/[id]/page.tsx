@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { ResultsView } from "@/app/ui";
+import { ResultsView } from "@/components/share-view";
 import { decodeSharePayload } from "@/lib/share";
 
 type Props = {

@@ -1,10 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import {
-  useCallback,
   useEffect,
-  useMemo,
   useRef,
   useState,
   useSyncExternalStore,
@@ -14,20 +11,10 @@ import {
   type RefObject,
   type SetStateAction,
 } from "react";
-import {
-  formatLatency,
-  formatProbeMetadataValue,
-  formatProbeStatus,
-  formatProbeTimestamp,
-  isProbeFailed,
-  latencyHexColor,
-  latencyMeasurementNote,
-  defaultSelectedRegion,
-  sortResultsByRegionOrder,
-} from "@/lib/results";
-import { PROBE_COUNTRY_LIST, probeCountryName } from "@/lib/regions";
+import { PROBE_COUNTRY_LIST } from "@/lib/regions";
 import { sharePathForRun } from "@/lib/share";
-import type { ProbeResult, TestRun } from "@/lib/types";
+import { CmdLabel, ResultsPanel, useCopyShareLink } from "@/components/results-panel";
+import { useLatencyTest } from "@/components/use-latency-test";
 
 type TerminalKeyHandlerOptions = {
   input: HTMLInputElement;
@@ -79,112 +66,6 @@ export function handleTerminalKeyDown(event: KeyboardEvent, options: TerminalKey
     options.focusInput();
     options.setUrl((current) => current + event.key);
   }
-}
-
-function CmdLabel() {
-  return (
-    <>
-      <span className="terminal__cmd-latency">latency</span>{" "}
-      <span className="terminal__cmd-map">map</span>
-    </>
-  );
-}
-
-function useCopyShareLink(sharePath: string | null) {
-  const [copyState, setCopyState] = useState<"idle" | "copied">("idle");
-
-  const copyShareLink = useCallback(async () => {
-    if (!sharePath) {
-      return;
-    }
-
-    try {
-      await navigator.clipboard.writeText(`${window.location.origin}${sharePath}`);
-      setCopyState("copied");
-      window.setTimeout(() => setCopyState("idle"), 1800);
-    } catch {
-      setCopyState("idle");
-    }
-  }, [sharePath]);
-
-  return { copyState, copyShareLink };
-}
-
-type CreateTestResponse = {
-  run: TestRun;
-  sharePath: string;
-  error?: string;
-};
-
-export async function fetchLatencyTest(trimmed: string): Promise<
-  | { ok: true; run: TestRun; sharePath: string }
-  | { ok: false; error: string }
-> {
-  try {
-    const response = await fetch("/api/tests", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ url: trimmed }),
-    });
-
-    if (!response.ok) {
-      const body = (await response.json().catch(() => null)) as CreateTestResponse | null;
-      return { ok: false, error: body?.error ?? "Unable to run latency test." };
-    }
-
-    const body = (await response.json()) as CreateTestResponse;
-    return { ok: true, run: body.run, sharePath: body.sharePath };
-  } catch {
-    return { ok: false, error: "Unable to reach the Latencymap API." };
-  }
-}
-
-function useLatencyTest() {
-  const [url, setUrl] = useState("");
-  const [run, setRun] = useState<TestRun | null>(null);
-  const [sharePath, setSharePath] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-
-  async function runTest(targetUrl?: string) {
-    const trimmed = (targetUrl ?? url).trim();
-    if (!trimmed) return;
-
-    setUrl(trimmed);
-    setError(null);
-    setRun(null);
-    setSharePath(null);
-    setIsLoading(true);
-
-    try {
-      const result = await fetchLatencyTest(trimmed);
-      if (!result.ok) {
-        setError(result.error);
-        return;
-      }
-
-      setRun(result.run);
-      setSharePath(result.sharePath);
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  async function onSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    await runTest();
-  }
-
-  return {
-    url,
-    setUrl,
-    run,
-    sharePath,
-    error,
-    isLoading,
-    runTest,
-    onSubmit,
-  };
 }
 
 const BOOT_LINE_MS = 50;
@@ -514,199 +395,6 @@ function TerminalConsole(props: TerminalConsoleProps) {
   );
 }
 
-type ProbeResultsPanelProps = {
-  results: ProbeResult[];
-  footer?: ReactNode;
-};
-
-function rowClassName(selected: boolean, failed: boolean) {
-  return ["terminal__table-row", selected ? "terminal__table-row--selected" : null, failed ? "terminal__table-row--failed" : null]
-    .filter(Boolean)
-    .join(" ");
-}
-
-function ProbeInspector({ result }: { result: ProbeResult }) {
-  const failed = isProbeFailed(result);
-  const latencyColor = latencyHexColor(result.totalMs, result.error);
-
-  return (
-    <dl className="terminal__inspector" aria-label={`Probe details for ${probeCountryName(result.region)}`}>
-      <div className="terminal__inspector-row">
-        <dt>latency</dt>
-        <dd style={{ color: failed ? undefined : latencyColor }}>
-          {failed ? formatProbeStatus(result) : formatLatency(result)}
-        </dd>
-      </div>
-      <div className="terminal__inspector-row">
-        <dt>status</dt>
-        <dd>{formatProbeMetadataValue(result.statusCode)}</dd>
-      </div>
-      <div className="terminal__inspector-row">
-        <dt>region</dt>
-        <dd>{result.label}</dd>
-      </div>
-      <div className="terminal__inspector-row">
-        <dt>colo</dt>
-        <dd>{formatProbeMetadataValue(result.cloudflareColo)}</dd>
-      </div>
-      <div className="terminal__inspector-row">
-        <dt>placement</dt>
-        <dd>{formatProbeMetadataValue(result.placementRegion)}</dd>
-      </div>
-      <div className="terminal__inspector-row">
-        <dt>tested at</dt>
-        <dd>{formatProbeTimestamp(result.testedAt)}</dd>
-      </div>
-    </dl>
-  );
-}
-
-function ResultLatency({ result }: { result: ProbeResult }) {
-  const failed = isProbeFailed(result);
-  return (
-    <span
-      className={["terminal__ms", failed ? "terminal__ms--failed" : null].filter(Boolean).join(" ")}
-      style={failed ? undefined : { color: latencyHexColor(result.totalMs, result.error) }}
-    >
-      {failed ? formatProbeStatus(result) : formatLatency(result)}
-    </span>
-  );
-}
-
-function ResultRow({
-  result,
-  selected,
-  index,
-  onSelect,
-}: {
-  result: ProbeResult;
-  selected: boolean;
-  index: number;
-  onSelect: (region: string) => void;
-}) {
-  return (
-    <li className="terminal__table-item">
-      <button
-        type="button"
-        className={rowClassName(selected, isProbeFailed(result))}
-        style={{ animationDelay: `${index * 45}ms` }}
-        onClick={() => onSelect(result.region)}
-      >
-        <span className="terminal__region">{probeCountryName(result.region)}</span>
-        <ResultLatency result={result} />
-      </button>
-    </li>
-  );
-}
-
-function ResultsBody({
-  orderedResults,
-  currentRegion,
-  selectedResult,
-  onSelect,
-}: {
-  orderedResults: ProbeResult[];
-  currentRegion: string | null;
-  selectedResult: ProbeResult | null;
-  onSelect: (region: string) => void;
-}) {
-  return (
-    <div className="terminal__results-body">
-      <h2 className="terminal__section-title">results</h2>
-      <ul className="terminal__table" aria-label="Latency by country">
-        {orderedResults.map((result, index) => (
-          <ResultRow
-            key={result.region}
-            result={result}
-            selected={currentRegion === result.region}
-            index={index}
-            onSelect={onSelect}
-          />
-        ))}
-      </ul>
-      {selectedResult ? <ProbeInspector result={selectedResult} /> : null}
-      <p className="terminal__log terminal__log--muted terminal__results-note">{latencyMeasurementNote()}</p>
-    </div>
-  );
-}
-
-function ProbeResultsPanel({ results, footer }: ProbeResultsPanelProps) {
-  const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
-  const orderedResults = useMemo(() => sortResultsByRegionOrder(results), [results]);
-  const currentRegion = selectedRegion ?? defaultSelectedRegion(results);
-  const selectedResult = orderedResults.find((result) => result.region === currentRegion) ?? null;
-
-  return (
-    <>
-      <p className="terminal__log terminal__log--complete" role="status">
-        <span className="terminal__arrow">✓</span>
-        probe complete · {results.length} regions
-      </p>
-      <ResultsBody
-        orderedResults={orderedResults}
-        currentRegion={currentRegion}
-        selectedResult={selectedResult}
-        onSelect={setSelectedRegion}
-      />
-      {footer ? <p className="terminal__log terminal__log--footer">{footer}</p> : null}
-    </>
-  );
-}
-
-type ResultsViewProps = {
-  initialRun: TestRun;
-};
-
-export function ResultsView({ initialRun }: ResultsViewProps) {
-  const sharePath = sharePathForRun(initialRun);
-  const { copyState, copyShareLink } = useCopyShareLink(sharePath);
-
-  return (
-    <section
-      className="terminal__session terminal__session--results"
-      aria-label="Shared latency results"
-    >
-      <div className="terminal__console">
-        <p className="terminal__boot-line terminal__boot-line--brand terminal__masthead">
-          <CmdLabel />
-        </p>
-        <p className="terminal__line terminal__line--prompt">
-          <span className="terminal__prefix">
-            <span className="terminal__prompt" aria-hidden="true">
-              $
-            </span>
-          </span>
-          <span className="terminal__input terminal__input--static" title={initialRun.normalizedUrl}>
-            {initialRun.normalizedUrl}
-          </span>
-        </p>
-      </div>
-
-      <div className="terminal__workspace">
-        <ProbeResultsPanel
-          results={initialRun.results}
-          footer={
-            <>
-              <Link href="/" className="terminal__link">
-                new test
-              </Link>
-              <span aria-hidden="true"> · </span>
-              <button
-                type="button"
-                className="terminal__link"
-                title="Copy permanent share link"
-                onClick={copyShareLink}
-              >
-                {copyState === "copied" ? "copied" : "share"}
-              </button>
-            </>
-          }
-        />
-      </div>
-    </section>
-  );
-}
-
 export function LatencyDashboard() {
   const inputRef = useRef<HTMLInputElement>(null);
   const runTestRef = useRef<(targetUrl?: string) => Promise<void>>(async () => {});
@@ -757,7 +445,7 @@ export function LatencyDashboard() {
         />
         {hasResults && run ? (
           <div className="terminal__workspace">
-            <ProbeResultsPanel
+            <ResultsPanel
               key={run.id}
               results={run.results}
               footer={
