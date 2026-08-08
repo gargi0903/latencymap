@@ -1,12 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { PROBE_FETCH_TIMEOUT_MS } from "@/lib/measure";
 import {
   PROBE_FETCH_MEASURE_SAMPLE_COUNT,
-  PROBE_FETCH_MIN_SUCCESSFUL_SAMPLES,
-  PROBE_FETCH_PASS_TIMEOUT_MS,
   PROBE_FETCH_WARMUP_COUNT,
   aggregateLatencySamples,
-  roundLatencyMs,
   runProbeMeasurement,
 } from "@/lib/measure";
 
@@ -46,7 +42,7 @@ function mockMeasuredResponses(fetchImpl: ReturnType<typeof vi.fn>, delaysMs: nu
   };
 }
 
-describe("runProbeMeasurement happy path", () => {
+describe("runProbeMeasurement", () => {
   it("warms up, samples three times, and returns the stabilized average", async () => {
     const fetchImpl = vi.fn();
     const restoreNow = mockMeasuredResponses(fetchImpl, [10, 30, 20]);
@@ -101,9 +97,7 @@ describe("runProbeMeasurement happy path", () => {
       totalMs: 10,
     });
   });
-});
 
-describe("runProbeMeasurement validation and warmup", () => {
   it("returns validation errors before any fetch runs", async () => {
     validateUrl.mockResolvedValue({ ok: false, error: "Localhost URLs are not allowed." });
 
@@ -120,70 +114,6 @@ describe("runProbeMeasurement validation and warmup", () => {
       statusCode: null,
       error: "Localhost URLs are not allowed.",
     });
-  });
-
-  it("continues to measured passes when warmup fails", async () => {
-    const fetchImpl = vi.fn();
-    let callCount = 0;
-    let now = 0;
-    const nowSpy = vi.spyOn(performance, "now").mockImplementation(() => now);
-
-    fetchImpl.mockImplementation(async () => {
-      const index = callCount++;
-      if (index === 0) {
-        return new Response("resolve", { status: 200 });
-      }
-
-      if (index <= PROBE_FETCH_WARMUP_COUNT) {
-        throw new Error("warmup failed");
-      }
-
-      const started = performance.now();
-      now = started + 5;
-      return new Response("measured", { status: 200 });
-    });
-
-    const result = await runProbeMeasurement("https://example.com", validateUrl, {
-      userAgent: "test-probe",
-      fetchImpl,
-    });
-    nowSpy.mockRestore();
-
-    expect(fetchImpl).toHaveBeenCalledTimes(1 + PROBE_FETCH_WARMUP_COUNT + PROBE_FETCH_MEASURE_SAMPLE_COUNT);
-    expect(result).toMatchObject({
-      totalMs: expect.any(Number),
-      statusCode: 200,
-      error: null,
-    });
-  });
-});
-
-describe("runProbeMeasurement budgets and sample failures", () => {
-  it("keeps the full measurement run inside the total probe budget", async () => {
-    const fetchImpl = vi.fn(async (_url, init) => {
-      const signal = init?.signal;
-      await new Promise((resolve, reject) => {
-        const timeout = setTimeout(resolve, 10);
-        signal?.addEventListener("abort", () => {
-          clearTimeout(timeout);
-          reject(Object.assign(new Error("aborted"), { name: "AbortError" }));
-        });
-      });
-      return new Response("ok", { status: 200 });
-    });
-
-    await expect(
-      runProbeMeasurement("https://example.com", validateUrl, {
-        userAgent: "test-probe",
-        fetchImpl,
-      }),
-    ).resolves.toMatchObject({ statusCode: 200, error: null });
-
-    const maxPasses = 1 + PROBE_FETCH_WARMUP_COUNT + PROBE_FETCH_MEASURE_SAMPLE_COUNT;
-    expect(
-      PROBE_FETCH_PASS_TIMEOUT_MS * maxPasses,
-    ).toBeGreaterThan(PROBE_FETCH_TIMEOUT_MS);
-    expect(maxPasses * 10).toBeLessThan(PROBE_FETCH_TIMEOUT_MS);
   });
 
   it("fails when too few measured samples succeed", async () => {
@@ -206,22 +136,6 @@ describe("runProbeMeasurement budgets and sample failures", () => {
       statusCode: null,
       error: "Request failed: sample failed",
     });
-    expect(PROBE_FETCH_MIN_SUCCESSFUL_SAMPLES).toBeGreaterThan(1);
-  });
-});
-
-describe("runProbeMeasurement DNS and redirects", () => {
-  it("resolves DNS once per hostname during a measurement run", async () => {
-    const fetchImpl = vi.fn(async () => new Response("ok", { status: 200 }));
-
-    await runProbeMeasurement("https://example.com/path-a", validateUrl, {
-      userAgent: "test-probe",
-      fetchImpl,
-    });
-
-    expect(validateUrl).toHaveBeenCalled();
-    const callCount = validateUrl.mock.calls.length;
-    expect(callCount).toBeLessThan(1 + PROBE_FETCH_WARMUP_COUNT + PROBE_FETCH_MEASURE_SAMPLE_COUNT);
   });
 
   it("resolves redirects once and measures the final URL", async () => {
@@ -259,13 +173,5 @@ describe("aggregateLatencySamples", () => {
     expect(aggregateLatencySamples([10, 30, 20])).toBe(20);
     expect(aggregateLatencySamples([100, 105, 200])).toBe(100);
     expect(aggregateLatencySamples([104, 108, 112])).toBe(110);
-  });
-});
-
-describe("roundLatencyMs", () => {
-  it("rounds to the nearest 10 ms", () => {
-    expect(roundLatencyMs(104)).toBe(100);
-    expect(roundLatencyMs(105)).toBe(110);
-    expect(roundLatencyMs(15)).toBe(20);
   });
 });

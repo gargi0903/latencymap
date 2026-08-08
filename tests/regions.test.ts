@@ -39,24 +39,22 @@ afterEach(() => {
 });
 
 describe("formatProbeFetchError", () => {
-  it("maps abort errors to a timeout message", () => {
-    expect(formatProbeFetchError(Object.assign(new Error("aborted"), { name: "AbortError" }), sampleProbe)).toBe(
+  it.each([
+    [
+      "timeout",
+      Object.assign(new Error("aborted"), { name: "AbortError" }),
       "Probe timed out.",
-    );
-  });
-
-  it("maps connection failures to deployment guidance", () => {
-    const error = Object.assign(new Error("fetch failed"), {
-      cause: Object.assign(new Error("connect ECONNREFUSED"), { code: "ECONNREFUSED" }),
-    });
-
-    expect(formatProbeFetchError(error, sampleProbe)).toBe(
+    ],
+    [
+      "connection refused",
+      Object.assign(new Error("fetch failed"), {
+        cause: Object.assign(new Error("connect ECONNREFUSED"), { code: "ECONNREFUSED" }),
+      }),
       "Probe unreachable at https://latencymap-probe-iad.example.workers.dev/probe. Check regional Worker deployment and PROBE_WORKERS_SUBDOMAIN.",
-    );
-  });
-
-  it("falls back to a generic probe failure message", () => {
-    expect(formatProbeFetchError(new Error("boom"), sampleProbe)).toBe("Probe failed.");
+    ],
+    ["generic", new Error("boom"), "Probe failed."],
+  ])("maps %s errors", (_label, error, message) => {
+    expect(formatProbeFetchError(error, sampleProbe)).toBe(message);
   });
 });
 

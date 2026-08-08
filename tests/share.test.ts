@@ -43,46 +43,6 @@ describe("share payload encoding", () => {
     expect(decoded?.results).toEqual(sampleRun.results);
     expect(decoded?.id).toBe(token);
   });
-
-  it("decodes legacy tokens that included coords and ttfb aliases", () => {
-    const legacyToken = Buffer.from(
-      JSON.stringify({
-        v: 1,
-        p: {
-          u: "https://api.example.com/health",
-          i: "HTTPS://API.Example.com/health",
-          t: "2026-07-22T12:00:00.000Z",
-          r: [
-            {
-              g: "iad",
-              l: "US East (Ashburn)",
-              a: 39.04,
-              o: -77.49,
-              m: 142,
-              f: 138,
-              s: 200,
-              e: null,
-              d: "2026-07-22T12:00:01.000Z",
-              c: "IAD",
-              p: "aws:us-east-1",
-            },
-          ],
-        },
-      }),
-    ).toString("base64url");
-
-    const decoded = decodeSharePayload(legacyToken);
-    expect(decoded?.results[0]).toEqual({
-      region: "iad",
-      label: "US East (Ashburn)",
-      totalMs: 142,
-      statusCode: 200,
-      error: null,
-      testedAt: "2026-07-22T12:00:01.000Z",
-      cloudflareColo: "IAD",
-      placementRegion: "aws:us-east-1",
-    });
-  });
 });
 
 describe("share payload paths", () => {

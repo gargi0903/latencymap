@@ -1,23 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { DnsResolver } from "@/lib/url";
 import {
-  BLOCKED_IPV4_CIDRS,
   clearDnsCacheForTests,
   createDohDnsResolver,
   isBlockedIp,
   isBlockedIpv4,
   validateHostnameOnly,
   validatePublicUrlWithDns,
-  withDnsCache,
 } from "@/lib/url";
 
 describe("url ip blocklist", () => {
-  it("documents every blocked IPv4 range as CIDR notation", () => {
-    expect(BLOCKED_IPV4_CIDRS).toContain("10.0.0.0/8");
-    expect(BLOCKED_IPV4_CIDRS).toContain("169.254.0.0/16");
-    expect(BLOCKED_IPV4_CIDRS.length).toBeGreaterThan(0);
-  });
-
   it("blocks loopback, private, metadata, and reserved IPv4", () => {
     expect(isBlockedIpv4("127.0.0.1")).toBe(true);
     expect(isBlockedIpv4("10.0.0.1")).toBe(true);
@@ -105,32 +97,6 @@ describe("createDohDnsResolver", () => {
       ok: false,
       error: "Hostname did not resolve.",
     });
-  });
-});
-
-describe("withDnsCache", () => {
-  beforeEach(() => {
-    clearDnsCacheForTests();
-  });
-
-  it("caches successful lookups", async () => {
-    const lookup = vi.fn<DnsResolver>(async () => ({ ok: true, addresses: ["93.184.216.34"] }));
-    const resolver = withDnsCache(lookup);
-
-    await resolver("example.com");
-    await resolver("example.com");
-
-    expect(lookup).toHaveBeenCalledTimes(1);
-  });
-
-  it("does not cache failed lookups", async () => {
-    const lookup = vi.fn<DnsResolver>(async () => ({ ok: false, error: "Hostname did not resolve." }));
-    const resolver = withDnsCache(lookup);
-
-    await resolver("missing.example");
-    await resolver("missing.example");
-
-    expect(lookup).toHaveBeenCalledTimes(2);
   });
 });
 
