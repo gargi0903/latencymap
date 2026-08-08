@@ -22,7 +22,7 @@ const eslintConfig = [
       ".next/**",
       ".next-dev/**",
       ".wrangler/**",
-      "probes/**/.wrangler/**",
+      "workers/**/.wrangler/**",
       "node_modules/**",
       "next-env.d.ts",
     ],
