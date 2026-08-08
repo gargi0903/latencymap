@@ -1,7 +1,4 @@
-/** Conceptual parts of Latencymap — no code file names. */
-
 window.LATENCYMAP_CONCEPTS = [
-  // Product
   {
     id: "product",
     layer: "product",
@@ -48,7 +45,6 @@ window.LATENCYMAP_CONCEPTS = [
     connects: [],
   },
 
-  // Backend
   {
     id: "api",
     layer: "server",
@@ -77,7 +73,6 @@ window.LATENCYMAP_CONCEPTS = [
     connects: [],
   },
 
-  // Probes
   {
     id: "probes",
     layer: "probe",
@@ -106,7 +101,6 @@ window.LATENCYMAP_CONCEPTS = [
     connects: [],
   },
 
-  // Data
   {
     id: "share-link",
     layer: "data",
@@ -126,7 +120,6 @@ window.LATENCYMAP_CONCEPTS = [
     connects: [],
   },
 
-  // Dev & deploy
   {
     id: "local-dev",
     layer: "dev",
@@ -155,7 +148,6 @@ window.LATENCYMAP_CONCEPTS = [
     connects: ["local-dev"],
   },
 
-  // Stack terms (glossary-style)
   {
     id: "nextjs",
     layer: "glossary",

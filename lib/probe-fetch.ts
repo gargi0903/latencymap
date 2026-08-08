@@ -7,7 +7,6 @@ export const PROBE_FETCH_WARMUP_COUNT = 3;
 export const PROBE_FETCH_MEASURE_SAMPLE_COUNT = 3;
 export const PROBE_FETCH_MIN_SUCCESSFUL_SAMPLES = 3;
 export const PROBE_FETCH_PASS_TIMEOUT_MS = 4_000;
-/** Round reported latency to reduce jitter from sub-10ms noise. */
 const LATENCY_ROUNDING_MS = 10;
 
 export type ProbeFetchResult = {
@@ -163,7 +162,6 @@ export async function runProbeMeasurement(
   };
 }
 
-/** Sequential pass runner — warmups/samples must not overlap or timings change. */
 async function runSequentialPasses(
   remaining: number,
   runPass: () => Promise<boolean>,
@@ -314,10 +312,6 @@ export function roundLatencyMs(value: number, stepMs = LATENCY_ROUNDING_MS): num
   return Math.round(value / stepMs) * stepMs;
 }
 
-/**
- * Average the two fastest of three checks, then round to the nearest 10 ms.
- * Drops one slow spike so repeat numbers stay steadier without hiding failures.
- */
 export function aggregateLatencySamples(samples: number[]): number {
   if (samples.length === 0) {
     throw new Error("aggregateLatencySamples requires at least one sample.");
@@ -355,13 +349,10 @@ function isRedirect(status: number) {
   return status >= 300 && status < 400;
 }
 
-/** Release the response body so keep-alive connections can be reused across samples. */
 async function releaseProbeResponse(response: Response) {
   try {
     await response.body?.cancel();
-  } catch {
-    // Ignore body cancellation failures; the sample timing is already captured.
-  }
+  } catch {}
 }
 
 function createMeasurementUrlValidator(validateUrl: ValidateUrl): ValidateUrl {

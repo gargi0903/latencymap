@@ -1,6 +1,5 @@
 import type { ProbeResult, TestRun } from "@/lib/types";
 
-/** Compact wire format for URL-encoded share links. */
 type WireProbe = {
   g: string;
   l: string;

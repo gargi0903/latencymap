@@ -1,23 +1,19 @@
-/**
- * IPv4 literals, CIDR parsing, and blocked private/reserved ranges.
- */
-
 type ParsedCidr = {
   network: number;
   mask: number;
 };
 
 export const BLOCKED_IPV4_CIDRS = [
-  "0.0.0.0/8", // current network
-  "10.0.0.0/8", // private (RFC 1918)
-  "127.0.0.0/8", // loopback
-  "100.64.0.0/10", // carrier-grade NAT (RFC 6598)
-  "169.254.0.0/16", // link-local, cloud metadata
-  "172.16.0.0/12", // private (RFC 1918)
-  "192.168.0.0/16", // private (RFC 1918)
-  "198.18.0.0/15", // benchmark (RFC 2544)
-  "224.0.0.0/4", // multicast
-  "240.0.0.0/4", // reserved
+  "0.0.0.0/8",
+  "10.0.0.0/8",
+  "127.0.0.0/8",
+  "100.64.0.0/10",
+  "169.254.0.0/16",
+  "172.16.0.0/12",
+  "192.168.0.0/16",
+  "198.18.0.0/15",
+  "224.0.0.0/4",
+  "240.0.0.0/4",
 ] as const;
 
 const PARSED_IPV4_CIDRS: ParsedCidr[] = BLOCKED_IPV4_CIDRS.flatMap((cidr) => {

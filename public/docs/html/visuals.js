@@ -34,7 +34,6 @@ function layerIcon(layer) {
   return icons[layer] || "•";
 }
 
-/** @param {{ id?: string, title?: string, nodes: { id: string, label: string, sub?: string, layer?: string }[], edges: { from: string, to: string, label?: string }[] }} spec */
 function renderFlowSvg(spec) {
   const nodeW = 148;
   const nodeH = 52;
@@ -93,7 +92,6 @@ function renderFlowSvg(spec) {
     </figure>`;
 }
 
-/** @param {{ steps: { title: string, detail: string, layer?: string }[] }} spec */
 function renderPipeline(spec) {
   return `<ol class="viz-pipeline">
       ${spec.steps
@@ -110,7 +108,6 @@ function renderPipeline(spec) {
     </ol>`;
 }
 
-/** @param {typeof CONCEPTS[0]} concept */
 function renderConceptCard(concept) {
   const related = (concept.connects || [])
     .map((id) => `<span class="link-chip">${escapeHtml(conceptTitle(id))}</span>`)

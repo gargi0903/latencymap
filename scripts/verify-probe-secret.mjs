@@ -20,9 +20,7 @@ try {
   if (hasProbeSecret) {
     process.exit(0);
   }
-} catch {
-  // Fall through to the actionable error below.
-}
+} catch {}
 
 const target = region ? `the ${region} environment` : "the default Worker environment";
 process.stderr.write(

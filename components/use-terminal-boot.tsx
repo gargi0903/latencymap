@@ -68,9 +68,7 @@ function prefersReducedMotion() {
 function markBootSeen() {
   try {
     sessionStorage.setItem(BOOT_SKIP_KEY, "1");
-  } catch {
-    // Ignore storage failures in private browsing.
-  }
+  } catch {}
 }
 
 function subscribeBootSkipPreference(onStoreChange: () => void) {

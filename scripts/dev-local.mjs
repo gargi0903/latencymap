@@ -4,7 +4,6 @@ import { loadEnvLocal } from "./env-local.mjs";
 const envLocal = loadEnvLocal();
 const baseEnv = { ...envLocal, ...process.env };
 
-// Bind dual-stack (::) so http://localhost works when localhost resolves to ::1.
 const appHost = process.env.APP_HOST || "::";
 const appPort = process.env.APP_PORT || "3000";
 const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
