@@ -28,9 +28,9 @@ Use this file as the source of truth for product, architecture, and implementati
 
 ## UI System
 
-- The current UI uses custom terminal-style components in `components/` and CSS in `app/styles.css`.
+- The current UI lives in `app/ui.tsx` (terminal dashboard, results, share view) with CSS in `app/styles.css`.
 - Tailwind CSS is available for utility classes where helpful (`app/layout.tsx`).
-- Keep project-specific custom components for domain surfaces such as probe results, latency summaries, and share-page composition.
+- Keep domain UI (probe results, latency summaries, share-page composition) in `app/ui.tsx` rather than splitting into a separate component library.
 - Do not turn this into a generic component-library showcase. The UI should stay dense, clean, technical, and readable.
 - Avoid marketing hero layouts. Keep the dashboard/tool experience as the first viewport.
 - Exact probe numbers must remain available in the results table and selected-row inspector.
