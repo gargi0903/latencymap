@@ -1,3 +1,5 @@
+import { LatencyDashboard } from "@/components/dashboard";
+
 export default function HomePage() {
-  return <main>Latencymap</main>;
+  return <LatencyDashboard />;
 }
