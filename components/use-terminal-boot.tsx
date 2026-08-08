@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { CmdLabel } from "@/components/cmd-label";
-import { PROBE_COUNTRY_LIST } from "@/lib/probe-regions";
+import { PROBE_COUNTRY_LIST } from "@/lib/regions";
 
 const BOOT_LINE_MS = 50;
 const BOOT_SKIP_KEY = "latencymap.boot-seen";

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { decodeSharePayload, encodeSharePayload, sharePathForRun } from "./share-payload";
+import { decodeSharePayload, encodeSharePayload, sharePathForRun } from "./share";
 import type { TestRun } from "./types";
 
 const sampleRun: TestRun = {

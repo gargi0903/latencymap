@@ -1,6 +1,55 @@
-import { PROBE_FETCH_TIMEOUT_MS } from "@/lib/constants";
-import type { UrlValidationResult } from "@/lib/probe-url-safety";
-import { parsePublicHttpUrl, stripIpv6Brackets } from "@/lib/probe-url-safety";
+import type { UrlValidationResult } from "@/lib/url";
+import { parsePublicHttpUrl, stripIpv6Brackets } from "@/lib/url";
+
+export const PROBE_FETCH_TIMEOUT_MS = 12_000;
+export const PROBE_CLIENT_TIMEOUT_MS = PROBE_FETCH_TIMEOUT_MS + 2_000;
+
+const PROBE_MAX_REQUEST_BODY_BYTES = 16 * 1024;
+
+export async function readLimitedRequestText(
+  request: Request,
+  maxBodyBytes = PROBE_MAX_REQUEST_BODY_BYTES,
+): Promise<string> {
+  const contentLength = request.headers.get("content-length");
+  if (contentLength && Number(contentLength) > maxBodyBytes) {
+    throw new Error("Request body too large.");
+  }
+
+  if (!request.body) {
+    return "";
+  }
+
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let received = 0;
+
+  try {
+    while (received <= maxBodyBytes) {
+      const { done, value } = await reader.read();
+      if (done) {
+        break;
+      }
+
+      received += value.byteLength;
+      if (received > maxBodyBytes) {
+        throw new Error("Request body too large.");
+      }
+
+      chunks.push(value);
+    }
+  } finally {
+    await reader.cancel().catch(() => undefined);
+  }
+
+  const body = new Uint8Array(received);
+  let offset = 0;
+  for (const chunk of chunks) {
+    body.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+
+  return new TextDecoder().decode(body);
+}
 
 const PROBE_FETCH_MAX_REDIRECTS = 3;
 export const PROBE_FETCH_WARMUP_COUNT = 3;

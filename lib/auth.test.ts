@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { matchesProbeSecret } from "./probe-auth";
+import { matchesProbeSecret } from "./auth";
 
 describe("matchesProbeSecret", () => {
   it("accepts the configured credential", () => {

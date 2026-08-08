@@ -1,4 +1,5 @@
-import { PROBE_FETCH_MEASURE_SAMPLE_COUNT } from "@/lib/probe-fetch";
+import { PROBE_FETCH_MEASURE_SAMPLE_COUNT } from "@/lib/measure";
+import { PROBE_REGION_IDS } from "@/lib/regions";
 import type { ProbeResult } from "@/lib/types";
 
 const LATENCY_FAST_MS = 150;
@@ -54,4 +55,18 @@ export function formatProbeMetadataValue(value: string | number | null | undefin
   }
 
   return String(value);
+}
+
+const REGION_ORDER = new Map<string, number>(PROBE_REGION_IDS.map((id, index) => [id, index]));
+
+export function sortResultsByRegionOrder(results: ProbeResult[]): ProbeResult[] {
+  return [...results].sort((left, right) => {
+    const leftIndex = REGION_ORDER.get(left.region) ?? Number.MAX_SAFE_INTEGER;
+    const rightIndex = REGION_ORDER.get(right.region) ?? Number.MAX_SAFE_INTEGER;
+    return leftIndex - rightIndex;
+  });
+}
+
+export function defaultSelectedRegion(results: ProbeResult[]): string | null {
+  return sortResultsByRegionOrder(results)[0]?.region ?? null;
 }

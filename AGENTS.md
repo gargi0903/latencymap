@@ -147,7 +147,7 @@ https://api.example.com/health
 - Keep route handlers small and push reusable validation/probe/storage behavior into `lib/`.
 - Never store fetched response bodies.
 - Do not show fake regional data when probe configuration is missing.
-- `PROBE_WORKERS_SUBDOMAIN` and `PROBE_SECRET` are required for real regional tests; Vercel derives Worker URLs from the subdomain and region metadata in `lib/probe-regions.ts`.
+- `PROBE_WORKERS_SUBDOMAIN` and `PROBE_SECRET` are required for real regional tests; Vercel derives Worker URLs from the subdomain and region metadata in `lib/regions.ts`.
 - Regional measurement uses Cloudflare Workers only (no separate local measurement server).
 - Maintain stateless share links that encode full test runs in the URL.
 - Preserve existing user changes in the working tree. Do not revert unrelated files.
