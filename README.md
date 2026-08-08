@@ -48,7 +48,7 @@ Browser
 - **Stateless share links** — The full test run is packed into the URL path. No Postgres, Redis, or server-side history.
 - **Direct fan-out** — Vercel calls five regional Workers in parallel (no coordinator, no database).
 - **Honest regional metadata** — Placement is a hint; the UI shows actual `cloudflare_colo` from each probe.
-- **Stable latency** — Three warmups plus three timed samples per region; slowest spike dropped; rounded to 10 ms.
+- **Stable latency** — One timed GET per region (redirects followed and validated).
 - **SSRF protection** — URL validation and DNS checks on the API and every probe before fetch.
 
 Latency colors: green `<150 ms`, yellow `150–300 ms`, red `>300 ms`, gray = failed.

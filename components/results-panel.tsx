@@ -13,7 +13,6 @@ import {
   formatProbeTimestamp,
   isProbeFailed,
   latencyHexColor,
-  latencyMeasurementNote,
   defaultSelectedRegion,
   sortResultsByRegionOrder,
 } from "@/lib/results";
@@ -160,7 +159,6 @@ function ResultsBody({
         ))}
       </ul>
       {selectedResult ? <ProbeInspector result={selectedResult} /> : null}
-      <p className="terminal__log terminal__log--muted terminal__results-note">{latencyMeasurementNote()}</p>
     </div>
   );
 }

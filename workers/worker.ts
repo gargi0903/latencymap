@@ -1,4 +1,3 @@
-import { matchesProbeSecret } from "./auth";
 import { createDohDnsResolver, withDnsCache, validatePublicUrlWithDns } from "../lib/url";
 import { readLimitedRequestText, runProbeMeasurement } from "../lib/measure";
 
@@ -18,6 +17,26 @@ type CloudflareRequest = Request & {
 
 const resolvePublicHostname = withDnsCache(createDohDnsResolver());
 const validatePublicUrl = (rawUrl: string) => validatePublicUrlWithDns(rawUrl, resolvePublicHostname);
+
+async function matchesProbeSecret(provided: string | null, expected: string): Promise<boolean> {
+  const message = new TextEncoder().encode("latencymap-probe-auth-v1");
+  const [providedKey, expectedKey] = await Promise.all([
+    importHmacKey(provided || "\0"),
+    importHmacKey(expected),
+  ]);
+  const providedSignature = await crypto.subtle.sign("HMAC", providedKey, message);
+  return crypto.subtle.verify("HMAC", expectedKey, providedSignature, message);
+}
+
+function importHmacKey(value: string) {
+  return crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(value),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign", "verify"],
+  );
+}
 
 const worker = {
   async fetch(request: CloudflareRequest, env: ProbeEnv) {

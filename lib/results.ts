@@ -1,4 +1,3 @@
-import { PROBE_FETCH_MEASURE_SAMPLE_COUNT } from "@/lib/measure";
 import { PROBE_REGION_IDS } from "@/lib/regions";
 import type { ProbeResult } from "@/lib/types";
 
@@ -28,10 +27,6 @@ export function formatLatency(result: Pick<ProbeResult, "totalMs">) {
 export function formatProbeStatus(result: Pick<ProbeResult, "error" | "statusCode">) {
   if (result.error) return result.error;
   return result.statusCode === null ? "n/a" : `${result.statusCode}`;
-}
-
-export function latencyMeasurementNote() {
-  return `each region: ${PROBE_FETCH_MEASURE_SAMPLE_COUNT} checks, slowest ignored, rounded to 10 ms`;
 }
 
 export function latencyHexColor(totalMs: number | null, error: string | null) {
