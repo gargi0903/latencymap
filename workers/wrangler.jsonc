@@ -13,6 +13,7 @@
   "env": {
     "iad": {
       "name": "latencymap-probe-iad",
+      "workers_dev": true,
       "placement": {
         "mode": "targeted",
         "region": "aws:us-east-1"
@@ -24,6 +25,7 @@
     },
     "lhr": {
       "name": "latencymap-probe-lhr",
+      "workers_dev": true,
       "placement": {
         "mode": "targeted",
         "region": "aws:eu-west-2"
@@ -35,6 +37,7 @@
     },
     "sin": {
       "name": "latencymap-probe-sin",
+      "workers_dev": true,
       "placement": {
         "mode": "targeted",
         "region": "aws:ap-southeast-1"
@@ -46,6 +49,7 @@
     },
     "syd": {
       "name": "latencymap-probe-syd",
+      "workers_dev": true,
       "placement": {
         "mode": "targeted",
         "region": "aws:ap-southeast-2"
@@ -57,6 +61,7 @@
     },
     "gru": {
       "name": "latencymap-probe-gru",
+      "workers_dev": true,
       "placement": {
         "mode": "targeted",
         "region": "aws:sa-east-1"

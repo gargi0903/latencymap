@@ -11,7 +11,12 @@
     "test": "vitest run",
     "workers:dev": "wrangler dev --config workers/wrangler.jsonc",
     "workers:deploy": "wrangler deploy --config workers/wrangler.jsonc",
-    "workers:deploy:regions": "for env in iad lhr sin syd gru; do wrangler deploy --config workers/wrangler.jsonc --env \"$env\" || exit 1; done"
+    "workers:deploy:iad": "wrangler deploy --config workers/wrangler.jsonc --env iad",
+    "workers:deploy:lhr": "wrangler deploy --config workers/wrangler.jsonc --env lhr",
+    "workers:deploy:sin": "wrangler deploy --config workers/wrangler.jsonc --env sin",
+    "workers:deploy:syd": "wrangler deploy --config workers/wrangler.jsonc --env syd",
+    "workers:deploy:gru": "wrangler deploy --config workers/wrangler.jsonc --env gru",
+    "workers:deploy:regions": "npm run workers:deploy:iad && npm run workers:deploy:lhr && npm run workers:deploy:sin && npm run workers:deploy:syd && npm run workers:deploy:gru"
   },
   "dependencies": {
     "next": "^15.0.4",
