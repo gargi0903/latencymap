@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { encodeSharePayload, sharePathForRun } from "@/lib/share-payload";
 import { ProbeConfigurationError, runRegionalTest } from "@/lib/probes";
 import { normalizeAndValidatePublicUrl } from "@/lib/url-safety";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -51,12 +52,13 @@ export async function POST(request: NextRequest) {
   }
 
   const run: TestRun = {
-    id: crypto.randomUUID(),
+    id: "",
     inputUrl,
     normalizedUrl: validation.url,
     createdAt: new Date().toISOString(),
     results,
   };
+  run.id = encodeSharePayload(run);
 
-  return NextResponse.json({ run });
+  return NextResponse.json({ run, sharePath: sharePathForRun(run) });
 }
