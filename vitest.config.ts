@@ -14,7 +14,6 @@ export default defineConfig({
         "lib/**/*.tsx",
         "workers/**/*.ts",
         "app/**/*.{ts,tsx}",
-        "components/**/*.{ts,tsx}",
       ],
       exclude: ["**/*.test.ts", "**/*.d.ts"],
     },
