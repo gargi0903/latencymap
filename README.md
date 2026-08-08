@@ -79,10 +79,11 @@ Set `PROBE_WORKERS_SUBDOMAIN` and `PROBE_SECRET` in `.env.local` to run real reg
 ## Project layout
 
 ```txt
-app/                      Next.js pages, API routes, and terminal UI (`ui.tsx`)
+app/                      Next.js pages and API routes
   page.tsx                Home dashboard
   r/[id]/page.tsx         Shareable result page
   api/tests/              POST run test (share page decodes /r/[id])
+components/               Terminal UI (dashboard, share view, shared results panel, test hook)
 lib/                      Shared logic (URL safety, share encoding, rate limit, measurement)
 workers/                  Regional Cloudflare Workers (5 environments)
 tests/                    Unit tests

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
-import { fetchLatencyTest } from "@/app/ui";
+import { fetchLatencyTest } from "@/components/use-latency-test";
 
 afterEach(() => {
   vi.unstubAllGlobals();
