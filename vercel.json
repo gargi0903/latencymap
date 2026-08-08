@@ -1,0 +1,10 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "fluid": true,
+  "regions": ["iad1"],
+  "functions": {
+    "app/api/tests/route.ts": {
+      "maxDuration": 30
+    }
+  }
+}
