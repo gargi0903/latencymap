@@ -420,7 +420,6 @@ Local app development calls the same five regional Workers as production when en
 | `AGENTS.md` | Cursor agent instructions |
 | `docs/PRODUCT.md` | Product definition |
 | `docs/DESIGN.md` | Visual system (shipped terminal UI) |
-| `public/docs/html/` | Plain-language HTML docs (served at `/docs/html/` when deployed) |
 
 ---
 
